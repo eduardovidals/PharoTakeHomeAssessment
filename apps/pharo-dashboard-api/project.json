@@ -3,6 +3,15 @@
   "projectType": "application",
   "sourceRoot": "apps/pharo-dashboard-api",
   "targets": {
+    "format": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["compile"],
+      "options": {
+        "command": "node scripts/dotnet.mjs format PharoTakeHomeAssessment.sln --verify-no-changes --no-restore --verbosity minimal",
+        "cwd": "."
+      }
+    },
     "compile": {
       "executor": "nx:run-commands",
       "cache": false,

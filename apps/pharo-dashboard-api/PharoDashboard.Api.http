@@ -2,3 +2,19 @@
 
 GET {{PharoApi}}/health
 Accept: application/json
+
+### Sorted instruments in the supplied dataset
+GET {{PharoApi}}/api/instruments
+Accept: application/json
+
+### Full chronological closing-price series (currency is unspecified)
+GET {{PharoApi}}/api/prices/TICK0001
+Accept: application/json
+
+### Percentage-valued total return, daily sample volatility, and maximum drawdown
+GET {{PharoApi}}/api/prices/TICK0001/stats
+Accept: application/json
+
+### Unknown instruments return a safe 404 ProblemDetails response
+GET {{PharoApi}}/api/prices/UNKNOWN/stats
+Accept: application/problem+json

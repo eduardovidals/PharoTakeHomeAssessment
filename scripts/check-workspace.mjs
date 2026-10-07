@@ -34,7 +34,7 @@ console.log('Workspace contains exactly the eight public projects.');
 // run-many skips missing targets; assert each currently required lane before running it.
 const requiredTargets = {
   'pharo-dashboard-ui': ['typecheck', 'test', 'build', 'infrastructure', 'e2e'],
-  'pharo-dashboard-api': ['compile', 'test', 'build'],
+  'pharo-dashboard-api': ['compile', 'format', 'test', 'build'],
   '@pharo/eslint-config': ['test'],
   '@pharo/prettier-config': ['test'],
   '@pharo/react-components': ['typecheck:catalog', 'storybook', 'storybook:build'],
