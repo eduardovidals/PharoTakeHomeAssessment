@@ -218,7 +218,7 @@ test.describe('Use the built Pharo components without application providers', ()
     await expect(page.getByRole('textbox', { name: 'Disabled note' })).toBeDisabled();
   });
 
-  test('the real combobox portal supports filtering, selection, escape, disabled options, and empty content', async ({
+  test('the real combobox portal supports filtering, selection, escape, and disabled options', async ({
     page,
   }, testInfo) => {
     const input = page.getByRole('combobox', { name: 'Plant', exact: true });
@@ -253,21 +253,36 @@ test.describe('Use the built Pharo components without application providers', ()
     await page.keyboard.press('Escape');
     await expect(list).toBeHidden();
     await expect(input).toBeFocused();
+  });
+
+  test('clicking empty collection content cannot fabricate a selected value', async ({ page }) => {
     const empty = page.getByRole('combobox', { name: 'Empty collection' });
     await empty.scrollIntoViewIfNeeded();
     await empty.click();
     await empty.press('ArrowDown');
     await expect(page.getByText('No options found.', { exact: true })).toBeVisible();
     await page.getByText('No options found.', { exact: true }).click();
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Enter');
     await expect(empty).toHaveValue('');
     await expect(page.getByText('Selected empty key: none', { exact: true })).toBeVisible();
-    // Inert empty text may clear focus; separately exercise input-owned keyboard dismissal.
+  });
+
+  test('a focused empty combobox cannot select with Enter and keeps focus after Escape', async ({
+    page,
+  }) => {
+    const empty = page.getByRole('combobox', { name: 'Empty collection' });
+    await empty.scrollIntoViewIfNeeded();
     await empty.click();
+    await expect(empty).toBeFocused();
     await empty.press('ArrowDown');
     await expect(page.getByText('No options found.', { exact: true })).toBeVisible();
-    await page.keyboard.press('Escape');
+    await empty.press('Enter');
+    await expect(empty).toHaveValue('');
+    await expect(page.getByText('Selected empty key: none', { exact: true })).toBeVisible();
+    await expect(empty).toBeFocused();
+    await expect(empty).toHaveAttribute('aria-expanded', 'false');
+    await empty.press('ArrowDown');
+    await expect(page.getByText('No options found.', { exact: true })).toBeVisible();
+    await empty.press('Escape');
     await expect(empty).toBeFocused();
     await expect(empty).toHaveAttribute('aria-expanded', 'false');
   });
