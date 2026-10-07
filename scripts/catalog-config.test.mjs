@@ -149,7 +149,8 @@ for (const catalog of catalogs) {
       );
       await writeFile(
         path.join(fixture, 'fixture.css'),
-        `@import ${JSON.stringify(theme)};\n@source inline("pressed:underline");\n`,
+        `@import ${JSON.stringify(theme)};\n` +
+          '@source inline("pressed:underline bg-pharo-surface text-pharo-foreground pharo-focus-ring");\n',
       );
       await writeFile(
         path.join(fixture, '.dev-private/scan-sentinel.tsx'),
@@ -178,6 +179,10 @@ for (const catalog of catalogs) {
       assert.match(css, /text-decoration-line:\s*underline/);
       assert.match(css, /font-family:\s*var\(--default-font-family,/);
       assert.match(css, /--font-sans:[^;]*sans-serif[^;]*;/);
+      assert.match(css, /--color-pharo-surface:\s*[^;]+;/);
+      assert.match(css, /\.bg-pharo-surface\s*\{/);
+      assert.match(css, /\.text-pharo-foreground\s*\{/);
+      assert.match(css, /\.pharo-focus-ring/);
       assert.equal(css.includes('19137'), false, 'Private fixtures do not enter Tailwind scanning');
       const previewModule = outputs.find((output) => output.type === 'chunk' && output.isEntry);
       assert.ok(previewModule);

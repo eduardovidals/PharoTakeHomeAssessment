@@ -10,8 +10,8 @@
   "scripts": {
     "lint": "eslint apps/pharo-dashboard-ui packages scripts *.mjs",
     "lint:fix": "pnpm lint --fix",
-    "typecheck": "node scripts/nx.mjs run-many -t typecheck,typecheck:catalog,compile -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/react-components,@pharo/react-form-components,@pharo/react-charts",
-    "test": "pnpm check:routes && node scripts/nx.mjs run-many -t test,infrastructure -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/eslint-config,@pharo/prettier-config",
+    "typecheck": "node scripts/nx.mjs run-many -t typecheck,typecheck:catalog,compile -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/react-components,@pharo/react-form-components,@pharo/react-charts,@pharo/tailwind-plugin",
+    "test": "pnpm check:routes && node scripts/nx.mjs run-many -t test,infrastructure -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/eslint-config,@pharo/prettier-config,@pharo/tailwind-plugin",
     "build": "node scripts/nx.mjs run-many -t build -p pharo-dashboard-ui,pharo-dashboard-api",
     "validate": "node scripts/validate.mjs",
     "dev": "node scripts/dev.mjs",

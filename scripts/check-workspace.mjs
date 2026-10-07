@@ -37,6 +37,7 @@ const requiredTargets = {
   'pharo-dashboard-api': ['compile', 'format', 'test', 'build'],
   '@pharo/eslint-config': ['test'],
   '@pharo/prettier-config': ['test'],
+  '@pharo/tailwind-plugin': ['typecheck', 'test'],
   '@pharo/react-components': ['typecheck:catalog', 'storybook', 'storybook:build'],
   '@pharo/react-form-components': ['typecheck:catalog', 'storybook', 'storybook:build'],
   '@pharo/react-charts': ['typecheck:catalog', 'storybook', 'storybook:build'],

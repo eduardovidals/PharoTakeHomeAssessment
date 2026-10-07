@@ -4,4 +4,145 @@
 @source '../pharo-react-components/src';
 @source '../pharo-react-form-components/src';
 @source '../pharo-react-charts/src';
+@source '../pharo-react-components/dist';
+@source '../pharo-react-form-components/dist';
+@source '../pharo-react-charts/dist';
+@source '../react-components/dist';
+@source '../react-form-components/dist';
+@source '../react-charts/dist';
 @source '../../apps/pharo-dashboard-ui/src';
+
+/*
+ * Public palette inspiration: https://www.pharo.com/ (observed 2026-10-07).
+ * Brand primitives reflect website colors. Dashboard semantics, chart colors,
+ * typography and dimensions below are independently chosen for this interface.
+ * Consumers declare their own source and installed component dist paths with
+ * @source; explicit consumer paths also support package-manager symlink layouts.
+ */
+@theme static {
+  --color-pharo-brand-navy: #00217f;
+  --color-pharo-brand-blue: #003d87;
+  --color-pharo-brand-cyan: #009ee3;
+  --color-pharo-brand-deep: #00326e;
+  --color-pharo-brand-white: #ffffff;
+  --color-pharo-brand-body: #3c3c3c;
+
+  --color-pharo-canvas: #f4f7fb;
+  --color-pharo-surface: var(--color-pharo-brand-white);
+  --color-pharo-surface-quiet: #edf3f9;
+  --color-pharo-foreground: #13243d;
+  --color-pharo-muted: #52647b;
+  /* Separators are decorative; controls use the stronger control-border role. */
+  --color-pharo-border: #c4cfdd;
+  --color-pharo-control-border: #7a8ca5;
+  --color-pharo-action: var(--color-pharo-brand-blue);
+  --color-pharo-action-hover: var(--color-pharo-brand-deep);
+  --color-pharo-action-active: var(--color-pharo-brand-navy);
+  --color-pharo-on-action: var(--color-pharo-brand-white);
+  --color-pharo-selected: #e8f2fc;
+  --color-pharo-focus: #006fa6;
+  --color-pharo-disabled-surface: #e5ebf2;
+  --color-pharo-disabled-foreground: var(--color-pharo-muted);
+  --color-pharo-error: #b4233a;
+  --color-pharo-error-surface: #fff1f2;
+  --color-pharo-success: #166c4a;
+  --color-pharo-success-surface: #edf8f2;
+  --color-pharo-warning: #8a5600;
+  --color-pharo-warning-surface: #fff7e5;
+
+  /* Chart colors are reinforced by labels and these distinct line patterns. */
+  --color-pharo-chart-1: var(--color-pharo-brand-blue);
+  --color-pharo-chart-2: #007a9b;
+  --color-pharo-chart-3: #996200;
+
+  /* System stacks avoid external font requests and distributed font assets. */
+  --font-pharo-body:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  --font-pharo-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  --text-pharo-xs: 0.75rem;
+  --text-pharo-xs--line-height: 1.125rem;
+  --text-pharo-sm: 0.875rem;
+  --text-pharo-sm--line-height: 1.25rem;
+  --text-pharo-base: 1rem;
+  --text-pharo-base--line-height: 1.5rem;
+  --text-pharo-lg: 1.125rem;
+  --text-pharo-lg--line-height: 1.75rem;
+  --text-pharo-title: 1.5rem;
+  --text-pharo-title--line-height: 2rem;
+  --text-pharo-display: 2rem;
+  --text-pharo-display--line-height: 2.5rem;
+
+  --spacing-pharo-1: 0.25rem;
+  --spacing-pharo-2: 0.5rem;
+  --spacing-pharo-3: 0.75rem;
+  --spacing-pharo-4: 1rem;
+  --spacing-pharo-6: 1.5rem;
+  --spacing-pharo-8: 2rem;
+  --spacing-pharo-12: 3rem;
+  --spacing-pharo-control: 2.75rem;
+  --radius-pharo-control: 0.375rem;
+  --radius-pharo-card: 0.75rem;
+  --radius-pharo-pill: 9999px;
+}
+
+/* Runtime values are shared by explicit utilities and SVG consumers. */
+:root {
+  --pharo-chart-dash-1: none;
+  --pharo-chart-dash-2: 8 4;
+  --pharo-chart-dash-3: 2 4;
+  --pharo-shadow-card:
+    0 1px 3px rgb(0 50 110 / 0.08), 0 8px 24px rgb(0 50 110 / 0.04);
+  --pharo-shadow-overlay: 0 12px 32px rgb(0 50 110 / 0.16);
+  --pharo-transition-duration: 120ms;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    color: var(--color-pharo-foreground);
+    background-color: var(--color-pharo-canvas);
+    font-family: var(--font-pharo-body);
+    font-size: var(--text-pharo-base);
+    line-height: var(--text-pharo-base--line-height);
+  }
+
+  body {
+    color: var(--color-pharo-foreground);
+    background-color: var(--color-pharo-canvas);
+    font-family: var(--font-pharo-body);
+  }
+}
+
+@utility pharo-shadow-card {
+  box-shadow: var(--pharo-shadow-card);
+}
+
+@utility pharo-shadow-overlay {
+  box-shadow: var(--pharo-shadow-overlay);
+}
+
+/* The white inner ring keeps focus visible on dark action/header backgrounds. */
+@utility pharo-focus-ring {
+  outline: 3px solid var(--color-pharo-focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--color-pharo-brand-white);
+
+  @media (forced-colors: active) {
+    outline-color: Highlight;
+    box-shadow: none;
+  }
+}
+
+@utility pharo-transition-colors {
+  /* Focus outlines appear at full contrast as soon as keyboard focus moves. */
+  transition-property: color, background-color, border-color;
+  transition-duration: var(--pharo-transition-duration);
+  transition-timing-function: ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 0ms;
+  }
+}

@@ -12,6 +12,17 @@
   "files": [
     "index.css"
   ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "node ../../scripts/playwright.mjs test"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "cache": false
+      }
+    }
+  },
   "dependencies": {
     "tailwindcss": "4.3.3",
     "tailwindcss-react-aria-components": "2.2.0"

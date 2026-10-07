@@ -1,0 +1,16 @@
+@import '@pharo/tailwind-plugin';
+@source './main.tsx';
+@source './node_modules/@pharo/react-components/dist';
+
+/* The fixture consumes public line-pattern tokens on its illustrative SVG. */
+[data-testid='chart-1'] {
+  stroke-dasharray: var(--pharo-chart-dash-1);
+}
+
+[data-testid='chart-2'] {
+  stroke-dasharray: var(--pharo-chart-dash-2);
+}
+
+[data-testid='chart-3'] {
+  stroke-dasharray: var(--pharo-chart-dash-3);
+}
