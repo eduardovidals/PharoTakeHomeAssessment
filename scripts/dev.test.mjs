@@ -102,6 +102,60 @@ test(
   },
 );
 
+test(
+  'readiness retains staggered successful probes and releases every response body',
+  { timeout: 45000 },
+  async (context) => {
+    const environment = await availablePorts();
+    const apiUrl = `http://127.0.0.1:${environment.PHARO_API_PORT}/health`;
+    const uiUrl = `http://127.0.0.1:${environment.PHARO_UI_PORT}`;
+    const nativeFetch = globalThis.fetch;
+    const released = [];
+    let apiReady = false;
+    let rejectedUiProbe = false;
+    let repeatedApiProbe = false;
+    let host;
+    const probe = context.mock.method(globalThis, 'fetch', async (url, options) => {
+      if (url === apiUrl && apiReady) {
+        repeatedApiProbe = true;
+        throw new Error('The already-ready API need not pass again beside a later UI probe.');
+      }
+      if (url === uiUrl && !apiReady) {
+        throw new Error('Hold UI readiness until the API has passed independently.');
+      }
+      const response = await nativeFetch(url, options);
+      if (url === apiUrl && response.ok) apiReady = true;
+      if (response.body) {
+        const cancel = response.body.cancel.bind(response.body);
+        context.mock.method(response.body, 'cancel', async () => {
+          released.push(url);
+          await cancel();
+        });
+      }
+      if (url === uiUrl && response.ok && !rejectedUiProbe) {
+        rejectedUiProbe = true;
+        // Keep the real response stream but make one completed probe unsuccessful.
+        context.mock.getter(response, 'ok', () => false);
+      }
+      return response;
+    });
+    try {
+      host = await startDashboard({ preview: true, environment, stdio: 'ignore' });
+      assert.equal(repeatedApiProbe, false);
+      assert.equal(rejectedUiProbe, true);
+      assert.deepEqual(released, [apiUrl, uiUrl, uiUrl]);
+      probe.mock.restore();
+      assert.deepEqual(await (await nativeFetch(host.uiUrl + '/health')).json(), {
+        status: 'ready',
+      });
+    } finally {
+      probe.mock.restore();
+      await host?.stop();
+    }
+    await assertReleased(environment);
+  },
+);
+
 test('cancellation after readiness retires both actual hosts', { timeout: 45000 }, async () => {
   const environment = await availablePorts();
   const cancellation = new AbortController();

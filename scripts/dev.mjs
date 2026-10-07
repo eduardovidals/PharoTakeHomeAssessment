@@ -165,22 +165,25 @@ export async function startDashboard(options = {}) {
       },
     );
     const deadline = Date.now() + (options.startupTimeoutMs ?? 30000);
+    const pending = new Set([apiUrl + '/health', uiUrl]);
     while (true) {
       options.signal?.throwIfAborted();
       if (startupError) throw startupError;
-      let ready = false;
-      try {
-        const checks = await Promise.all([
-          fetch(apiUrl + '/health', { signal: AbortSignal.timeout(500) }),
-          fetch(uiUrl, { signal: AbortSignal.timeout(500) }),
-        ]);
-        ready = checks.every((response) => response.ok);
-      } catch {
-        // A bounded retry waits for the owned listeners, never an arbitrary readiness sleep.
-      }
+      await Promise.all(
+        [...pending].map(async (url) => {
+          try {
+            const response = await fetch(url, { signal: AbortSignal.timeout(500) });
+            // Release every probe's stream, including unsuccessful HTTP responses.
+            await response.body?.cancel();
+            if (response.ok) pending.delete(url);
+          } catch {
+            // Retry only listeners not yet observed ready; child exits remain fatal.
+          }
+        }),
+      );
       options.signal?.throwIfAborted();
       if (startupError) throw startupError;
-      if (ready) break;
+      if (pending.size === 0) break;
       if (Date.now() >= deadline)
         throw new Error('API/UI startup did not become ready within its deadline.');
       await delay(100);

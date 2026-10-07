@@ -22,7 +22,8 @@ export default defineConfig({
   webServer: {
     command: 'node scripts/dev.mjs --preview',
     cwd: root,
-    url: baseURL,
+    // Vite can answer before both owned hosts pass the launcher's readiness checks.
+    wait: { stdout: /^UI:\s+http:\/\/127\.0\.0\.1:\d+\r?$/m },
     env: { PHARO_UI_PORT: String(uiPort), PHARO_API_PORT: String(apiPort) },
     reuseExistingServer: false,
     timeout: 30000,
