@@ -175,7 +175,8 @@ for (const catalog of catalogs) {
       assert.ok(css.length > 0, 'The actual preview import emits theme CSS');
       assert.match(css, /data-pressed/);
       assert.match(css, /text-decoration-line:\s*underline/);
-      assert.match(css, /font-family:.*ui-sans-serif/s);
+      assert.match(css, /font-family:\s*var\(--default-font-family,/);
+      assert.match(css, /--font-sans:[^;]*sans-serif[^;]*;/);
       assert.equal(css.includes('19137'), false, 'Private fixtures do not enter Tailwind scanning');
       const previewModule = outputs.find((output) => output.type === 'chunk' && output.isEntry);
       assert.ok(previewModule);
