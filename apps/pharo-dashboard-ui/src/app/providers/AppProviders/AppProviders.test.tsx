@@ -1,11 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { render, within } from '@testing-library/react';
-import { createMemoryHistory } from '@tanstack/react-router';
 import { expect, test } from 'vitest';
-import { createAppRouter } from '../../router';
-import { createAppQueryClient } from '../../queryClient';
-import { AppProviders } from './AppProviders';
+import { renderApp } from '../../../test/renderApp';
 
 interface WitnessProps {
   children: ReactNode;
@@ -24,38 +20,31 @@ function CacheWitness(props: WitnessProps) {
   );
 }
 
-// A real route load proves the file-router/provider composition in an isolated graph.
-test('mounts its file route and keeps application instances isolated', async () => {
-  const firstCache = createAppQueryClient();
-  const secondCache = createAppQueryClient();
-  const firstHistory = createMemoryHistory({ initialEntries: ['/'] });
-  const secondHistory = createMemoryHistory({ initialEntries: ['/'] });
-  const first = createAppRouter(firstCache, firstHistory);
-  const second = createAppRouter(secondCache, secondHistory);
-  first.update({ Wrap: CacheWitness, context: first.options.context });
-  second.update({ Wrap: CacheWitness, context: second.options.context });
-  firstCache.setQueryData(['isolation-witness'], 42);
-  const view = render(null);
-  try {
-    await first.load();
-    await second.load();
-    view.rerender(<AppProviders router={first} />);
-    expect(
-      await within(view.container).findByRole('heading', { name: 'Instrument price dashboard' }),
-    ).toBeVisible();
-    expect(first.options.context.queryClient).toBe(firstCache);
-    expect(within(view.container).getByLabelText('Cache witness')).toHaveTextContent('42');
-    view.rerender(<AppProviders router={second} />);
-    expect(await within(view.container).findByLabelText('Cache witness')).toHaveTextContent(
-      'empty',
-    );
-    expect(second.options.context.queryClient.getQueryData(['isolation-witness'])).toBeUndefined();
-  } finally {
-    view.unmount();
-    await Promise.all([firstCache.cancelQueries(), secondCache.cancelQueries()]);
-    firstCache.clear();
-    secondCache.clear();
-    firstHistory.destroy();
-    secondHistory.destroy();
-  }
+test('mounts its file route with the router cache and isolates application instances', async () => {
+  const first = await renderApp({
+    configure(app) {
+      app.queryClient.setQueryData(['isolation-witness'], 42);
+      app.router.update({ Wrap: CacheWitness, context: app.router.options.context });
+    },
+  });
+  const second = await renderApp({
+    configure(app) {
+      app.router.update({ Wrap: CacheWitness, context: app.router.options.context });
+    },
+  });
+
+  expect(
+    await first.view.findByRole('heading', { name: 'Instrument price dashboard' }),
+  ).toBeVisible();
+  expect(first.router.options.context.queryClient).toBe(first.queryClient);
+  expect(second.router.options.context.queryClient).toBe(second.queryClient);
+  expect(first.queryClient).not.toBe(second.queryClient);
+  expect(first.history).not.toBe(second.history);
+  expect(first.view.getByLabelText('Cache witness')).toHaveTextContent('42');
+  expect(await second.view.findByLabelText('Cache witness')).toHaveTextContent('empty');
+  expect(second.queryClient.getQueryData(['isolation-witness'])).toBeUndefined();
+
+  await first.dispose();
+  expect(second.view.getByRole('heading')).toBeVisible();
+  await second.dispose();
 });

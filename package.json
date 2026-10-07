@@ -10,10 +10,20 @@
   "scripts": {
     "lint": "eslint apps/pharo-dashboard-ui packages scripts *.mjs",
     "lint:fix": "pnpm lint --fix",
-    "typecheck": "node scripts/nx.mjs run pharo-dashboard-ui:typecheck && node scripts/nx.mjs run pharo-dashboard-api:compile",
-    "test": "node scripts/nx.mjs run-many -t test -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/eslint-config,@pharo/prettier-config",
+    "typecheck": "node scripts/nx.mjs run-many -t typecheck,typecheck:catalog,compile -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/react-components,@pharo/react-form-components,@pharo/react-charts",
+    "test": "pnpm check:routes && node scripts/nx.mjs run-many -t test,infrastructure -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/eslint-config,@pharo/prettier-config",
     "build": "node scripts/nx.mjs run-many -t build -p pharo-dashboard-ui,pharo-dashboard-api",
-    "validate": "node scripts/validate.mjs"
+    "validate": "node scripts/validate.mjs",
+    "dev": "node scripts/dev.mjs",
+    "preview": "node scripts/dev.mjs --preview",
+    "storybook": "node scripts/nx.mjs run @pharo/react-components:storybook",
+    "storybook:forms": "node scripts/nx.mjs run @pharo/react-form-components:storybook",
+    "storybook:charts": "node scripts/nx.mjs run @pharo/react-charts:storybook",
+    "storybook:build": "node scripts/nx.mjs run-many -t storybook:build -p @pharo/react-components,@pharo/react-form-components,@pharo/react-charts",
+    "test:e2e": "node scripts/nx.mjs run pharo-dashboard-ui:e2e",
+    "test:infrastructure": "node scripts/nx.mjs run pharo-dashboard-ui:infrastructure",
+    "check:routes": "node --test scripts/route-generation.test.mjs",
+    "browser:install": "node scripts/playwright.mjs install chromium"
   },
   "devDependencies": {
     "react": "19.3.0",
@@ -73,6 +83,7 @@
     "globals": "17.13.0",
     "eslint-plugin-prettier": "5.5.6",
     "@pharo/eslint-config": "workspace:*",
-    "@pharo/prettier-config": "workspace:*"
+    "@pharo/prettier-config": "workspace:*",
+    "@tanstack/router-generator": "1.167.40"
   }
 }

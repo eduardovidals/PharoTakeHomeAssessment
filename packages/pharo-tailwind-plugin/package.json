@@ -2,5 +2,18 @@
   "name": "@pharo/tailwind-plugin",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./index.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "files": [
+    "index.css"
+  ],
+  "dependencies": {
+    "tailwindcss": "4.3.3",
+    "tailwindcss-react-aria-components": "2.2.0"
+  }
 }

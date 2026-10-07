@@ -1,0 +1,11 @@
+@import 'tailwindcss' source(none);
+@plugin 'tailwindcss-react-aria-components';
+
+@source '../pharo-react-components/src';
+@source '../pharo-react-form-components/src';
+@source '../pharo-react-charts/src';
+@source '../../apps/pharo-dashboard-ui/src';
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+}

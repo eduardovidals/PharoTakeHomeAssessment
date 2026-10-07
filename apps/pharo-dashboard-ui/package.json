@@ -4,13 +4,45 @@
   "private": true,
   "type": "module",
   "nx": {
-    "name": "pharo-dashboard-ui"
+    "name": "pharo-dashboard-ui",
+    "targets": {
+      "e2e": {
+        "dependsOn": [
+          "build",
+          {
+            "target": "build",
+            "projects": [
+              "pharo-dashboard-api"
+            ]
+          }
+        ],
+        "cache": false
+      },
+      "infrastructure": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build",
+          {
+            "target": "build",
+            "projects": [
+              "pharo-dashboard-api"
+            ]
+          }
+        ],
+        "cache": false,
+        "options": {
+          "command": "node --test scripts/dev.test.mjs scripts/catalog-config.test.mjs scripts/vite-privacy.test.mjs",
+          "cwd": "."
+        }
+      }
+    }
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json",
     "test": "vitest run",
-    "build": "vite build"
+    "build": "vite build",
+    "e2e": "node ../../scripts/playwright.mjs test"
   },
   "dependencies": {
     "react": "19.3.0",
