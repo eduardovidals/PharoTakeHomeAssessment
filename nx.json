@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "neverConnectToCloud": true,
+  "useDaemonProcess": false,
+  "parallel": 2,
+  "targetDefaults": {
+    "test": {
+      "cache": false
+    },
+    "typecheck": {
+      "cache": false
+    },
+    "build": {
+      "cache": false
+    }
+  }
+}

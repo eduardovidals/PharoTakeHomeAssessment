@@ -1,0 +1,39 @@
+{
+  "name": "pharo-dashboard-api",
+  "projectType": "application",
+  "sourceRoot": "apps/pharo-dashboard-api",
+  "targets": {
+    "compile": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "outputs": [
+        "{projectRoot}/bin/Release",
+        "{projectRoot}/tests/PharoDashboard.Api.Tests/bin/Release"
+      ],
+      "options": {
+        "command": "node scripts/dotnet.mjs build PharoTakeHomeAssessment.sln --configuration Release --nologo -p:RestoreLockedMode=true",
+        "cwd": "."
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["compile"],
+      "outputs": ["{projectRoot}/tests/PharoDashboard.Api.Tests/TestResults"],
+      "options": {
+        "command": "node scripts/dotnet.mjs test apps/pharo-dashboard-api/tests/PharoDashboard.Api.Tests/PharoDashboard.Api.Tests.csproj --configuration Release --no-build --no-restore --nologo --logger trx --results-directory apps/pharo-dashboard-api/tests/PharoDashboard.Api.Tests/TestResults",
+        "cwd": "."
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["compile"],
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "command": "node scripts/dotnet.mjs publish apps/pharo-dashboard-api/PharoDashboard.Api.csproj --configuration Release --no-build --no-restore --nologo --output apps/pharo-dashboard-api/dist",
+        "cwd": "."
+      }
+    }
+  }
+}

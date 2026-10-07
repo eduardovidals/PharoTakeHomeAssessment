@@ -1,0 +1,9 @@
+.dev-private/
+node_modules/
+**/dist/
+**/bin/
+**/obj/
+**/coverage/
+**/storybook-static/
+pnpm-lock.yaml
+apps/pharo-dashboard-ui/src/routeTree.gen.ts

@@ -1,0 +1,17 @@
+{
+  "name": "@pharo/prettier-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "files": ["src"],
+  "scripts": {
+    "lint": "eslint src test",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9"
+  }
+}

@@ -1,0 +1,13 @@
+.dev-private/**
+.factory-agent/**
+.private/**
+.reference/**
+.private-skills/**
+AGENTS.override.md
+**/node_modules/**
+**/bin/**
+**/obj/**
+**/dist/**
+**/coverage/**
+**/storybook-static/**
+**/test-results/**
