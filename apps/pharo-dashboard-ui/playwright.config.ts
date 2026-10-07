@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { z } from 'zod';
 
 const port = z.coerce.number().int().min(1024).max(65535);
-const uiPort = port.parse(process.env.PHARO_E2E_UI_PORT ?? 4190);
+const uiPort = port.parse(process.env.PHARO_E2E_UI_PORT ?? 4191);
 const apiPort = port.parse(process.env.PHARO_E2E_API_PORT ?? 5190);
 if (uiPort === apiPort) {
   throw new Error('Playwright UI and API ports must differ.');

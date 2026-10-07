@@ -933,15 +933,8 @@ test.describe('independent built charts', () => {
       await chart.scrollIntoViewIfNeeded();
       let box = await chart.boundingBox();
       if (!box) throw new Error('Touch chart has no visible rectangle.');
-      const viewWidth = Number(await chart.getAttribute('width'));
-      const secondDateX = box.x + ((56 + (viewWidth - 72) / 3) / viewWidth) * box.width;
-      await page.touchscreen.tap(secondDateX, box.y + box.height / 2);
-      await expect(details).toContainText('2024-03-11');
-      await expect(details.getByText('20', { exact: true })).toBeVisible();
-      await expect(details.getByText('Unavailable', { exact: true })).toBeVisible();
-      await chart.scrollIntoViewIfNeeded();
-      box = await chart.boundingBox();
-      if (!box) throw new Error('Touch chart disappeared before the scroll gesture.');
+      await expect(details).toContainText('2024-03-10');
+      // Pan before tapping so consecutive contacts cannot become a double-tap drag gesture.
       const x = box.x + box.width - 20;
       const y = box.y + box.height / 2;
       const before = await page.evaluate(() => scrollY);
@@ -961,10 +954,19 @@ test.describe('independent built charts', () => {
         });
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
         await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
-        await expect(details).toContainText('2024-03-11');
+        await expect(details).toContainText('2024-03-10');
       } finally {
         await session.detach();
       }
+      await chart.scrollIntoViewIfNeeded();
+      box = await chart.boundingBox();
+      if (!box) throw new Error('Touch chart disappeared before the tap.');
+      const viewWidth = Number(await chart.getAttribute('width'));
+      const secondDateX = box.x + ((56 + (viewWidth - 72) / 3) / viewWidth) * box.width;
+      await page.touchscreen.tap(secondDateX, box.y + box.height / 2);
+      await expect(details).toContainText('2024-03-11');
+      await expect(details.getByText('20', { exact: true })).toBeVisible();
+      await expect(details.getByText('Unavailable', { exact: true })).toBeVisible();
       expect(errors).toEqual([]);
     } finally {
       await context.close();
