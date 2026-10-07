@@ -294,6 +294,19 @@ importers:
         version: link:../pharo-tailwind-plugin
 
   packages/pharo-react-form-components:
+    dependencies:
+      '@hookform/resolvers':
+        specifier: 5.9.1
+        version: 5.9.1(react-hook-form@7.89.0(@types/react@19.3.0)(react@19.3.0))(zod@4.6.5)
+      '@pharo/react-components':
+        specifier: workspace:*
+        version: link:../pharo-react-components
+      react-hook-form:
+        specifier: 7.89.0
+        version: 7.89.0(@types/react@19.3.0)(react@19.3.0)
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
     devDependencies:
       '@pharo/tailwind-plugin':
         specifier: workspace:*

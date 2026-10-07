@@ -49,7 +49,17 @@ const requiredTargets = {
     'storybook',
     'storybook:build',
   ],
-  '@pharo/react-form-components': ['typecheck:catalog', 'storybook', 'storybook:build'],
+  '@pharo/react-form-components': [
+    'build',
+    'typecheck',
+    'test',
+    'test:unit',
+    'test:stories',
+    'e2e',
+    'typecheck:catalog',
+    'storybook',
+    'storybook:build',
+  ],
   '@pharo/react-charts': ['typecheck:catalog', 'storybook', 'storybook:build'],
 };
 for (const [project, names] of Object.entries(requiredTargets)) {
