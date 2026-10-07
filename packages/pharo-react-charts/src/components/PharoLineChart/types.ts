@@ -21,7 +21,7 @@ export interface PharoChartSeries {
   readonly appearance?: PharoChartAppearance;
 }
 
-/** A responsive, static SVG comparison of up to three general-purpose series. */
+/** Responsive SVG comparison with recorded-point inspection and a full data table. */
 export interface PharoLineChartProps {
   /** Zero to three independent series using one shared pair of domains. */
   readonly series: readonly PharoChartSeries[];
@@ -145,4 +145,43 @@ export interface ChartIdentityState {
   readonly history: ReadonlyMap<string, PharoChartAppearance>;
   /** Whether the current configuration permits distinct, stable appearances. */
   readonly valid: boolean;
+}
+
+/** @internal One series' exact value, explicit missing record or absent record. */
+export type ChartInspectionRow = {
+  /** Exact series identity associated with this observation. */
+  readonly id: string;
+  /** Full series label used in details and accessible value text. */
+  readonly label: string;
+} & (
+  | {
+      /** A defined observation exists at the inspected timestamp. */
+      readonly kind: 'available';
+      /** Unrounded recorded value, never an interpolated estimate. */
+      readonly value: number;
+    }
+  | {
+      /** Distinguishes an explicit null from a date absent in this series. */
+      readonly kind: 'missing' | 'absent';
+      /** Null means unavailable and must never be formatted as zero. */
+      readonly value: null;
+    }
+);
+
+/** @internal An exact inspection row with caller-formatted readable output. */
+export type ChartInspectionDetail = ChartInspectionRow & {
+  /** Complete formatter output, or the explicit unavailable message. */
+  readonly display: string;
+};
+
+/** @internal Ownership of one potential touch tap, without preventing scrolling. */
+export interface ChartTouchGesture {
+  /** Pointer identity used to ignore unrelated or cancelled touch events. */
+  readonly pointerId: number;
+  /** Initial client-space horizontal coordinate. */
+  readonly startX: number;
+  /** Initial client-space vertical coordinate. */
+  readonly startY: number;
+  /** A moved or multi-pointer gesture is never committed as a tap. */
+  readonly moved: boolean;
 }

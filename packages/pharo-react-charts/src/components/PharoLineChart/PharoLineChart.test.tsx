@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ChartResizeObserver } from '../../../test/setup';
 import { PharoLineChart } from './PharoLineChart';
@@ -35,6 +35,18 @@ function renderChart(props: PharoLineChartProps) {
   return view;
 }
 
+function measuredContainer(container: Element): Element {
+  const targets = new Set(
+    ChartResizeObserver.instances.flatMap((observer) =>
+      [...observer.targets].filter((target) => container.contains(target)),
+    ),
+  );
+  if (targets.size !== 1) throw new Error('Expected exactly one observed chart container.');
+  const target = [...targets][0];
+  if (!target) throw new Error('The measured chart container is absent.');
+  return target;
+}
+
 function seriesGroup(chart: Element, id: string) {
   const group = [...chart.querySelectorAll('g[data-series-id]')].find(
     (candidate) => candidate.getAttribute('data-series-id') === id,
@@ -52,6 +64,63 @@ function namedSeries(id: string): PharoChartSeries {
       { x: 86_400_000, y: 10 },
     ],
   };
+}
+
+const firstDate = Date.UTC(2024, 2, 10);
+const day = 86_400_000;
+const unequalObservations: readonly PharoChartSeries[] = Object.freeze([
+  Object.freeze({
+    id: 'a',
+    label: 'Sensor A',
+    points: Object.freeze([
+      Object.freeze({ x: firstDate, y: 2 }),
+      Object.freeze({ x: firstDate + day, y: null }),
+      Object.freeze({ x: firstDate + 3 * day, y: 8 }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'b',
+    label: 'Sensor B',
+    points: Object.freeze([
+      Object.freeze({ x: firstDate + day, y: 20 }),
+      Object.freeze({ x: firstDate + 2 * day, y: 30 }),
+    ]),
+  }),
+]);
+
+function pointer(
+  target: Element,
+  type: string,
+  clientX: number,
+  pointerType = 'mouse',
+  clientY = 100,
+) {
+  // jsdom does not implement PointerEvent. Keep the synthetic event local to this test,
+  // retaining real client coordinates and the React pointer-handler event fields.
+  const event = new MouseEvent(type, { bubbles: true, clientX, clientY });
+  Object.defineProperties(event, {
+    pointerType: { value: pointerType },
+    pointerId: { value: 1 },
+  });
+  fireEvent(target, event);
+}
+
+function mockScaledBounds(chart: Element) {
+  vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 20, 336, 160));
+}
+
+function expectLegendAppearance(label: string, id: string, token: number) {
+  const legend = screen.getByRole('list', { name: `Legend for ${label}` });
+  const item = within(legend)
+    .getAllByRole('listitem')
+    .find((candidate) => within(candidate).queryByText(id, { exact: true }));
+  if (!item) throw new Error(`Expected legend entry ${id}.`);
+  expect(item.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  expect(item.querySelector('path')).toHaveClass(`stroke-pharo-chart-${token}`);
+  expect(item.querySelector('path')).toHaveAttribute(
+    'stroke-dasharray',
+    `var(--pharo-chart-dash-${token})`,
+  );
 }
 
 describe('PharoLineChart', () => {
@@ -80,7 +149,7 @@ describe('PharoLineChart', () => {
       'Chart data is invalid.',
     );
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(view.container.firstElementChild).toHaveAttribute(
+    expect(measuredContainer(view.container)).toHaveAttribute(
       'data-chart-reason',
       'PHARO-CHART-DATA',
     );
@@ -146,8 +215,8 @@ describe('PharoLineChart', () => {
       'Chart needs more space to display.',
     );
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(view.container.firstElementChild).toHaveClass('max-w-sm', 'h-96', 'w-full');
-    expect(view.container.firstElementChild).not.toHaveClass('h-pharo-chart-height');
+    expect(measuredContainer(view.container)).toHaveClass('max-w-sm', 'h-96', 'w-full');
+    expect(measuredContainer(view.container)).not.toHaveClass('h-pharo-chart-height');
     measure(view.container);
     expect(screen.getByRole('img', { name: 'Waiting for layout' })).toBeVisible();
     measure(view.container, 0, 0);
@@ -348,6 +417,9 @@ describe('PharoLineChart', () => {
     );
     expect(seriesGroup(chart, 'b').querySelector('path')).toHaveClass('stroke-pharo-chart-2');
     expect(seriesGroup(chart, 'd').querySelector('path')).toHaveClass('stroke-pharo-chart-1');
+    expectLegendAppearance('Stable identities', 'a', 3);
+    expectLegendAppearance('Stable identities', 'b', 2);
+    expectLegendAppearance('Stable identities', 'd', 1);
   });
 
   it('reuses a returning historical identity when it remains free', () => {
@@ -377,10 +449,250 @@ describe('PharoLineChart', () => {
     expect(screen.getByRole('status', { name: 'Explicit identities' })).toHaveTextContent(
       'Chart data is invalid.',
     );
-    expect(view.container.firstElementChild).toHaveAttribute(
+    expect(measuredContainer(view.container)).toHaveAttribute(
       'data-chart-reason',
       'PHARO-CHART-DATA',
     );
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+});
+
+describe('PharoLineChart recorded observation access', () => {
+  it('names the native range and exposes exact values or unavailable without a pointer live region', () => {
+    const view = renderChart({ series: unequalObservations, label: 'Unequal dates' });
+    const slider = screen.getByRole('slider', { name: 'Inspect Unequal dates' });
+    expect(slider).toHaveAttribute('type', 'range');
+    expect(slider).toHaveAttribute('min', '0');
+    expect(slider).toHaveAttribute('max', '3');
+    expect(slider).toHaveAttribute('step', '1');
+    expect(slider).toHaveValue('0');
+    expect(slider).toHaveAccessibleDescription();
+    expect(slider).toHaveAttribute(
+      'aria-valuetext',
+      '2024-03-10; Sensor A: 2; Sensor B: Unavailable',
+    );
+    // A DOM change proves the React handler; Playwright owns native range-key defaults.
+    fireEvent.change(slider, { target: { value: '1' } });
+    const details = screen.getByRole('region', { name: 'Details for Unequal dates' });
+    expect(details).toHaveTextContent('2024-03-11');
+    expect(details).toHaveTextContent('Sensor A');
+    expect(details).toHaveTextContent('Unavailable');
+    expect(details).toHaveTextContent('Sensor B');
+    expect(within(details).getByText('20', { exact: true })).toBeVisible();
+    expect(slider).toHaveAttribute(
+      'aria-valuetext',
+      '2024-03-11; Sensor A: Unavailable; Sensor B: 20',
+    );
+    expect(view.container.querySelector('[aria-live]:not([aria-live="off"])')).toBeNull();
+    expect(screen.queryByRole('application')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('img')).toHaveLength(1);
+  });
+
+  it('maps scaled pointer client coordinates to the union, takes earlier ties and clamps to observations', () => {
+    renderChart({ series: unequalObservations, label: 'Scaled pointer' });
+    const chart = screen.getByRole('img', { name: 'Scaled pointer' });
+    mockScaledBounds(chart);
+    const child = seriesGroup(chart, 'a').querySelector('path');
+    if (!child) throw new Error('Expected an actual observation path as the event target.');
+    const slider = screen.getByRole('slider', { name: 'Inspect Scaled pointer' });
+    // SVG x=356 in a672-unit viewBox is clientX278 in the336px box: exact1.5day tie.
+    pointer(child, 'pointermove', 278);
+    expect(slider).toHaveValue('1');
+    expect(slider).toHaveAttribute(
+      'aria-valuetext',
+      '2024-03-11; Sensor A: Unavailable; Sensor B: 20',
+    );
+    pointer(chart, 'pointermove', 328, 'pen');
+    expect(slider).toHaveValue('2');
+    expect(screen.getByRole('region', { name: 'Details for Scaled pointer' })).toHaveTextContent(
+      '2024-03-12',
+    );
+    pointer(chart, 'pointermove', -100);
+    expect(slider).toHaveValue('0');
+    pointer(chart, 'pointermove', 1_000);
+    expect(slider).toHaveValue('3');
+    pointer(chart, 'pointerleave', 1_000);
+    expect(slider).toHaveValue('3');
+  });
+
+  it('accepts a completed touch tap but ignores moved or cancelled touch gestures', () => {
+    renderChart({ series: unequalObservations, label: 'Touch handler' });
+    const chart = screen.getByRole('img', { name: 'Touch handler' });
+    mockScaledBounds(chart);
+    const slider = screen.getByRole('slider', { name: 'Inspect Touch handler' });
+    pointer(chart, 'pointerdown', 328, 'touch');
+    pointer(chart, 'pointerup', 328, 'touch');
+    expect(slider).toHaveValue('2');
+    pointer(chart, 'pointerdown', 128, 'touch');
+    pointer(chart, 'pointermove', 128, 'touch', 140);
+    pointer(chart, 'pointerup', 128, 'touch', 140);
+    expect(slider).toHaveValue('2');
+    pointer(chart, 'pointerdown', 128, 'touch');
+    pointer(chart, 'pointercancel', 128, 'touch');
+    pointer(chart, 'pointerup', 128, 'touch');
+    expect(slider).toHaveValue('2');
+  });
+
+  it('preserves selection through resize and order changes, then reconciles a removed date to its earlier neighbor', () => {
+    const view = renderChart({ series: unequalObservations, label: 'Changing dates' });
+    fireEvent.change(screen.getByRole('slider', { name: 'Inspect Changing dates' }), {
+      target: { value: '2' },
+    });
+    view.rerender(
+      <PharoLineChart series={[...unequalObservations].reverse()} label="Changing dates" />,
+    );
+    measure(view.container, 320, 320);
+    expect(screen.getByRole('slider', { name: 'Inspect Changing dates' })).toHaveValue('2');
+    measure(view.container, 0, 0);
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    measure(view.container, 672, 320);
+    expect(screen.getByRole('slider', { name: 'Inspect Changing dates' })).toHaveValue('2');
+    const updated = unequalObservations.map((item) => ({
+      ...item,
+      points: item.points.filter((point) => point.x !== firstDate + 2 * day),
+    }));
+    view.rerender(<PharoLineChart series={updated} label="Changing dates" />);
+    expect(screen.getByRole('slider', { name: 'Inspect Changing dates' })).toHaveValue('1');
+    expect(screen.getByRole('region', { name: 'Details for Changing dates' })).toHaveTextContent(
+      '2024-03-11',
+    );
+    expect(unequalObservations[1]?.points).toEqual([
+      { x: firstDate + day, y: 20 },
+      { x: firstDate + 2 * day, y: 30 },
+    ]);
+  });
+
+  it.each(['empty', 'invalid'] as const)(
+    'clears the selected observation after an %s state',
+    (state) => {
+      const view = renderChart({ series: unequalObservations, label: 'Reset inspection' });
+      fireEvent.change(screen.getByRole('slider', { name: 'Inspect Reset inspection' }), {
+        target: { value: '3' },
+      });
+      view.rerender(
+        <PharoLineChart
+          label="Reset inspection"
+          series={
+            state === 'empty' ? [] : [{ id: 'bad', label: 'Bad', points: [{ x: 0, y: NaN }] }]
+          }
+        />,
+      );
+      expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('region', { name: 'Details for Reset inspection' }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /data table/ })).not.toBeInTheDocument();
+      view.rerender(<PharoLineChart series={unequalObservations} label="Reset inspection" />);
+      expect(screen.getByRole('slider', { name: 'Inspect Reset inspection' })).toHaveValue('0');
+    },
+  );
+
+  it('shows every exact union-date cell in an associated table without re-owning or resizing the chart', () => {
+    const view = renderChart({ series: unequalObservations, label: 'Readable table' });
+    const measured = measuredContainer(view.container);
+    const owners = [...ChartResizeObserver.instances];
+    const button = screen.getByRole('button', { name: 'Show data table for Readable table' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    fireEvent.click(button);
+    expect(button).toHaveAccessibleName('Hide data table for Readable table');
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    const table = screen.getByRole('table', { name: 'Data for Readable table' });
+    const target = document.getElementById(button.getAttribute('aria-controls') ?? '');
+    expect(target === table || target?.contains(table)).toBe(true);
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Date (UTC)', 'Sensor A', 'Sensor B']);
+    expect(
+      within(table)
+        .getAllByRole('rowheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['2024-03-10', '2024-03-11', '2024-03-12', '2024-03-13']);
+    expect(
+      within(table)
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) =>
+          within(row)
+            .getAllByRole('cell')
+            .map((cell) => cell.textContent),
+        ),
+    ).toEqual([
+      ['2', 'Unavailable'],
+      ['Unavailable', '20'],
+      ['Unavailable', '30'],
+      ['8', 'Unavailable'],
+    ]);
+    expect(measuredContainer(view.container)).toBe(measured);
+    expect(ChartResizeObserver.instances).toEqual(owners);
+    for (const owner of owners) expect(owner.disconnect).not.toHaveBeenCalled();
+    expect(screen.getByRole('img', { name: 'Readable table' })).toHaveAttribute('height', '320');
+    expect(measured.contains(table)).toBe(false);
+    fireEvent.click(button);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('retains full custom formatted dates and values in details and the table', () => {
+    const formatX = (value: number) => `Full recorded UTC timestamp ${value}`;
+    const formatY = (value: number) => `Full measured observation ${value} degrees`;
+    renderChart({ series: unequalObservations, label: 'Full formatting', formatX, formatY });
+    const details = screen.getByRole('region', { name: 'Details for Full formatting' });
+    expect(within(details).getByText(`Full recorded UTC timestamp ${firstDate}`)).toBeVisible();
+    expect(within(details).getByText('Full measured observation 2 degrees')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Show data table for Full formatting' }));
+    const table = screen.getByRole('table', { name: 'Data for Full formatting' });
+    expect(
+      within(table).getByRole('rowheader', {
+        name: `Full recorded UTC timestamp ${firstDate + 2 * day}`,
+      }),
+    ).toBeVisible();
+    expect(
+      within(table).getByRole('cell', { name: 'Full measured observation 30 degrees' }),
+    ).toBeVisible();
+    expect(table.textContent).not.toContain('…');
+  });
+
+  it('keeps two charts inspection and disclosure independent and omits a meaningless singleton range', () => {
+    const view = render(
+      <>
+        <PharoLineChart series={unequalObservations} label="First independent inspection" />
+        <PharoLineChart series={unequalObservations} label="Second independent inspection" />
+        <PharoLineChart
+          series={[{ id: 'one', label: 'One', points: [{ x: firstDate, y: 7 }] }]}
+          label="Singleton inspection"
+        />
+      </>,
+    );
+    measure(view.container);
+    fireEvent.change(screen.getByRole('slider', { name: 'Inspect First independent inspection' }), {
+      target: { value: '3' },
+    });
+    expect(
+      screen.getByRole('slider', { name: 'Inspect Second independent inspection' }),
+    ).toHaveValue('0');
+    expect(
+      screen.queryByRole('slider', { name: 'Inspect Singleton inspection' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Details for Singleton inspection' })).getByText(
+        '7',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show data table for First independent inspection' }),
+    );
+    expect(
+      screen.getByRole('table', { name: 'Data for First independent inspection' }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('table', { name: 'Data for Second independent inspection' }),
+    ).not.toBeInTheDocument();
+    const ids = [...view.container.querySelectorAll('[id]')].map((element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

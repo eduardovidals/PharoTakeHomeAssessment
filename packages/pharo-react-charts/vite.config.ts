@@ -19,6 +19,7 @@ export default defineConfig({
         'react/jsx-runtime',
         'react/jsx-dev-runtime',
         'react-dom',
+        'd3-array',
         'd3-scale',
         'd3-shape',
         'd3-time-format',

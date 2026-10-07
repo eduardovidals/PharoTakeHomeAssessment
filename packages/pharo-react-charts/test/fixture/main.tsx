@@ -7,6 +7,26 @@ import './styles.css';
 const march10 = Date.UTC(2024, 2, 10);
 const march11 = Date.UTC(2024, 2, 11);
 const march12 = Date.UTC(2024, 2, 12);
+const march13 = Date.UTC(2024, 2, 13);
+const unequalSeries: readonly PharoChartSeries[] = [
+  {
+    id: 'unequal-north',
+    label: 'Northern greenhouse with a long sensor label for narrow screens',
+    points: [
+      { x: march10, y: 2 },
+      { x: march11, y: null },
+      { x: march13, y: 8 },
+    ],
+  },
+  {
+    id: 'unequal-south',
+    label: 'Southern greenhouse with a different recording calendar',
+    points: [
+      { x: march11, y: 20 },
+      { x: march12, y: 30 },
+    ],
+  },
+];
 const north: PharoChartSeries = {
   id: 'north',
   label: 'North greenhouse',
@@ -133,6 +153,33 @@ function App() {
               ],
             },
           ]}
+        />
+      </section>
+      <section aria-label="Unequal calendar example" className="min-w-0">
+        <h2 className="mb-pharo-3 text-pharo-lg font-semibold">Different recording calendars</h2>
+        <PharoLineChart
+          label="Unequal calendar measurements"
+          description="Recorded March 10 through 13, with missing and absent observations."
+          series={unequalSeries}
+          xAxisLabel="Date (UTC)"
+          yAxisLabel="Recorded level"
+        />
+      </section>
+      <section aria-label="Custom format example" className="min-w-0">
+        <h2 className="mb-pharo-3 text-pharo-lg font-semibold">Full formatted readings</h2>
+        <PharoLineChart
+          label="Custom formatted measurements"
+          series={[
+            {
+              id: 'formatted',
+              label: 'Precision reading with its full unit description',
+              points: [{ x: march10, y: 123456789.12345679 }],
+            },
+          ]}
+          formatX={(value) =>
+            `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight Coordinated Universal Time`
+          }
+          formatY={(value) => `Reading ${value.toString()} in fully described measurement units`}
         />
       </section>
       <section aria-label="Empty example">
