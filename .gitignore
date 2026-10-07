@@ -1,0 +1,29 @@
+# Local development material; not part of the deliverable
+/.dev-private/
+/.factory-agent/
+/.private/
+/.reference/
+/.private-skills/
+/AGENTS.override.md
+
+# Generated/dependency material
+**/node_modules/
+**/dist/
+**/coverage/
+**/bin/
+**/obj/
+**/TestResults/
+**/storybook-static/
+**/playwright-report/
+**/test-results/
+**/*.tsbuildinfo
+/.nx/cache/
+/.nx/workspace-data/
+/.vs/
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.DS_Store
