@@ -1,0 +1,1202 @@
+[
+  {
+    "ticker": "TICK0001",
+    "totalReturnPercent": -9.167804980561112,
+    "dailyVolatilityPercent": 1.523165384579988,
+    "maxDrawdownPercent": 13.3849387399395
+  },
+  {
+    "ticker": "TICK0002",
+    "totalReturnPercent": -10.492542490461322,
+    "dailyVolatilityPercent": 1.296503024455593,
+    "maxDrawdownPercent": 10.492542490461322
+  },
+  {
+    "ticker": "TICK0003",
+    "totalReturnPercent": 10.938255682734166,
+    "dailyVolatilityPercent": 1.4989475149751845,
+    "maxDrawdownPercent": 5.226660132320515
+  },
+  {
+    "ticker": "TICK0004",
+    "totalReturnPercent": -0.2831969792322253,
+    "dailyVolatilityPercent": 1.4903782006582216,
+    "maxDrawdownPercent": 6.073001887979856
+  },
+  {
+    "ticker": "TICK0005",
+    "totalReturnPercent": 13.267564661986974,
+    "dailyVolatilityPercent": 1.4193367658749128,
+    "maxDrawdownPercent": 3.963487869325022
+  },
+  {
+    "ticker": "TICK0006",
+    "totalReturnPercent": 11.523513408472596,
+    "dailyVolatilityPercent": 1.5088392889939972,
+    "maxDrawdownPercent": 4.01433691756271
+  },
+  {
+    "ticker": "TICK0007",
+    "totalReturnPercent": 20.021700280827147,
+    "dailyVolatilityPercent": 1.1429864820058877,
+    "maxDrawdownPercent": 2.5895634618157914
+  },
+  {
+    "ticker": "TICK0008",
+    "totalReturnPercent": -1.383970060030637,
+    "dailyVolatilityPercent": 1.5490935812234103,
+    "maxDrawdownPercent": 6.185869964491253
+  },
+  {
+    "ticker": "TICK0009",
+    "totalReturnPercent": 4.723694894206432,
+    "dailyVolatilityPercent": 1.7452555547954187,
+    "maxDrawdownPercent": 8.59940787975405
+  },
+  {
+    "ticker": "TICK0010",
+    "totalReturnPercent": 6.945564516129021,
+    "dailyVolatilityPercent": 1.306736848077728,
+    "maxDrawdownPercent": 4.517473549214479
+  },
+  {
+    "ticker": "TICK0011",
+    "totalReturnPercent": 6.330262739937376,
+    "dailyVolatilityPercent": 1.4592309139562891,
+    "maxDrawdownPercent": 5.204213241616507
+  },
+  {
+    "ticker": "TICK0012",
+    "totalReturnPercent": 3.7937933053576733,
+    "dailyVolatilityPercent": 1.1617097026260537,
+    "maxDrawdownPercent": 5.496001361238734
+  },
+  {
+    "ticker": "TICK0013",
+    "totalReturnPercent": -1.7893315327481507,
+    "dailyVolatilityPercent": 1.5509289028125515,
+    "maxDrawdownPercent": 7.048476005188064
+  },
+  {
+    "ticker": "TICK0014",
+    "totalReturnPercent": 6.112993568909486,
+    "dailyVolatilityPercent": 1.6425014961754043,
+    "maxDrawdownPercent": 7.234256926952131
+  },
+  {
+    "ticker": "TICK0015",
+    "totalReturnPercent": -8.19820018042201,
+    "dailyVolatilityPercent": 1.519815550845579,
+    "maxDrawdownPercent": 9.293882342710557
+  },
+  {
+    "ticker": "TICK0016",
+    "totalReturnPercent": 2.5035537118157203,
+    "dailyVolatilityPercent": 1.7612000282281164,
+    "maxDrawdownPercent": 9.075745146294778
+  },
+  {
+    "ticker": "TICK0017",
+    "totalReturnPercent": -6.9212410501193204,
+    "dailyVolatilityPercent": 1.3271764772315797,
+    "maxDrawdownPercent": 11.841640155531985
+  },
+  {
+    "ticker": "TICK0018",
+    "totalReturnPercent": -13.064288045251837,
+    "dailyVolatilityPercent": 1.4049712553892515,
+    "maxDrawdownPercent": 14.024236757884134
+  },
+  {
+    "ticker": "TICK0019",
+    "totalReturnPercent": 0.048592918110368366,
+    "dailyVolatilityPercent": 1.418150899489128,
+    "maxDrawdownPercent": 6.639029445833067
+  },
+  {
+    "ticker": "TICK0020",
+    "totalReturnPercent": 5.290823905839326,
+    "dailyVolatilityPercent": 1.4554611530756723,
+    "maxDrawdownPercent": 5.540703464905395
+  },
+  {
+    "ticker": "TICK0021",
+    "totalReturnPercent": 10.574935673007978,
+    "dailyVolatilityPercent": 1.7106973851823544,
+    "maxDrawdownPercent": 4.7144778452255505
+  },
+  {
+    "ticker": "TICK0022",
+    "totalReturnPercent": -3.451860193165579,
+    "dailyVolatilityPercent": 1.7579977557672433,
+    "maxDrawdownPercent": 6.1547528837248455
+  },
+  {
+    "ticker": "TICK0023",
+    "totalReturnPercent": -8.152715640140007,
+    "dailyVolatilityPercent": 1.2646040349403003,
+    "maxDrawdownPercent": 10.033832110987484
+  },
+  {
+    "ticker": "TICK0024",
+    "totalReturnPercent": -4.793483369014662,
+    "dailyVolatilityPercent": 1.3973928889093026,
+    "maxDrawdownPercent": 7.6903604698258405
+  },
+  {
+    "ticker": "TICK0025",
+    "totalReturnPercent": -3.3521945251567487,
+    "dailyVolatilityPercent": 1.6958994129058376,
+    "maxDrawdownPercent": 10.737735470367294
+  },
+  {
+    "ticker": "TICK0026",
+    "totalReturnPercent": 6.457355141633547,
+    "dailyVolatilityPercent": 1.387270801899113,
+    "maxDrawdownPercent": 4.585604209735006
+  },
+  {
+    "ticker": "TICK0027",
+    "totalReturnPercent": -7.2585954256832785,
+    "dailyVolatilityPercent": 1.5705901561740663,
+    "maxDrawdownPercent": 9.643171252669935
+  },
+  {
+    "ticker": "TICK0028",
+    "totalReturnPercent": 1.6865552903738923,
+    "dailyVolatilityPercent": 1.336687110154468,
+    "maxDrawdownPercent": 4.292968148945975
+  },
+  {
+    "ticker": "TICK0029",
+    "totalReturnPercent": -6.786088921165179,
+    "dailyVolatilityPercent": 1.6457291052638077,
+    "maxDrawdownPercent": 13.144329896907214
+  },
+  {
+    "ticker": "TICK0030",
+    "totalReturnPercent": 18.930087872664103,
+    "dailyVolatilityPercent": 1.1242215617071105,
+    "maxDrawdownPercent": 2.019849895418946
+  },
+  {
+    "ticker": "TICK0031",
+    "totalReturnPercent": -2.8279604213214182,
+    "dailyVolatilityPercent": 1.4847698227968908,
+    "maxDrawdownPercent": 7.441593990705964
+  },
+  {
+    "ticker": "TICK0032",
+    "totalReturnPercent": 4.840661557079473,
+    "dailyVolatilityPercent": 1.5430474722676835,
+    "maxDrawdownPercent": 12.09480655280586
+  },
+  {
+    "ticker": "TICK0033",
+    "totalReturnPercent": 8.883844309544454,
+    "dailyVolatilityPercent": 1.2776261854563011,
+    "maxDrawdownPercent": 4.232445520581118
+  },
+  {
+    "ticker": "TICK0034",
+    "totalReturnPercent": 6.79831813672227,
+    "dailyVolatilityPercent": 1.4907349735531463,
+    "maxDrawdownPercent": 5.061386484070041
+  },
+  {
+    "ticker": "TICK0035",
+    "totalReturnPercent": -7.618694056016173,
+    "dailyVolatilityPercent": 1.4605742354977254,
+    "maxDrawdownPercent": 11.120851097740768
+  },
+  {
+    "ticker": "TICK0036",
+    "totalReturnPercent": 8.663780379809127,
+    "dailyVolatilityPercent": 1.5651889343843084,
+    "maxDrawdownPercent": 4.324432934452583
+  },
+  {
+    "ticker": "TICK0037",
+    "totalReturnPercent": 8.950447979520938,
+    "dailyVolatilityPercent": 1.3345740105414494,
+    "maxDrawdownPercent": 3.852831748656471
+  },
+  {
+    "ticker": "TICK0038",
+    "totalReturnPercent": 4.252644809887918,
+    "dailyVolatilityPercent": 2.059517658125659,
+    "maxDrawdownPercent": 10.003847633705277
+  },
+  {
+    "ticker": "TICK0039",
+    "totalReturnPercent": -1.3830300740834134,
+    "dailyVolatilityPercent": 1.335253489279463,
+    "maxDrawdownPercent": 7.3290611584645005
+  },
+  {
+    "ticker": "TICK0040",
+    "totalReturnPercent": 4.225259776444745,
+    "dailyVolatilityPercent": 1.636894900853098,
+    "maxDrawdownPercent": 5.31900956373641
+  },
+  {
+    "ticker": "TICK0041",
+    "totalReturnPercent": -2.355236428729457,
+    "dailyVolatilityPercent": 1.5970874823554317,
+    "maxDrawdownPercent": 10.201331482934084
+  },
+  {
+    "ticker": "TICK0042",
+    "totalReturnPercent": -0.7346702261956439,
+    "dailyVolatilityPercent": 1.6883257345350136,
+    "maxDrawdownPercent": 9.577315124562169
+  },
+  {
+    "ticker": "TICK0043",
+    "totalReturnPercent": -4.85151298855796,
+    "dailyVolatilityPercent": 1.4241676624442168,
+    "maxDrawdownPercent": 8.71550114131563
+  },
+  {
+    "ticker": "TICK0044",
+    "totalReturnPercent": -6.842746531462485,
+    "dailyVolatilityPercent": 1.6650123578478577,
+    "maxDrawdownPercent": 13.373049230656775
+  },
+  {
+    "ticker": "TICK0045",
+    "totalReturnPercent": -9.816887080366222,
+    "dailyVolatilityPercent": 1.6812691085796996,
+    "maxDrawdownPercent": 15.310274669379453
+  },
+  {
+    "ticker": "TICK0046",
+    "totalReturnPercent": 12.704501861672135,
+    "dailyVolatilityPercent": 1.4853143638805082,
+    "maxDrawdownPercent": 4.333112631501523
+  },
+  {
+    "ticker": "TICK0047",
+    "totalReturnPercent": -3.171646424757213,
+    "dailyVolatilityPercent": 1.2129187038867317,
+    "maxDrawdownPercent": 10.074937552039964
+  },
+  {
+    "ticker": "TICK0048",
+    "totalReturnPercent": 12.761091209699638,
+    "dailyVolatilityPercent": 1.451682535191783,
+    "maxDrawdownPercent": 4.335302091402015
+  },
+  {
+    "ticker": "TICK0049",
+    "totalReturnPercent": 9.460266030013642,
+    "dailyVolatilityPercent": 1.7420998658431581,
+    "maxDrawdownPercent": 8.654502046384726
+  },
+  {
+    "ticker": "TICK0050",
+    "totalReturnPercent": 0.13433713022306115,
+    "dailyVolatilityPercent": 1.624779424755727,
+    "maxDrawdownPercent": 7.322885636575583
+  },
+  {
+    "ticker": "TICK0051",
+    "totalReturnPercent": -11.406893561673536,
+    "dailyVolatilityPercent": 1.3085719264598197,
+    "maxDrawdownPercent": 12.120032862022745
+  },
+  {
+    "ticker": "TICK0052",
+    "totalReturnPercent": -8.96462374491669,
+    "dailyVolatilityPercent": 1.658092072218901,
+    "maxDrawdownPercent": 12.911201892066227
+  },
+  {
+    "ticker": "TICK0053",
+    "totalReturnPercent": -0.8701957940536631,
+    "dailyVolatilityPercent": 1.1879574679913045,
+    "maxDrawdownPercent": 4.636561217097301
+  },
+  {
+    "ticker": "TICK0054",
+    "totalReturnPercent": 13.924606410336814,
+    "dailyVolatilityPercent": 1.3453391740462621,
+    "maxDrawdownPercent": 3.098184445849528
+  },
+  {
+    "ticker": "TICK0055",
+    "totalReturnPercent": -5.232145392588372,
+    "dailyVolatilityPercent": 1.5277856784875063,
+    "maxDrawdownPercent": 9.788415825272423
+  },
+  {
+    "ticker": "TICK0056",
+    "totalReturnPercent": 6.588682968078352,
+    "dailyVolatilityPercent": 1.3347568441459345,
+    "maxDrawdownPercent": 3.394692804207511
+  },
+  {
+    "ticker": "TICK0057",
+    "totalReturnPercent": 4.93265380415,
+    "dailyVolatilityPercent": 1.3826489792768075,
+    "maxDrawdownPercent": 7.572770196648159
+  },
+  {
+    "ticker": "TICK0058",
+    "totalReturnPercent": 3.6244800950683276,
+    "dailyVolatilityPercent": 1.5747174725284394,
+    "maxDrawdownPercent": 8.139864673230424
+  },
+  {
+    "ticker": "TICK0059",
+    "totalReturnPercent": -1.1893840104849285,
+    "dailyVolatilityPercent": 1.5087160192565536,
+    "maxDrawdownPercent": 9.950078003120122
+  },
+  {
+    "ticker": "TICK0060",
+    "totalReturnPercent": -9.423355549116208,
+    "dailyVolatilityPercent": 1.1531566740802073,
+    "maxDrawdownPercent": 9.568241089539276
+  },
+  {
+    "ticker": "TICK0061",
+    "totalReturnPercent": 3.16622691292876,
+    "dailyVolatilityPercent": 1.6373447602628513,
+    "maxDrawdownPercent": 7.495649846071473
+  },
+  {
+    "ticker": "TICK0062",
+    "totalReturnPercent": 0.43172006362190984,
+    "dailyVolatilityPercent": 1.1663744886017398,
+    "maxDrawdownPercent": 4.380530973451336
+  },
+  {
+    "ticker": "TICK0063",
+    "totalReturnPercent": 1.4596160811300107,
+    "dailyVolatilityPercent": 1.6697140661527186,
+    "maxDrawdownPercent": 8.313908313908303
+  },
+  {
+    "ticker": "TICK0064",
+    "totalReturnPercent": 7.794429617463905,
+    "dailyVolatilityPercent": 1.493435373940885,
+    "maxDrawdownPercent": 5.069855817592495
+  },
+  {
+    "ticker": "TICK0065",
+    "totalReturnPercent": 7.752687158212335,
+    "dailyVolatilityPercent": 1.464900215063566,
+    "maxDrawdownPercent": 6.725295353914584
+  },
+  {
+    "ticker": "TICK0066",
+    "totalReturnPercent": -10.322580645161295,
+    "dailyVolatilityPercent": 1.6726517351270755,
+    "maxDrawdownPercent": 14.050179211469537
+  },
+  {
+    "ticker": "TICK0067",
+    "totalReturnPercent": 1.1360621336742316,
+    "dailyVolatilityPercent": 1.4435819654843303,
+    "maxDrawdownPercent": 7.034665280370511
+  },
+  {
+    "ticker": "TICK0068",
+    "totalReturnPercent": -3.8294918078311646,
+    "dailyVolatilityPercent": 1.3769244967650454,
+    "maxDrawdownPercent": 9.42654725304104
+  },
+  {
+    "ticker": "TICK0069",
+    "totalReturnPercent": -7.2175465442489095,
+    "dailyVolatilityPercent": 1.7312889432544034,
+    "maxDrawdownPercent": 16.29171817058097
+  },
+  {
+    "ticker": "TICK0070",
+    "totalReturnPercent": -1.3534691551503109,
+    "dailyVolatilityPercent": 1.494135141343141,
+    "maxDrawdownPercent": 8.164543746084775
+  },
+  {
+    "ticker": "TICK0071",
+    "totalReturnPercent": -9.552992069214117,
+    "dailyVolatilityPercent": 1.3292971096797508,
+    "maxDrawdownPercent": 9.783705839942314
+  },
+  {
+    "ticker": "TICK0072",
+    "totalReturnPercent": 5.135322692574618,
+    "dailyVolatilityPercent": 1.2843819593078505,
+    "maxDrawdownPercent": 3.3060875930218336
+  },
+  {
+    "ticker": "TICK0073",
+    "totalReturnPercent": -2.6587887740029625,
+    "dailyVolatilityPercent": 1.8686439694980306,
+    "maxDrawdownPercent": 8.439140811455847
+  },
+  {
+    "ticker": "TICK0074",
+    "totalReturnPercent": -9.008482012284292,
+    "dailyVolatilityPercent": 1.4427120457821752,
+    "maxDrawdownPercent": 9.776046738072065
+  },
+  {
+    "ticker": "TICK0075",
+    "totalReturnPercent": 2.0102040816326605,
+    "dailyVolatilityPercent": 1.4975051837524893,
+    "maxDrawdownPercent": 4.813232664414857
+  },
+  {
+    "ticker": "TICK0076",
+    "totalReturnPercent": 3.031655844155834,
+    "dailyVolatilityPercent": 1.2510765535514838,
+    "maxDrawdownPercent": 4.272208855123827
+  },
+  {
+    "ticker": "TICK0077",
+    "totalReturnPercent": 5.892145787502234,
+    "dailyVolatilityPercent": 1.4943221945160432,
+    "maxDrawdownPercent": 6.019907472311781
+  },
+  {
+    "ticker": "TICK0078",
+    "totalReturnPercent": -6.847721986591882,
+    "dailyVolatilityPercent": 1.4557883686600128,
+    "maxDrawdownPercent": 13.115090213231273
+  },
+  {
+    "ticker": "TICK0079",
+    "totalReturnPercent": 2.224781765276429,
+    "dailyVolatilityPercent": 1.423662406535368,
+    "maxDrawdownPercent": 6.116550666509379
+  },
+  {
+    "ticker": "TICK0080",
+    "totalReturnPercent": 4.070506996183898,
+    "dailyVolatilityPercent": 1.310588193997253,
+    "maxDrawdownPercent": 6.051244775576958
+  },
+  {
+    "ticker": "TICK0081",
+    "totalReturnPercent": -14.781821296590891,
+    "dailyVolatilityPercent": 1.325214226441134,
+    "maxDrawdownPercent": 14.906771584272139
+  },
+  {
+    "ticker": "TICK0082",
+    "totalReturnPercent": 6.338265592807657,
+    "dailyVolatilityPercent": 1.5151168322448414,
+    "maxDrawdownPercent": 4.834984727706171
+  },
+  {
+    "ticker": "TICK0083",
+    "totalReturnPercent": -5.014162137334455,
+    "dailyVolatilityPercent": 1.6110878202722847,
+    "maxDrawdownPercent": 9.86767054528862
+  },
+  {
+    "ticker": "TICK0084",
+    "totalReturnPercent": 7.943154422027643,
+    "dailyVolatilityPercent": 1.5610691019204375,
+    "maxDrawdownPercent": 5.172221602942817
+  },
+  {
+    "ticker": "TICK0085",
+    "totalReturnPercent": 10.124732422196603,
+    "dailyVolatilityPercent": 1.511533443739501,
+    "maxDrawdownPercent": 8.027334101761896
+  },
+  {
+    "ticker": "TICK0086",
+    "totalReturnPercent": 7.271526926341587,
+    "dailyVolatilityPercent": 1.358132669090926,
+    "maxDrawdownPercent": 7.6592082616179
+  },
+  {
+    "ticker": "TICK0087",
+    "totalReturnPercent": 3.1382883152662133,
+    "dailyVolatilityPercent": 1.1877331815592747,
+    "maxDrawdownPercent": 3.5695035036234057
+  },
+  {
+    "ticker": "TICK0088",
+    "totalReturnPercent": 15.403089573199269,
+    "dailyVolatilityPercent": 1.4384977802100483,
+    "maxDrawdownPercent": 4.601730565340811
+  },
+  {
+    "ticker": "TICK0089",
+    "totalReturnPercent": 11.466419169760389,
+    "dailyVolatilityPercent": 1.6078618072673516,
+    "maxDrawdownPercent": 4.487487524488964
+  },
+  {
+    "ticker": "TICK0090",
+    "totalReturnPercent": -5.6525381135868695,
+    "dailyVolatilityPercent": 0.9091931194062964,
+    "maxDrawdownPercent": 6.68788741832802
+  },
+  {
+    "ticker": "TICK0091",
+    "totalReturnPercent": -9.437570976032505,
+    "dailyVolatilityPercent": 1.5678292802662444,
+    "maxDrawdownPercent": 14.727153188691656
+  },
+  {
+    "ticker": "TICK0092",
+    "totalReturnPercent": 1.8132928847214513,
+    "dailyVolatilityPercent": 1.7436398469087702,
+    "maxDrawdownPercent": 5.088268060673585
+  },
+  {
+    "ticker": "TICK0093",
+    "totalReturnPercent": -0.6018479274391697,
+    "dailyVolatilityPercent": 0.9933971325272607,
+    "maxDrawdownPercent": 3.9096730704415217
+  },
+  {
+    "ticker": "TICK0094",
+    "totalReturnPercent": -8.45311430527036,
+    "dailyVolatilityPercent": 2.030707392529283,
+    "maxDrawdownPercent": 13.210130047912383
+  },
+  {
+    "ticker": "TICK0095",
+    "totalReturnPercent": -2.4181047845406534,
+    "dailyVolatilityPercent": 1.350760652670457,
+    "maxDrawdownPercent": 4.846835953244644
+  },
+  {
+    "ticker": "TICK0096",
+    "totalReturnPercent": -2.3373341756159127,
+    "dailyVolatilityPercent": 1.5863889159203644,
+    "maxDrawdownPercent": 8.466486822992314
+  },
+  {
+    "ticker": "TICK0097",
+    "totalReturnPercent": 2.0613596832093517,
+    "dailyVolatilityPercent": 1.5029995936264628,
+    "maxDrawdownPercent": 7.597794308130701
+  },
+  {
+    "ticker": "TICK0098",
+    "totalReturnPercent": -11.674107142857137,
+    "dailyVolatilityPercent": 1.766702681652692,
+    "maxDrawdownPercent": 14.852869976868032
+  },
+  {
+    "ticker": "TICK0099",
+    "totalReturnPercent": -5.558668609212159,
+    "dailyVolatilityPercent": 1.4307406831295617,
+    "maxDrawdownPercent": 8.749323226854354
+  },
+  {
+    "ticker": "TICK0100",
+    "totalReturnPercent": 7.511486517844723,
+    "dailyVolatilityPercent": 1.5816016563015542,
+    "maxDrawdownPercent": 7.791944950414898
+  },
+  {
+    "ticker": "TICK0101",
+    "totalReturnPercent": -7.745142582248709,
+    "dailyVolatilityPercent": 1.300693708650242,
+    "maxDrawdownPercent": 10.877310750800373
+  },
+  {
+    "ticker": "TICK0102",
+    "totalReturnPercent": -11.284099370473156,
+    "dailyVolatilityPercent": 1.5483331841976011,
+    "maxDrawdownPercent": 15.23695659393578
+  },
+  {
+    "ticker": "TICK0103",
+    "totalReturnPercent": 0.7573970700002652,
+    "dailyVolatilityPercent": 1.400737930409938,
+    "maxDrawdownPercent": 4.637408076208427
+  },
+  {
+    "ticker": "TICK0104",
+    "totalReturnPercent": 5.185668199601889,
+    "dailyVolatilityPercent": 1.7298609087381889,
+    "maxDrawdownPercent": 8.021267517804986
+  },
+  {
+    "ticker": "TICK0105",
+    "totalReturnPercent": -3.2987292943045143,
+    "dailyVolatilityPercent": 1.4276679455793309,
+    "maxDrawdownPercent": 7.522613207814677
+  },
+  {
+    "ticker": "TICK0106",
+    "totalReturnPercent": 8.188550270578187,
+    "dailyVolatilityPercent": 1.350439868350747,
+    "maxDrawdownPercent": 3.4700465204595132
+  },
+  {
+    "ticker": "TICK0107",
+    "totalReturnPercent": 5.691177561771887,
+    "dailyVolatilityPercent": 1.5869778398762886,
+    "maxDrawdownPercent": 7.196464894437815
+  },
+  {
+    "ticker": "TICK0108",
+    "totalReturnPercent": 2.6460442861911515,
+    "dailyVolatilityPercent": 1.6417541023769795,
+    "maxDrawdownPercent": 4.175842439855392
+  },
+  {
+    "ticker": "TICK0109",
+    "totalReturnPercent": -6.168954162659912,
+    "dailyVolatilityPercent": 1.5888954309658643,
+    "maxDrawdownPercent": 14.523211178923546
+  },
+  {
+    "ticker": "TICK0110",
+    "totalReturnPercent": 5.426164519326049,
+    "dailyVolatilityPercent": 1.6470371352474207,
+    "maxDrawdownPercent": 6.02351811855053
+  },
+  {
+    "ticker": "TICK0111",
+    "totalReturnPercent": 7.050248959661309,
+    "dailyVolatilityPercent": 1.3990908979374055,
+    "maxDrawdownPercent": 3.7348624056321778
+  },
+  {
+    "ticker": "TICK0112",
+    "totalReturnPercent": 3.896598639455773,
+    "dailyVolatilityPercent": 1.694586405383675,
+    "maxDrawdownPercent": 11.882554487484532
+  },
+  {
+    "ticker": "TICK0113",
+    "totalReturnPercent": -1.020200994822873,
+    "dailyVolatilityPercent": 1.461823075947368,
+    "maxDrawdownPercent": 8.105646630236796
+  },
+  {
+    "ticker": "TICK0114",
+    "totalReturnPercent": 2.3154345778174434,
+    "dailyVolatilityPercent": 1.445081649885955,
+    "maxDrawdownPercent": 3.4764250527797302
+  },
+  {
+    "ticker": "TICK0115",
+    "totalReturnPercent": -2.246596430461356,
+    "dailyVolatilityPercent": 1.8896020818197845,
+    "maxDrawdownPercent": 10.5917216327311
+  },
+  {
+    "ticker": "TICK0116",
+    "totalReturnPercent": 4.1197118049140835,
+    "dailyVolatilityPercent": 1.6595023319065063,
+    "maxDrawdownPercent": 7.498220007119971
+  },
+  {
+    "ticker": "TICK0117",
+    "totalReturnPercent": 5.7096699746134405,
+    "dailyVolatilityPercent": 1.358185264046942,
+    "maxDrawdownPercent": 5.3464617649765405
+  },
+  {
+    "ticker": "TICK0118",
+    "totalReturnPercent": -3.8979668205064266,
+    "dailyVolatilityPercent": 1.309712336123414,
+    "maxDrawdownPercent": 6.473418184032642
+  },
+  {
+    "ticker": "TICK0119",
+    "totalReturnPercent": 12.813037302833209,
+    "dailyVolatilityPercent": 1.2417377573381956,
+    "maxDrawdownPercent": 1.6778523489932917
+  },
+  {
+    "ticker": "TICK0120",
+    "totalReturnPercent": 19.27253633738275,
+    "dailyVolatilityPercent": 1.238114162036849,
+    "maxDrawdownPercent": 3.0396713006362597
+  },
+  {
+    "ticker": "TICK0121",
+    "totalReturnPercent": -5.31550802139037,
+    "dailyVolatilityPercent": 1.7078366762500752,
+    "maxDrawdownPercent": 7.176470588235285
+  },
+  {
+    "ticker": "TICK0122",
+    "totalReturnPercent": -1.0000000000000009,
+    "dailyVolatilityPercent": 1.4478715335254708,
+    "maxDrawdownPercent": 7.578740157480313
+  },
+  {
+    "ticker": "TICK0123",
+    "totalReturnPercent": -11.62116733321742,
+    "dailyVolatilityPercent": 1.0931121305313014,
+    "maxDrawdownPercent": 12.102243088158582
+  },
+  {
+    "ticker": "TICK0124",
+    "totalReturnPercent": -11.699333198625983,
+    "dailyVolatilityPercent": 1.3115074482569524,
+    "maxDrawdownPercent": 14.53492288004311
+  },
+  {
+    "ticker": "TICK0125",
+    "totalReturnPercent": -2.3709902370990354,
+    "dailyVolatilityPercent": 1.4356833741588464,
+    "maxDrawdownPercent": 5.253370525337065
+  },
+  {
+    "ticker": "TICK0126",
+    "totalReturnPercent": -5.515503451298354,
+    "dailyVolatilityPercent": 1.4371712225063225,
+    "maxDrawdownPercent": 11.233775921229295
+  },
+  {
+    "ticker": "TICK0127",
+    "totalReturnPercent": 5.115995792038075,
+    "dailyVolatilityPercent": 1.5315241484213558,
+    "maxDrawdownPercent": 5.138720129607133
+  },
+  {
+    "ticker": "TICK0128",
+    "totalReturnPercent": 6.683038063497637,
+    "dailyVolatilityPercent": 1.4840618191160697,
+    "maxDrawdownPercent": 6.12951261721737
+  },
+  {
+    "ticker": "TICK0129",
+    "totalReturnPercent": 3.0382106244175366,
+    "dailyVolatilityPercent": 1.7910010806682555,
+    "maxDrawdownPercent": 4.581208401763326
+  },
+  {
+    "ticker": "TICK0130",
+    "totalReturnPercent": -18.26851473732254,
+    "dailyVolatilityPercent": 1.5237079961195394,
+    "maxDrawdownPercent": 19.12849215690985
+  },
+  {
+    "ticker": "TICK0131",
+    "totalReturnPercent": 6.171470805617152,
+    "dailyVolatilityPercent": 1.6487378856910797,
+    "maxDrawdownPercent": 5.125033135990098
+  },
+  {
+    "ticker": "TICK0132",
+    "totalReturnPercent": -4.150308468872677,
+    "dailyVolatilityPercent": 1.2157277487794136,
+    "maxDrawdownPercent": 8.998935037273704
+  },
+  {
+    "ticker": "TICK0133",
+    "totalReturnPercent": -1.1197663096397248,
+    "dailyVolatilityPercent": 0.9980828282988976,
+    "maxDrawdownPercent": 4.141592920353987
+  },
+  {
+    "ticker": "TICK0134",
+    "totalReturnPercent": 2.429690458631484,
+    "dailyVolatilityPercent": 1.4783418749186557,
+    "maxDrawdownPercent": 7.4349720440563205
+  },
+  {
+    "ticker": "TICK0135",
+    "totalReturnPercent": -7.561719514300524,
+    "dailyVolatilityPercent": 1.5883831400000346,
+    "maxDrawdownPercent": 9.001812825742128
+  },
+  {
+    "ticker": "TICK0136",
+    "totalReturnPercent": -9.070271116561857,
+    "dailyVolatilityPercent": 1.7529945303892058,
+    "maxDrawdownPercent": 12.487016441618326
+  },
+  {
+    "ticker": "TICK0137",
+    "totalReturnPercent": -1.5877456809120893,
+    "dailyVolatilityPercent": 1.6490915045417225,
+    "maxDrawdownPercent": 10.776907616605435
+  },
+  {
+    "ticker": "TICK0138",
+    "totalReturnPercent": 3.436914162358695,
+    "dailyVolatilityPercent": 1.59620728800118,
+    "maxDrawdownPercent": 4.472144925890165
+  },
+  {
+    "ticker": "TICK0139",
+    "totalReturnPercent": -15.62499999999999,
+    "dailyVolatilityPercent": 1.5442295543480704,
+    "maxDrawdownPercent": 17.51497005988024
+  },
+  {
+    "ticker": "TICK0140",
+    "totalReturnPercent": -15.062215235405407,
+    "dailyVolatilityPercent": 1.297575737028138,
+    "maxDrawdownPercent": 16.788787935306814
+  },
+  {
+    "ticker": "TICK0141",
+    "totalReturnPercent": 0,
+    "dailyVolatilityPercent": 1.7448954382268358,
+    "maxDrawdownPercent": 9.353421217827995
+  },
+  {
+    "ticker": "TICK0142",
+    "totalReturnPercent": 1.5742978759812676,
+    "dailyVolatilityPercent": 1.4521392319868907,
+    "maxDrawdownPercent": 7.037348384772435
+  },
+  {
+    "ticker": "TICK0143",
+    "totalReturnPercent": 9.676920698716973,
+    "dailyVolatilityPercent": 1.2072082432058817,
+    "maxDrawdownPercent": 2.3780672523477597
+  },
+  {
+    "ticker": "TICK0144",
+    "totalReturnPercent": -14.65572863858421,
+    "dailyVolatilityPercent": 1.596343940848191,
+    "maxDrawdownPercent": 14.65572863858421
+  },
+  {
+    "ticker": "TICK0145",
+    "totalReturnPercent": 4.736955429555723,
+    "dailyVolatilityPercent": 1.4060646714540643,
+    "maxDrawdownPercent": 5.347017871240956
+  },
+  {
+    "ticker": "TICK0146",
+    "totalReturnPercent": -9.969476290047352,
+    "dailyVolatilityPercent": 1.4713881543914569,
+    "maxDrawdownPercent": 11.815719444972439
+  },
+  {
+    "ticker": "TICK0147",
+    "totalReturnPercent": 12.292410367841079,
+    "dailyVolatilityPercent": 1.3264239136515688,
+    "maxDrawdownPercent": 3.6073825503355694
+  },
+  {
+    "ticker": "TICK0148",
+    "totalReturnPercent": 2.2487414713924236,
+    "dailyVolatilityPercent": 1.3949084860793823,
+    "maxDrawdownPercent": 4.209350876341212
+  },
+  {
+    "ticker": "TICK0149",
+    "totalReturnPercent": -1.204445272241883,
+    "dailyVolatilityPercent": 1.1501287931747393,
+    "maxDrawdownPercent": 5.971033440238593
+  },
+  {
+    "ticker": "TICK0150",
+    "totalReturnPercent": 5.2780534421288605,
+    "dailyVolatilityPercent": 1.600769307847158,
+    "maxDrawdownPercent": 6.968386023294504
+  },
+  {
+    "ticker": "TICK0151",
+    "totalReturnPercent": 13.273031658379342,
+    "dailyVolatilityPercent": 1.7437111085381298,
+    "maxDrawdownPercent": 4.346355487908005
+  },
+  {
+    "ticker": "TICK0152",
+    "totalReturnPercent": 0.6914370974198336,
+    "dailyVolatilityPercent": 1.3284157035961066,
+    "maxDrawdownPercent": 3.620826996886084
+  },
+  {
+    "ticker": "TICK0153",
+    "totalReturnPercent": 2.541901660179513,
+    "dailyVolatilityPercent": 1.3906061079072705,
+    "maxDrawdownPercent": 8.618635316546186
+  },
+  {
+    "ticker": "TICK0154",
+    "totalReturnPercent": -0.8099352051835762,
+    "dailyVolatilityPercent": 1.4321969207534513,
+    "maxDrawdownPercent": 6.999999999999995
+  },
+  {
+    "ticker": "TICK0155",
+    "totalReturnPercent": 2.7217268887846258,
+    "dailyVolatilityPercent": 1.1051567315613204,
+    "maxDrawdownPercent": 3.1693318413168137
+  },
+  {
+    "ticker": "TICK0156",
+    "totalReturnPercent": -18.029739776951658,
+    "dailyVolatilityPercent": 1.7477256360259874,
+    "maxDrawdownPercent": 18.84192662033296
+  },
+  {
+    "ticker": "TICK0157",
+    "totalReturnPercent": -0.4477779021605177,
+    "dailyVolatilityPercent": 1.3868259466144477,
+    "maxDrawdownPercent": 5.16201546137397
+  },
+  {
+    "ticker": "TICK0158",
+    "totalReturnPercent": 5.941819682277694,
+    "dailyVolatilityPercent": 1.9362994359926136,
+    "maxDrawdownPercent": 7.838001208946199
+  },
+  {
+    "ticker": "TICK0159",
+    "totalReturnPercent": -5.810095305330054,
+    "dailyVolatilityPercent": 1.0743654344321854,
+    "maxDrawdownPercent": 6.365358972559488
+  },
+  {
+    "ticker": "TICK0160",
+    "totalReturnPercent": 7.6318089134867595,
+    "dailyVolatilityPercent": 1.3332341561723038,
+    "maxDrawdownPercent": 5.621731551423592
+  },
+  {
+    "ticker": "TICK0161",
+    "totalReturnPercent": 9.825664790908096,
+    "dailyVolatilityPercent": 1.4018198909955024,
+    "maxDrawdownPercent": 3.8453050866159133
+  },
+  {
+    "ticker": "TICK0162",
+    "totalReturnPercent": -8.10235131396958,
+    "dailyVolatilityPercent": 1.536301030785963,
+    "maxDrawdownPercent": 10.714870842662883
+  },
+  {
+    "ticker": "TICK0163",
+    "totalReturnPercent": 0.2641690682036568,
+    "dailyVolatilityPercent": 1.6395733240061046,
+    "maxDrawdownPercent": 10.139239557033209
+  },
+  {
+    "ticker": "TICK0164",
+    "totalReturnPercent": 13.76402486957764,
+    "dailyVolatilityPercent": 1.7578855253646912,
+    "maxDrawdownPercent": 4.3745704467354045
+  },
+  {
+    "ticker": "TICK0165",
+    "totalReturnPercent": -11.840936616875242,
+    "dailyVolatilityPercent": 1.4521873921039292,
+    "maxDrawdownPercent": 15.898264029067422
+  },
+  {
+    "ticker": "TICK0166",
+    "totalReturnPercent": 4.908716948325953,
+    "dailyVolatilityPercent": 1.4265420764160046,
+    "maxDrawdownPercent": 6.7032945392962
+  },
+  {
+    "ticker": "TICK0167",
+    "totalReturnPercent": -1.1109004739336514,
+    "dailyVolatilityPercent": 1.4423332514719547,
+    "maxDrawdownPercent": 7.713601675894067
+  },
+  {
+    "ticker": "TICK0168",
+    "totalReturnPercent": 5.220916763197092,
+    "dailyVolatilityPercent": 1.4670389465604317,
+    "maxDrawdownPercent": 4.662579808205935
+  },
+  {
+    "ticker": "TICK0169",
+    "totalReturnPercent": -10.338195223593527,
+    "dailyVolatilityPercent": 1.5994549193819645,
+    "maxDrawdownPercent": 10.74424320136773
+  },
+  {
+    "ticker": "TICK0170",
+    "totalReturnPercent": 6.090058249885466,
+    "dailyVolatilityPercent": 1.468971746743215,
+    "maxDrawdownPercent": 4.608251024232224
+  },
+  {
+    "ticker": "TICK0171",
+    "totalReturnPercent": -3.2148510577061473,
+    "dailyVolatilityPercent": 1.2881532048325794,
+    "maxDrawdownPercent": 11.656833040982306
+  },
+  {
+    "ticker": "TICK0172",
+    "totalReturnPercent": 5.081117329963125,
+    "dailyVolatilityPercent": 1.6747832031967818,
+    "maxDrawdownPercent": 6.0124787294384525
+  },
+  {
+    "ticker": "TICK0173",
+    "totalReturnPercent": -6.923172191718607,
+    "dailyVolatilityPercent": 1.3992453595832706,
+    "maxDrawdownPercent": 9.53190112068616
+  },
+  {
+    "ticker": "TICK0174",
+    "totalReturnPercent": -12.190947128185615,
+    "dailyVolatilityPercent": 1.483220820342032,
+    "maxDrawdownPercent": 13.917429478796938
+  },
+  {
+    "ticker": "TICK0175",
+    "totalReturnPercent": -6.422976501305488,
+    "dailyVolatilityPercent": 1.405749697594092,
+    "maxDrawdownPercent": 7.895652173913037
+  },
+  {
+    "ticker": "TICK0176",
+    "totalReturnPercent": -11.478611888794843,
+    "dailyVolatilityPercent": 1.3962760497485742,
+    "maxDrawdownPercent": 11.478611888794843
+  },
+  {
+    "ticker": "TICK0177",
+    "totalReturnPercent": -10.038253245078653,
+    "dailyVolatilityPercent": 1.8319127874790873,
+    "maxDrawdownPercent": 17.98547236310496
+  },
+  {
+    "ticker": "TICK0178",
+    "totalReturnPercent": 5.675823176277972,
+    "dailyVolatilityPercent": 1.373119146180008,
+    "maxDrawdownPercent": 4.017063633131879
+  },
+  {
+    "ticker": "TICK0179",
+    "totalReturnPercent": -4.234098607452019,
+    "dailyVolatilityPercent": 1.4275170568142508,
+    "maxDrawdownPercent": 8.261196838539696
+  },
+  {
+    "ticker": "TICK0180",
+    "totalReturnPercent": 6.666314510591098,
+    "dailyVolatilityPercent": 1.6631658797650435,
+    "maxDrawdownPercent": 6.085256985896159
+  },
+  {
+    "ticker": "TICK0181",
+    "totalReturnPercent": -7.605466428995844,
+    "dailyVolatilityPercent": 1.634169079448734,
+    "maxDrawdownPercent": 9.551392355977805
+  },
+  {
+    "ticker": "TICK0182",
+    "totalReturnPercent": 3.1785433190046675,
+    "dailyVolatilityPercent": 1.4689007844848128,
+    "maxDrawdownPercent": 6.007746208201514
+  },
+  {
+    "ticker": "TICK0183",
+    "totalReturnPercent": 4.6992687586464355,
+    "dailyVolatilityPercent": 1.3051222262727649,
+    "maxDrawdownPercent": 4.760754518105359
+  },
+  {
+    "ticker": "TICK0184",
+    "totalReturnPercent": 6.073089365143547,
+    "dailyVolatilityPercent": 1.6584822270419752,
+    "maxDrawdownPercent": 7.647291972674919
+  },
+  {
+    "ticker": "TICK0185",
+    "totalReturnPercent": -11.170139368014354,
+    "dailyVolatilityPercent": 1.5510771458520776,
+    "maxDrawdownPercent": 15.00620946598592
+  },
+  {
+    "ticker": "TICK0186",
+    "totalReturnPercent": -7.977270725046259,
+    "dailyVolatilityPercent": 1.4517055227689015,
+    "maxDrawdownPercent": 8.743933895859746
+  },
+  {
+    "ticker": "TICK0187",
+    "totalReturnPercent": 0.7833492735801695,
+    "dailyVolatilityPercent": 1.7706014073503231,
+    "maxDrawdownPercent": 12.979386870773101
+  },
+  {
+    "ticker": "TICK0188",
+    "totalReturnPercent": -0.16997880511194774,
+    "dailyVolatilityPercent": 1.850836873628551,
+    "maxDrawdownPercent": 8.362838979641108
+  },
+  {
+    "ticker": "TICK0189",
+    "totalReturnPercent": -4.35109583154275,
+    "dailyVolatilityPercent": 1.74624730527174,
+    "maxDrawdownPercent": 9.339807831387548
+  },
+  {
+    "ticker": "TICK0190",
+    "totalReturnPercent": -14.495320010118906,
+    "dailyVolatilityPercent": 1.7916111472794423,
+    "maxDrawdownPercent": 18.85899352267065
+  },
+  {
+    "ticker": "TICK0191",
+    "totalReturnPercent": -10.823481451284145,
+    "dailyVolatilityPercent": 1.4247835296737672,
+    "maxDrawdownPercent": 12.638804764789013
+  },
+  {
+    "ticker": "TICK0192",
+    "totalReturnPercent": -5.828144458281437,
+    "dailyVolatilityPercent": 1.718738332939701,
+    "maxDrawdownPercent": 8.929969290058404
+  },
+  {
+    "ticker": "TICK0193",
+    "totalReturnPercent": 8.009464847168669,
+    "dailyVolatilityPercent": 1.6229070037050177,
+    "maxDrawdownPercent": 7.170715400044559
+  },
+  {
+    "ticker": "TICK0194",
+    "totalReturnPercent": 17.313585291113377,
+    "dailyVolatilityPercent": 1.4985978350242963,
+    "maxDrawdownPercent": 3.455992043759326
+  },
+  {
+    "ticker": "TICK0195",
+    "totalReturnPercent": -3.8497652582159647,
+    "dailyVolatilityPercent": 1.6048955052990639,
+    "maxDrawdownPercent": 12.555260831122894
+  },
+  {
+    "ticker": "TICK0196",
+    "totalReturnPercent": 4.610836837935017,
+    "dailyVolatilityPercent": 1.6939091521471221,
+    "maxDrawdownPercent": 12.19595265801946
+  },
+  {
+    "ticker": "TICK0197",
+    "totalReturnPercent": 22.64804647939873,
+    "dailyVolatilityPercent": 1.6165666573655504,
+    "maxDrawdownPercent": 3.7393640841916764
+  },
+  {
+    "ticker": "TICK0198",
+    "totalReturnPercent": -1.1305132423969022,
+    "dailyVolatilityPercent": 1.229420937707996,
+    "maxDrawdownPercent": 6.9639900662251675
+  },
+  {
+    "ticker": "TICK0199",
+    "totalReturnPercent": -10.784313725490202,
+    "dailyVolatilityPercent": 1.633011054951305,
+    "maxDrawdownPercent": 11.4031180400891
+  },
+  {
+    "ticker": "TICK0200",
+    "totalReturnPercent": -7.66724212343547,
+    "dailyVolatilityPercent": 1.3616368314881686,
+    "maxDrawdownPercent": 8.233095626772059
+  }
+]

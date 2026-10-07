@@ -21,4 +21,8 @@
     </PackageReference>
     <ProjectReference Include="../../PharoDashboard.Api.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Fixtures/price-statistics.expected.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
