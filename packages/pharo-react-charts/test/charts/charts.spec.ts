@@ -1,13 +1,42 @@
-import { randomUUID } from 'node:crypto';
-import { cp, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  cp,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { build, preview } from 'vite';
-import type { PreviewServer } from 'vite';
+import { build, preview, rolldownVersion, version } from 'vite';
+import type { Plugin, PreviewServer, ResolvedConfig } from 'vite';
+
+interface BundleModule {
+  id: string;
+  renderedLength: number;
+  renderedExports: readonly string[];
+}
+
+interface BundleChunk {
+  file: string;
+  imports: readonly string[];
+  dynamicImports: readonly string[];
+  modules: readonly BundleModule[];
+}
+
+type BundleSettings = { mode: string } & Pick<
+  ResolvedConfig['build'],
+  'target' | 'minify' | 'cssMinify' | 'sourcemap'
+>;
 
 const packageDirectory = fileURLToPath(new URL('../../', import.meta.url));
 const repositoryDirectory = path.resolve(packageDirectory, '../..');
@@ -19,6 +48,229 @@ let identity: { dev: number; ino: number } | undefined;
 let origin = '';
 let catalogOrigin = '';
 let failed = false;
+let bundleReport: Awaited<ReturnType<typeof auditBundle>> | undefined;
+
+const runtimePackages = new Set([
+  '@pharo/react-charts',
+  'react',
+  'react-dom',
+  'scheduler',
+  'd3-array',
+  'd3-color',
+  'd3-format',
+  'd3-interpolate',
+  'd3-path',
+  'd3-scale',
+  'd3-shape',
+  'd3-time',
+  'd3-time-format',
+  'internmap',
+  'tailwind-merge',
+]);
+const virtualModules = new Set(['\0rolldown/runtime.js', '\0vite/modulepreload-polyfill.js']);
+
+function sha256(bytes: Uint8Array): string {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+async function filesBelow(directory: string): Promise<string[]> {
+  const files: string[] = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...(await filesBelow(file)));
+    else if (entry.isFile()) files.push(file);
+    else throw new Error('A bundle input or output is not an ordinary file.');
+  }
+  return files.sort();
+}
+
+async function measuredFile(file: string, name: string) {
+  const bytes = await readFile(file);
+  return {
+    file: name,
+    bytes: bytes.byteLength,
+    gzipLevel9Bytes: gzipSync(bytes, { level: 9 }).byteLength,
+    sha256: sha256(bytes),
+  };
+}
+
+async function auditBundle(
+  consumer: string,
+  chunks: readonly BundleChunk[],
+  settings: BundleSettings,
+) {
+  expect(settings.mode).toBe('production');
+  expect(settings.minify).toBe('oxc');
+  expect(settings.cssMinify).toBe('lightningcss');
+  expect(settings.sourcemap).toBe(false);
+  expect(chunks.length).toBeGreaterThan(0);
+  const emittedChunks = new Set(chunks.map((chunk) => chunk.file));
+  const installation = await realpath(path.join(repositoryDirectory, 'node_modules/.pnpm'));
+  const installedChart = await realpath(path.join(consumer, 'node_modules/@pharo/react-charts'));
+  const entries = new Map(
+    await Promise.all(
+      ['main.tsx', 'styles.css', 'index.html'].map(
+        async (file) => [await realpath(path.join(consumer, file)), `fixture/${file}`] as const,
+      ),
+    ),
+  );
+  const packages = new Map<string, { root: string; version: string }>();
+  const modules: Array<Omit<BundleModule, 'id'> & { origin: string; chunk: string }> = [];
+  for (const chunk of chunks) {
+    // Externalized dependencies must not bypass the included-module audit.
+    for (const specifier of [...chunk.imports, ...chunk.dynamicImports]) {
+      const relative = path.posix.normalize(
+        path.posix.join(path.posix.dirname(chunk.file), specifier),
+      );
+      expect(emittedChunks.has(specifier) || emittedChunks.has(relative)).toBe(true);
+    }
+    for (const module of chunk.modules) {
+      let origin: string;
+      if (module.id.startsWith('\0')) {
+        expect(virtualModules.has(module.id)).toBe(true);
+        origin = `virtual/${module.id.slice(1)}`;
+      } else {
+        const file = await realpath(module.id);
+        const entry = entries.get(file);
+        if (entry) origin = entry;
+        else {
+          expect(
+            file.startsWith(installation + path.sep) || file.startsWith(installedChart + path.sep),
+          ).toBe(true);
+          let directory = path.dirname(file);
+          let owner: { name: string; version: string; root: string } | undefined;
+          while (
+            directory.startsWith(installation + path.sep) ||
+            directory === installedChart ||
+            directory.startsWith(installedChart + path.sep)
+          ) {
+            const manifest = path.join(directory, 'package.json');
+            const exists = await lstat(manifest).catch((error: unknown) => {
+              if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+                return undefined;
+              throw error;
+            });
+            if (exists) {
+              const metadata: unknown = JSON.parse(await readFile(manifest, 'utf8'));
+              if (
+                !metadata ||
+                typeof metadata !== 'object' ||
+                !('name' in metadata) ||
+                typeof metadata.name !== 'string' ||
+                !('version' in metadata) ||
+                typeof metadata.version !== 'string'
+              )
+                throw new Error('A bundled package has incomplete identity metadata.');
+              owner = { name: metadata.name, version: metadata.version, root: directory };
+              break;
+            }
+            directory = path.dirname(directory);
+          }
+          if (!owner) throw new Error('A bundled module has no recognized package owner.');
+          expect(runtimePackages.has(owner.name)).toBe(true);
+          if (owner.name === '@pharo/react-charts') {
+            expect(owner.root).toBe(installedChart);
+            expect(path.relative(owner.root, file)).toBe(path.join('dist', 'index.js'));
+          }
+          const previous = packages.get(owner.name);
+          if (previous) expect(previous).toEqual({ root: owner.root, version: owner.version });
+          packages.set(owner.name, { root: owner.root, version: owner.version });
+          origin = `${owner.name}@${owner.version}/${path.relative(owner.root, file).split(path.sep).join('/')}`;
+        }
+      }
+      expect(origin).not.toMatch(
+        /(?:^|\/)(?:__tests__|tests?|stories)(?:\/|\.)|\.stories\.[cm]?[jt]sx?$/,
+      );
+      modules.push({
+        origin,
+        chunk: chunk.file,
+        renderedLength: module.renderedLength,
+        renderedExports: module.renderedExports,
+      });
+    }
+  }
+  for (const required of [
+    'react',
+    'react-dom',
+    '@pharo/react-charts',
+    'd3-array',
+    'd3-scale',
+    'd3-shape',
+    'd3-time-format',
+  ])
+    expect(packages.has(required)).toBe(true);
+  const output = path.join(consumer, 'dist');
+  const assets: Array<Awaited<ReturnType<typeof measuredFile>>> = [];
+  for (const file of await filesBelow(output)) {
+    const name = path.relative(output, file).split(path.sep).join('/');
+    expect(name).toMatch(/\.(?:js|css|html)$/);
+    const text = await readFile(file, 'utf8');
+    expect(text).not.toContain(marker);
+    expect(text).not.toContain('.dev-private/');
+    expect(text).not.toContain('19149');
+    assets.push(await measuredFile(file, name));
+  }
+  for (const file of emittedChunks) expect(assets.some((asset) => asset.file === file)).toBe(true);
+  const inputs = [];
+  const inputFiles = [
+    ...['main.tsx', 'styles.css', 'index.html'].map((file) => path.join(consumer, file)),
+    path.join(installedChart, 'package.json'),
+    ...(await filesBelow(path.join(installedChart, 'dist'))),
+    path.join(consumer, 'node_modules/@pharo/tailwind-plugin/package.json'),
+    path.join(consumer, 'node_modules/@pharo/tailwind-plugin/index.css'),
+  ];
+  for (const file of inputFiles)
+    inputs.push({
+      path: path.relative(consumer, file).split(path.sep).join('/'),
+      sha256: sha256(await readFile(file)),
+    });
+  inputs.push({
+    path: 'workspace/pnpm-lock.yaml',
+    sha256: sha256(await readFile(path.join(repositoryDirectory, 'pnpm-lock.yaml'))),
+  });
+  const totals = (extension: string) =>
+    assets
+      .filter((asset) => asset.file.endsWith(extension))
+      .reduce(
+        (total, asset) => ({
+          bytes: total.bytes + asset.bytes,
+          gzipLevel9Bytes: total.gzipLevel9Bytes + asset.gzipLevel9Bytes,
+        }),
+        { bytes: 0, gzipLevel9Bytes: 0 },
+      );
+  return {
+    description:
+      'Complete minified fixture consumer, including React/DOM, retained dependencies, theme CSS and harness. Suite results are reported separately.',
+    command: 'node scripts/nx.mjs run @pharo/react-charts:e2e',
+    tools: {
+      node: process.version,
+      zlib: process.versions.zlib,
+      vite: version,
+      rolldown: rolldownVersion,
+    },
+    settings,
+    method:
+      'Final file byte lengths and Node gzipSync level 9, summed per file. Module renderedLength is pre-minification diagnostic, not final size attribution.',
+    resolution:
+      'Copied public chart export map/dist and theme inputs; ordinary runtime dependencies resolve from the existing workspace installation.',
+    assets,
+    totals: { javascript: totals('.js'), css: totals('.css') },
+    externalizedLibrary: {
+      description:
+        'Unminified externalized owned ESM, excluding runtime dependencies and theme; not total consumer download size.',
+      ...(await measuredFile(
+        path.join(installedChart, 'dist/index.js'),
+        '@pharo/react-charts/dist/index.js',
+      )),
+    },
+    packages: [...packages]
+      .map(([name, owner]) => ({ name, version: owner.version, physicalRoots: 1 }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    chunks: chunks.map(({ file, imports, dynamicImports }) => ({ file, imports, dynamicImports })),
+    modules: modules.sort((a, b) => a.origin.localeCompare(b.origin)),
+    inputs,
+  };
+}
 
 function serverOrigin(server: PreviewServer): string {
   const address = server.httpServer.address();
@@ -53,16 +305,48 @@ test.beforeAll(async () => {
     await mkdir(path.join(fixture, '.dev-private'));
     await writeFile(path.join(fixture, '.dev-private/sentinel.txt'), marker);
     await writeFile(path.join(fixture, '.dev-private/hidden.tsx'), '<div className="z-[19149]" />');
+    const chunks: BundleChunk[] = [];
+    let settings: BundleSettings | undefined;
+    const reportPlugin = {
+      name: 'chart-consumer-audit',
+      configResolved(config) {
+        settings = {
+          mode: config.mode,
+          target: config.build.target,
+          minify: config.build.minify,
+          cssMinify: config.build.cssMinify,
+          sourcemap: config.build.sourcemap,
+        };
+      },
+      generateBundle(_options, bundle) {
+        for (const chunk of Object.values(bundle)) {
+          if (chunk.type !== 'chunk') continue;
+          chunks.push({
+            file: chunk.fileName,
+            imports: [...chunk.imports],
+            dynamicImports: [...chunk.dynamicImports],
+            modules: Object.entries(chunk.modules).map(([id, module]) => ({
+              id,
+              renderedLength: module.renderedLength,
+              renderedExports: [...module.renderedExports],
+            })),
+          });
+        }
+      },
+    } satisfies Plugin;
     await build({
       root: fixture,
+      mode: 'production',
       configFile: false,
       envDir: false,
       cacheDir: path.join(fixture, '.vite'),
-      plugins: [react(), tailwindcss()],
+      plugins: [react(), tailwindcss(), reportPlugin],
       resolve: { dedupe: ['react', 'react-dom'] },
       logLevel: 'warn',
-      build: { outDir: 'dist', sourcemap: false, minify: false },
+      build: { outDir: 'dist', sourcemap: false, minify: 'oxc', cssMinify: 'lightningcss' },
     });
+    if (!settings) throw new Error('The consumer build did not report resolved settings.');
+    bundleReport = await auditBundle(fixture, chunks, settings);
     const assets = path.join(fixture, 'dist/assets');
     expect((await readdir(assets)).filter((file) => file.endsWith('.css'))).toHaveLength(1);
     for (const file of await readdir(assets)) {
@@ -587,6 +871,28 @@ test.describe('independent built charts', () => {
     await expect(page.getByRole('cell', { name: /^label\*?$/ })).toBeVisible();
     await expect(page.getByRole('cell', { name: /^series\*?$/ })).toBeVisible();
     await expect(page.getByRole('cell', { name: /^formatX$/ })).toBeVisible();
+    const labelControl = page
+      .getByRole('row')
+      .filter({ hasText: /^label\*/ })
+      .getByRole('textbox');
+    await labelControl.fill('Catalog control verification');
+    await labelControl.press('Tab');
+    const controlledChart = page.getByRole('img', {
+      name: 'Catalog control verification',
+      exact: true,
+    });
+    await expect(controlledChart).toBeVisible();
+    await expect(
+      page.getByRole('slider', { name: 'Inspect Catalog control verification' }),
+    ).toBeVisible();
+    const sizeRow = page.getByRole('row').filter({ hasText: /^className/ });
+    await sizeRow.getByRole('button', { name: 'Set string' }).click();
+    await sizeRow.getByRole('textbox').fill('h-96');
+    await sizeRow.getByRole('textbox').press('Tab');
+    await expect(controlledChart).toHaveAttribute('height', '384');
+    await sizeRow.getByRole('textbox').fill('');
+    await sizeRow.getByRole('textbox').press('Tab');
+    await expect(controlledChart).toHaveAttribute('height', '320');
     await page.screenshot({ path: testInfo.outputPath('charts-catalog-docs.png'), fullPage: true });
   });
 
@@ -600,5 +906,29 @@ test.describe('independent built charts', () => {
       if (response.status() === 200)
         expect(response.headers()['content-type']).toContain('text/html');
     }
+  });
+
+  test('the audited minified bundle is the actual browser-served consumer', async ({
+    request,
+  }, testInfo) => {
+    if (!bundleReport) throw new Error('The consumer bundle report is unavailable.');
+    expect(bundleReport.totals.javascript.bytes).toBeGreaterThan(0);
+    expect(bundleReport.totals.css.bytes).toBeGreaterThan(0);
+    for (const asset of bundleReport.assets) {
+      const response = await request.get(`${origin}/${asset.file}`);
+      expect(response.ok()).toBe(true);
+      const bytes = await response.body();
+      expect(sha256(bytes)).toBe(asset.sha256);
+      expect(bytes.byteLength).toBe(asset.bytes);
+    }
+    const serialized = JSON.stringify(bundleReport, null, 2) + '\n';
+    expect(serialized).not.toContain(repositoryDirectory);
+    expect(serialized).not.toContain('.dev-private/');
+    const reportPath = testInfo.outputPath('chart-bundle-report.json');
+    await writeFile(reportPath, serialized);
+    await testInfo.attach('chart-bundle-report', {
+      path: reportPath,
+      contentType: 'application/json',
+    });
   });
 });
