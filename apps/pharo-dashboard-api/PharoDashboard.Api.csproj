@@ -12,6 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <Content Include="Data/market_data.csv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Remove="Data/market_data.csv" />
     <Compile Remove="tests/**/*.cs" />
     <Content Remove="tests/**/*" />
     <EmbeddedResource Remove="tests/**/*" />
