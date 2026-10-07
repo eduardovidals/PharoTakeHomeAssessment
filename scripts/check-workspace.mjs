@@ -38,7 +38,17 @@ const requiredTargets = {
   '@pharo/eslint-config': ['test'],
   '@pharo/prettier-config': ['test'],
   '@pharo/tailwind-plugin': ['typecheck', 'test'],
-  '@pharo/react-components': ['typecheck:catalog', 'storybook', 'storybook:build'],
+  '@pharo/react-components': [
+    'build',
+    'typecheck',
+    'test',
+    'test:unit',
+    'test:stories',
+    'e2e',
+    'typecheck:catalog',
+    'storybook',
+    'storybook:build',
+  ],
   '@pharo/react-form-components': ['typecheck:catalog', 'storybook', 'storybook:build'],
   '@pharo/react-charts': ['typecheck:catalog', 'storybook', 'storybook:build'],
 };

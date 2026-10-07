@@ -281,6 +281,13 @@ importers:
         version: link:../pharo-tailwind-plugin
 
   packages/pharo-react-components:
+    dependencies:
+      react-aria-components:
+        specifier: 1.21.1
+        version: 1.21.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      tailwind-merge:
+        specifier: 3.7.0
+        version: 3.7.0
     devDependencies:
       '@pharo/tailwind-plugin':
         specifier: workspace:*
