@@ -21,7 +21,8 @@ export const helpStyles = 'text-pharo-xs text-pharo-muted';
 export const detailsStyles =
   'mt-pharo-3 min-w-0 rounded-pharo-control border border-pharo-border bg-pharo-surface-quiet p-pharo-3';
 export const dateStyles = 'mb-pharo-2 break-words text-pharo-sm font-medium';
-export const detailListStyles = 'grid min-w-0 gap-pharo-3 sm:grid-cols-3';
+export const detailListStyles =
+  'grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-pharo-3';
 export const detailItemStyles = 'min-w-0';
 export const detailLabelStyles = 'break-words text-pharo-xs text-pharo-muted';
 export const detailValueStyles = 'break-words text-pharo-sm font-medium';

@@ -38,7 +38,7 @@ test.describe('Share a real historical-data selection', () => {
     await expect(
       page.getByText('Select an instrument to view its prices and statistics.', { exact: true }),
     ).toBeVisible();
-    await page.getByRole('button', { name: 'Select TICK0001', exact: true }).press('Enter');
+    await page.getByRole('button', { name: 'Add TICK0001', exact: true }).press('Enter');
     await expectSelection(page, ['TICK0001']);
     const firstPrices = page.getByRole('region', { name: 'TICK0001 prices', exact: true });
     await expect(firstPrices.getByText('30', { exact: true })).toBeVisible();
@@ -49,7 +49,7 @@ test.describe('Share a real historical-data selection', () => {
         .getByRole('region', { name: 'TICK0001 statistics' })
         .getByText('Total return', { exact: true }),
     ).toBeVisible();
-    await page.getByRole('button', { name: 'Select TICK0002', exact: true }).click();
+    await page.getByRole('button', { name: 'Add TICK0002', exact: true }).click();
     await expectSelection(page, ['TICK0001', 'TICK0002']);
     await expect(
       page
@@ -63,7 +63,7 @@ test.describe('Share a real historical-data selection', () => {
     ).toBeVisible();
     const loadedRequests = [...priceRequests];
     await page.screenshot({ path: testInfo.outputPath('selection-desktop.png'), fullPage: true });
-    await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click();
+    await page.getByRole('button', { name: 'Remove selected TICK0001', exact: true }).click();
     await expectSelection(page, ['TICK0002']);
     await page.goBack();
     await expectSelection(page, ['TICK0001', 'TICK0002']);
@@ -101,14 +101,14 @@ test.describe('Share a real historical-data selection', () => {
         selected.getByRole('article', { name: `${ticker} market data`, exact: true }),
       ).toBeVisible();
     }
-    await page.getByRole('button', { name: 'Select TICK0004', exact: true }).click();
+    await page.getByRole('button', { name: 'Add TICK0004', exact: true }).click();
     await expect(
       page.getByText('You can compare up to three instruments. Remove one before adding another.', {
         exact: true,
       }),
     ).toBeVisible();
     expect(new URL(page.url()).search).toBe(raw);
-    await page.getByRole('button', { name: 'Remove TICK0002', exact: true }).click();
+    await page.getByRole('button', { name: 'Remove selected TICK0002', exact: true }).click();
     await expectSelection(page, ['TICK0001', 'TICK0003']);
     await expect(
       page.getByText('Only the first three instruments in this link are selected.', {
@@ -129,7 +129,7 @@ test.describe('Share a real historical-data selection', () => {
             .getByRole('region', { name: 'Selected instruments', exact: true })
             .getByRole('article'),
         ).toHaveCount(0);
-        await page.getByRole('button', { name: 'Select TICK0001', exact: true }).click();
+        await page.getByRole('button', { name: 'Add TICK0001', exact: true }).click();
         await expectSelection(page, ['TICK0001']);
         await expect(
           page.getByText("The link's instrument selection is invalid.", { exact: true }),
@@ -154,12 +154,12 @@ test.describe('Share a real historical-data selection', () => {
     await page.goto('/?tickers=123,TRUE,NULL');
     await expectSelection(page, ['123', 'TRUE', 'NULL']);
     for (const ticker of ['123', 'TRUE', 'NULL']) {
-      const article = page.getByRole('article', { name: `${ticker} market data`, exact: true });
-      await expect(article.getByRole('alert')).toHaveCount(2);
-      await expect(article.getByRole('alert')).toHaveText([
-        'Instrument not found.',
-        'Instrument not found.',
-      ]);
+      await expect(
+        page.getByRole('region', { name: `${ticker} prices`, exact: true }).getByRole('alert'),
+      ).toHaveText('Instrument not found.');
+      await expect(
+        page.getByRole('region', { name: `${ticker} statistics`, exact: true }).getByRole('alert'),
+      ).toHaveText('Instrument not found.');
     }
     expect(new Set(missing)).toEqual(
       new Set([
@@ -171,8 +171,8 @@ test.describe('Share a real historical-data selection', () => {
         '/api/prices/NULL/stats',
       ]),
     );
-    await page.getByRole('button', { name: 'Remove TRUE', exact: true }).click();
-    await page.getByRole('button', { name: 'Select TICK0001', exact: true }).click();
+    await page.getByRole('button', { name: 'Remove selected TRUE', exact: true }).click();
+    await page.getByRole('button', { name: 'Add TICK0001', exact: true }).click();
     await expectSelection(page, ['123', 'NULL', 'TICK0001']);
     await expect(
       page
@@ -180,8 +180,10 @@ test.describe('Share a real historical-data selection', () => {
         .getByText('172.89', { exact: true }),
     ).toBeVisible();
     await page.setViewportSize({ width: 320, height: 800 });
-    await page.getByRole('button', { name: 'Remove 123', exact: true }).press('Tab');
+    // Traverse away and back with native Tab so the actual retry receives keyboard focus.
     const retry = page.getByRole('button', { name: 'Retry 123 prices', exact: true });
+    await retry.press('Tab');
+    await page.keyboard.press('Shift+Tab');
     await expect(retry).toBeFocused();
     await expect(retry).toHaveCSS('outline', 'rgb(0, 111, 166) solid 3px');
     // e2e-locator: document dimensions establish that narrow resource cards do not overflow the viewport.

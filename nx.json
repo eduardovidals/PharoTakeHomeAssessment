@@ -5,13 +5,16 @@
   "parallel": 2,
   "targetDefaults": {
     "test": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["^build"]
     },
     "typecheck": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["^build"]
     },
     "build": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["^build"]
     }
   }
 }

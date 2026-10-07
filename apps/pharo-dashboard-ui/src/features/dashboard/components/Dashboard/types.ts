@@ -20,19 +20,20 @@ export interface DashboardProps {
 /** Named static visual parts of the dashboard. */
 export type DashboardStylePart =
   | 'page'
+  | 'hero'
+  | 'brandRow'
+  | 'wordmark'
+  | 'descriptor'
   | 'heading'
   | 'subheading'
   | 'description'
-  | 'panel'
+  | 'layout'
+  | 'analysis'
   | 'header'
-  | 'instruments'
+  | 'count'
   | 'selection'
   | 'article'
-  | 'resource'
-  | 'resourceHeading'
-  | 'values'
-  | 'value'
   | 'notice'
   | 'error'
-  | 'loading'
-  | 'empty';
+  | 'empty'
+  | 'hint';

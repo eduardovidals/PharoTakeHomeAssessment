@@ -1,9 +1,30 @@
 import { act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
-import { describe, expect, test, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { renderApp } from '../../../../test/renderApp';
 import { server } from '../../../../test/mocks/server';
+
+// This local witness lets the real chart own its observer in jsdom. It provides
+// no measured geometry; compiled browser tests establish rendering and dimensions.
+const resizeObserverDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
+beforeAll(() => {
+  Object.defineProperty(globalThis, 'ResizeObserver', {
+    configurable: true,
+    value: class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  });
+});
+afterAll(() => {
+  if (resizeObserverDescriptor) {
+    Object.defineProperty(globalThis, 'ResizeObserver', resizeObserverDescriptor);
+  } else {
+    Reflect.deleteProperty(globalThis, 'ResizeObserver');
+  }
+});
 
 const available = ['AAA', 'BBB', 'CCC', 'DDD'];
 const series = [
@@ -64,10 +85,10 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(
       await app.view.findByText('Select an instrument to view its prices and statistics.'),
     ).toBeVisible();
-    expect(await app.view.findAllByRole('button', { name: /^Select / })).toHaveLength(4);
+    expect(await app.view.findAllByRole('button', { name: /^Add / })).toHaveLength(4);
     expect(requests.size).toBe(1);
 
-    await user.click(app.view.getByRole('button', { name: 'Select AAA' }));
+    await user.click(app.view.getByRole('button', { name: 'Add AAA' }));
     expect(await app.view.findByRole('article', { name: 'AAA market data' })).toBeVisible();
     const firstPrices = within(app.view.getByRole('region', { name: 'AAA prices' }));
     expect(await firstPrices.findByText('123.45', { exact: true })).toBeVisible();
@@ -75,12 +96,18 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(firstPrices.getByText('2024-03-11', { exact: true })).toBeVisible();
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA');
 
-    await user.click(app.view.getByRole('button', { name: 'Select AAA' }));
-    expect(app.view.getAllByRole('article')).toHaveLength(1);
-    await user.click(app.view.getByRole('button', { name: 'Select BBB' }));
+    // Row removal toggles its action without losing focus; adding again uses cached data.
+    const firstStats = within(app.view.getByRole('region', { name: 'AAA statistics' }));
+    expect(await firstStats.findByText('+23.45%', { exact: true })).toBeVisible();
+    await user.click(app.view.getByRole('button', { name: 'Remove AAA' }));
+    await waitFor(() => expect(app.view.queryByRole('article')).not.toBeInTheDocument());
+    expect(app.view.getByRole('button', { name: 'Add AAA' })).toHaveFocus();
+    await user.click(app.view.getByRole('button', { name: 'Add AAA' }));
+    expect(await app.view.findByRole('article', { name: 'AAA market data' })).toBeVisible();
+    await user.click(app.view.getByRole('button', { name: 'Add BBB' }));
     expect(await app.view.findByRole('article', { name: 'BBB market data' })).toBeVisible();
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,BBB');
-    await user.click(app.view.getByRole('button', { name: 'Remove AAA' }));
+    await user.click(app.view.getByRole('button', { name: 'Remove selected AAA' }));
     await waitFor(() => {
       expect(app.view.queryByRole('article', { name: 'AAA market data' })).not.toBeInTheDocument();
     });
@@ -121,7 +148,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(
       app.view.getAllByRole('article').map((element) => element.getAttribute('aria-label')),
     ).toEqual(['AAA market data', 'BBB market data', 'CCC market data']);
-    await user.click(await app.view.findByRole('button', { name: 'Select DDD' }));
+    await user.click(await app.view.findByRole('button', { name: 'Add DDD' }));
     expect(
       await app.view.findByText(
         'You can compare up to three instruments. Remove one before adding another.',
@@ -131,14 +158,14 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(requests.has('DDD prices')).toBe(false);
     expect(requests.has('DDD statistics')).toBe(false);
     expect(app.history.location.search).toBe('?tickers=aaa,AAA,BBB,CCC,DDD');
-    await user.click(app.view.getByRole('button', { name: 'Remove BBB' }));
+    await user.click(app.view.getByRole('button', { name: 'Remove selected BBB' }));
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,CCC');
     await waitFor(() => {
       expect(
         app.view.queryByText('Only the first three instruments in this link are selected.'),
       ).not.toBeInTheDocument();
     });
-    await user.click(app.view.getByRole('button', { name: 'Select DDD' }));
+    await user.click(app.view.getByRole('button', { name: 'Add DDD' }));
     expect(await app.view.findByRole('article', { name: 'DDD market data' })).toBeVisible();
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,CCC,DDD');
     await app.dispose();
@@ -151,7 +178,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
       initialEntries: ['/?tickers=AAA,BBB', '/?tickers=AAA,BBB,CCC'],
     });
     const notice = 'You can compare up to three instruments. Remove one before adding another.';
-    await user.click(await app.view.findByRole('button', { name: 'Select DDD' }));
+    await user.click(await app.view.findByRole('button', { name: 'Add DDD' }));
     expect(await app.view.findByText(notice)).toBeVisible();
     await act(async () => app.history.back());
     await waitFor(() => expect(app.view.getAllByRole('article')).toHaveLength(2));
@@ -162,7 +189,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(app.view.getByText(notice)).toBeVisible();
     await act(async () => app.history.back());
     await waitFor(() => expect(app.view.getAllByRole('article')).toHaveLength(2));
-    await user.click(app.view.getByRole('button', { name: 'Select DDD' }));
+    await user.click(app.view.getByRole('button', { name: 'Add DDD' }));
     expect(await app.view.findByRole('article', { name: 'DDD market data' })).toBeVisible();
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,BBB,DDD');
     expect(app.view.queryByText(notice)).not.toBeInTheDocument();
@@ -175,7 +202,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
     const app = await renderApp({ initialEntries: ['/?tickers=AAA&tickers=BBB'] });
     expect(await app.view.findByText("The link's instrument selection is invalid.")).toBeVisible();
     expect(app.view.queryByRole('article')).not.toBeInTheDocument();
-    await user.click(await app.view.findByRole('button', { name: 'Select CCC' }));
+    await user.click(await app.view.findByRole('button', { name: 'Add CCC' }));
     expect(await app.view.findByRole('article', { name: 'CCC market data' })).toBeVisible();
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('CCC');
     expect(
@@ -221,11 +248,11 @@ describe('Dashboard URL selection and independently owned resources', () => {
       expect(app.view.getByRole('progressbar', { name: 'Loading instruments' })).toBeVisible();
       statsGate.release();
       const statistics = within(app.view.getByRole('region', { name: 'AAA statistics' }));
-      expect(await statistics.findByText('Unavailable — insufficient observations')).toBeVisible();
-      expect(statistics.getByText('23.45%', { exact: true })).toBeVisible();
-      expect(statistics.getByText('0%', { exact: true })).toBeVisible();
+      expect(await statistics.findByText('Not enough observations')).toBeVisible();
+      expect(statistics.getByText('+23.45%', { exact: true })).toBeVisible();
+      expect(statistics.getByText('0.00%', { exact: true })).toBeVisible();
       instrumentGate.release();
-      expect(await app.view.findByRole('button', { name: 'Select AAA' })).toBeVisible();
+      expect(await app.view.findByRole('button', { name: 'Remove AAA' })).toBeVisible();
       await app.dispose();
     } finally {
       instrumentGate.release();
@@ -265,15 +292,15 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(await aaaPrices.findByText('123.45', { exact: true })).toBeVisible();
     expect(await aaaStats.findByRole('alert')).toHaveTextContent('Instrument not found.');
     expect(await bbbPrices.findByRole('alert')).toHaveTextContent('Instrument not found.');
-    expect(await bbbStats.findByText('23.45%', { exact: true })).toBeVisible();
+    expect(await bbbStats.findByText('+23.45%', { exact: true })).toBeVisible();
     expect(app.view.getAllByText(/Results for (AAA|BBB) are incomplete/)).toHaveLength(2);
     expect(app.view.queryByText(/private raw response/)).not.toBeInTheDocument();
 
     recovered = true;
     await user.click(aaaStats.getByRole('button', { name: 'Retry AAA statistics' }));
-    expect(await aaaStats.findByText('1.5%', { exact: true })).toBeVisible();
-    expect(aaaStats.getByText('6%', { exact: true })).toBeVisible();
-    expect(aaaStats.getByText('2%', { exact: true })).toBeVisible();
+    expect(await aaaStats.findByText('1.50%', { exact: true })).toBeVisible();
+    expect(aaaStats.getByText('+6.00%', { exact: true })).toBeVisible();
+    expect(aaaStats.getByText('2.00%', { exact: true })).toBeVisible();
     expect(aaaStats.queryByRole('alert')).not.toBeInTheDocument();
     expect(bbbPrices.getByRole('alert')).toHaveTextContent('Instrument not found.');
     expect(aaaPrices.getByText('123.45', { exact: true })).toBeVisible();
@@ -315,7 +342,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(app.view.queryByText(/private\/source|do not display me/)).not.toBeInTheDocument();
     recovered = true;
     await user.click(instruments.getByRole('button', { name: 'Retry instruments' }));
-    expect(await app.view.findByRole('button', { name: 'Select AAA' })).toBeVisible();
+    expect(await app.view.findByRole('button', { name: 'Add AAA' })).toBeVisible();
     expect(app.view.getByRole('article', { name: 'UNKNOWN market data' })).toBeVisible();
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('UNKNOWN');
     expect(listAttempts).toBe(2);
@@ -368,12 +395,12 @@ describe('Dashboard URL selection and independently owned resources', () => {
           stopObserving = () => current.apiClient.interceptors.request.eject(observer);
         },
       });
-      await user.click(await app.view.findByRole('button', { name: 'Select AAA' }));
+      await user.click(await app.view.findByRole('button', { name: 'Add AAA' }));
       await waitFor(() => expect(started).toEqual(new Set(['prices', 'statistics'])));
       expect(signals.size).toBe(2);
       expect([...signals.values()].every((signal) => !signal.aborted)).toBe(true);
-      await user.click(app.view.getByRole('button', { name: 'Remove AAA' }));
-      await user.click(app.view.getByRole('button', { name: 'Select BBB' }));
+      await user.click(app.view.getByRole('button', { name: 'Remove selected AAA' }));
+      await user.click(app.view.getByRole('button', { name: 'Add BBB' }));
       const bbbPrices = within(await app.view.findByRole('region', { name: 'BBB prices' }));
       expect(await bbbPrices.findByText('123.45', { exact: true })).toBeVisible();
       await waitFor(() => {

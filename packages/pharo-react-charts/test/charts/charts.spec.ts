@@ -469,8 +469,89 @@ test.describe('independent built charts', () => {
     // e2e-locator: Inspect the real rendered path for a named series, not React state.
     const northPath = first.locator('[data-series-id="north"] path');
     const initialPath = await northPath.getAttribute('d');
+    await page.getByRole('button', { name: 'Add east' }).click();
     await page.getByRole('button', { name: 'Resize first chart' }).click();
     await expect(first).toHaveAttribute('width', '256');
+    const slider = page.getByRole('slider', { name: 'Inspect Greenhouse temperature' });
+    await slider.press('Home');
+    await slider.press('ArrowRight');
+    await expect(slider).toHaveValue('1');
+    const details = page.getByRole('region', { name: 'Details for Greenhouse temperature' });
+    await expect(details).toContainText('2024-03-11');
+    await expect(details.getByText('10', { exact: true })).toBeVisible();
+    await expect(details.getByText('15', { exact: true })).toBeVisible();
+    await expect(details.getByText('Unavailable', { exact: true })).toBeVisible();
+    // e2e-locator: Inspect real definition-list tracks and text rectangles in a
+    // 256px desktop container; accessible text alone misses cramped column wrapping.
+    const detailList = details.locator('dl');
+    const compact = await detailList.evaluate((list) => {
+      const listBounds = list.getBoundingClientRect();
+      const rows = Array.from(list.children).map((row) => {
+        const term = row.querySelector('dt');
+        const value = row.querySelector('dd');
+        if (!term || !value) throw new Error('Chart detail has no associated term and value.');
+        const bounds = row.getBoundingClientRect();
+        const valueBounds = value.getBoundingClientRect();
+        const text = document.createRange();
+        text.selectNodeContents(value);
+        return {
+          label: term.textContent,
+          value: value.textContent,
+          top: bounds.top,
+          bottom: bounds.bottom,
+          left: bounds.left,
+          right: bounds.right,
+          valueLeft: valueBounds.left,
+          valueRight: valueBounds.right,
+          lines: Array.from(text.getClientRects()).map((line) => ({
+            left: line.left,
+            right: line.right,
+          })),
+        };
+      });
+      return {
+        left: listBounds.left,
+        right: listBounds.right,
+        overflow: list.scrollWidth > list.clientWidth,
+        rows,
+      };
+    });
+    expect(compact.rows.map((row) => [row.label, row.value])).toEqual([
+      ['North greenhouse', '10'],
+      ['South greenhouse', '15'],
+      ['East greenhouse', 'Unavailable'],
+    ]);
+    expect(
+      compact.rows.every((row, index) => {
+        const previous = compact.rows[index - 1];
+        return (
+          row.left >= compact.left - 0.5 &&
+          row.right <= compact.right + 0.5 &&
+          (!previous || row.top >= previous.bottom + 4)
+        );
+      }),
+    ).toBe(true);
+    const unavailable = compact.rows.find((row) => row.label === 'East greenhouse');
+    if (!unavailable) throw new Error('The recorded missing East observation is absent.');
+    expect(unavailable.lines).toHaveLength(1);
+    expect(
+      unavailable.lines.every(
+        (line) =>
+          line.left >= unavailable.valueLeft - 0.5 && line.right <= unavailable.valueRight + 0.5,
+      ),
+    ).toBe(true);
+    expect(compact.overflow).toBe(false);
+    expect(await details.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await expect(first).toHaveAttribute('height', '320');
+    await page.screenshot({
+      path: testInfo.outputPath('charts-compact-desktop-container.png'),
+      fullPage: true,
+    });
     // e2e-locator: Actual SVG text rectangles reveal overlapping axis labels after resize.
     await expect
       .poll(() =>
@@ -495,6 +576,34 @@ test.describe('independent built charts', () => {
     expect(await first.evaluate((element) => element.outerHTML)).not.toMatch(/NaN|Infinity/);
     await page.getByRole('button', { name: 'Resize first chart' }).click();
     await expect(first).toHaveAttribute('width', String(firstWidth));
+    const wideRows = await detailList.evaluate((list) =>
+      Array.from(list.children).map((row) => {
+        const bounds = row.getBoundingClientRect();
+        return { top: bounds.top, left: bounds.left, right: bounds.right };
+      }),
+    );
+    expect(
+      wideRows.some((row, index) =>
+        wideRows.some(
+          (other, otherIndex) => index !== otherIndex && Math.abs(row.top - other.top) < 1,
+        ),
+      ),
+    ).toBe(true);
+    const wideBounds = await detailList.boundingBox();
+    if (!wideBounds) throw new Error('Restored wide detail list is not visible.');
+    expect(
+      wideRows.every(
+        (row) =>
+          row.left >= wideBounds.x - 0.5 && row.right <= wideBounds.x + wideBounds.width + 0.5,
+      ),
+    ).toBe(true);
+    await expect(slider).toHaveValue('1');
+    await expect(details.getByText('10', { exact: true })).toBeVisible();
+    await expect(details.getByText('15', { exact: true })).toBeVisible();
+    await expect(details.getByText('Unavailable', { exact: true })).toBeVisible();
+    await expect(first).toHaveAttribute('height', '320');
+    await expect(second).toHaveAttribute('width', String(secondWidth));
+    await expect(second).toHaveAttribute('height', '320');
     await page.screenshot({ path: testInfo.outputPath('charts-desktop.png'), fullPage: true });
     for (const width of [768, 320]) {
       await page.setViewportSize({ width, height: 800 });
