@@ -1,15 +1,16 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { createAppQueryClient } from './app/queryClient';
-import { createAppRouter } from './app/router';
-import { AppProviders } from './app/providers/AppProviders';
+import { bootstrapApplication } from './app/bootstrap';
 import './index.css';
 
 const element = document.getElementById('root');
 if (!element) throw new Error('Application mount is missing.');
-const router = createAppRouter(createAppQueryClient());
-createRoot(element).render(
-  <StrictMode>
-    <AppProviders router={router} />
-  </StrictMode>,
-);
+const startup = bootstrapApplication(element);
+
+// Register ownership immediately, including replacement while startup is still pending.
+if (import.meta.hot) {
+  import.meta.hot.dispose(async () => {
+    const application = await startup;
+    await application.dispose();
+  });
+}
+
+await startup;

@@ -1,9 +1,13 @@
 import { render } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
-import { expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { renderApp } from './renderApp';
 import type { AppTest } from './renderApp';
 import { server } from './mocks/server';
+
+beforeEach(() => {
+  server.use(http.get('http://localhost/api/instruments', () => HttpResponse.json(['AAA', 'BBB'])));
+});
 
 test('awaits query cancellation, clears its cache, and leaves an unrelated view mounted', async () => {
   const unrelated = render(<p>Unrelated application</p>);

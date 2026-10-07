@@ -3,11 +3,14 @@ import type { RenderResult } from '@testing-library/react';
 import { createMemoryHistory } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
 import type { RouterHistory } from '@tanstack/react-router';
+import { createApiClient } from '../api/client';
+import type { ApiClient, ApiClientConfig } from '../api/types';
 import { AppProviders } from '../app/providers/AppProviders';
 import { createAppQueryClient } from '../app/queryClient';
 import { createAppRouter } from '../app/router';
 
 export interface AppTest {
+  apiClient: ApiClient;
   queryClient: QueryClient;
   history: RouterHistory;
   router: ReturnType<typeof createAppRouter>;
@@ -18,6 +21,8 @@ export interface AppTest {
 
 interface RenderAppOptions {
   initialEntries?: string[];
+  /** Explicit transport overrides; the default test origin is intercepted by MSW. */
+  apiConfig?: ApiClientConfig;
   /** Configure the real cache/router after the neutral view has a cleanup owner. */
   configure?: (app: AppTest) => void | Promise<void>;
 }
@@ -60,13 +65,14 @@ export async function renderApp(options: RenderAppOptions = {}): Promise<AppTest
   // Register before acquiring anything that may throw or await.
   activeDisposals.add(dispose);
   try {
+    const apiClient = createApiClient({ baseURL: 'http://localhost/api', ...options.apiConfig });
     queryClient = createAppQueryClient();
     history = createMemoryHistory({ initialEntries: options.initialEntries ?? ['/'] });
-    const router = createAppRouter(queryClient, history);
+    const router = createAppRouter({ queryClient, apiClient }, history);
     container = document.createElement('div');
     document.body.append(container);
     view = render(null, { container, baseElement: container, queries });
-    const app = { queryClient, history, router, container, view, dispose };
+    const app = { apiClient, queryClient, history, router, container, view, dispose };
     await options.configure?.(app);
     await router.load();
     view.rerender(<AppProviders router={router} />);
