@@ -52,7 +52,8 @@ async function withFixture(run) {
       assert.ok(current.isDirectory() && !current.isSymbolicLink());
       assert.equal(current.dev, identity.dev, 'Fixture device ownership changed');
       assert.equal(current.ino, identity.ino, 'Fixture directory ownership changed');
-      await rm(directory, { recursive: true });
+      // Allow a bounded retry for Vite's final dependency-cache filesystem work.
+      await rm(directory, { recursive: true, maxRetries: 3, retryDelay: 50 });
     } catch (error) {
       failures.push(error);
     }

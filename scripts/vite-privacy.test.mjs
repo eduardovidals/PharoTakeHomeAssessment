@@ -91,7 +91,8 @@ test('Actual UI Vite configuration serves public HTML and denies private fixture
       assert.ok(current.isDirectory() && !current.isSymbolicLink());
       assert.equal(current.dev, identity.dev, 'Fixture device ownership changed');
       assert.equal(current.ino, identity.ino, 'Fixture directory ownership changed');
-      await rm(fixture, { recursive: true });
+      // Vite may finish a dependency-cache rename just after close resolves.
+      await rm(fixture, { recursive: true, maxRetries: 3, retryDelay: 50 });
     } catch (error) {
       failures.push(error);
     }
