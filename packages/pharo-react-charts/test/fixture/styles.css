@@ -1,0 +1,3 @@
+@import '@pharo/tailwind-plugin';
+@source './main.tsx';
+@source './node_modules/@pharo/react-charts/dist';
