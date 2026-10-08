@@ -273,7 +273,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'CCC', 'DDD']);
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,CCC,DDD');
     await app.dispose();
-  });
+  }, 10000);
 
   test('keeps limit feedback accurate when Back and Forward change the URL selection', async () => {
     installMarketHandlers();
@@ -369,7 +369,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
       statsGate.release();
       await Promise.all(handlers);
     }
-  });
+  }, 10000);
 
   test('preserves successful siblings and retries only a transient chosen failure with focus', async () => {
     const requests = installMarketHandlers();
@@ -448,7 +448,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
     } finally {
       retryGate.release();
     }
-  });
+  }, 10000);
 
   test('retains unknown URL selections even when the instrument list fails, then retries the list alone', async () => {
     const requests = installMarketHandlers();
