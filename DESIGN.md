@@ -1,47 +1,103 @@
-# Design overview
+# Design Overview
+
+## Introduction
+
+This project is a historical instrument dashboard built around the supplied market-data CSV. The main workflow is to search for instruments, select up to three tickers, compare their prices and statistics, and inspect the underlying observations.
+
+The repository separates the dashboard, the C# API, and a focused set of shared packages. Instrument selection and financial presentation belong to the application. Accessible controls, chart rendering, and design tokens are reusable without depending on the dashboard's business logic.
 
 ## Approach
 
-The dashboard lets a reviewer search the supplied instrument list, select up to three tickers, compare their historical prices and statistics, and inspect the underlying observations. The implementation keeps the fixed CSV authoritative, loads independent resources concurrently, and gives each application or package a clear responsibility.
+The design balances a straightforward assessment experience with clear ownership:
 
-The searchable picker provides access to all instruments while the main workspace focuses on the selected comparison. Loading, unavailable data, and request failures remain visible beside successful resources. Price and Performance views, chart inspection, and raw observations share the same cached histories.
+- keep the supplied CSV authoritative
+- load each instrument's prices and statistics independently
+- use accessible primitives for keyboard, focus, and touch behavior
+- share controls and chart behavior where they have a real consumer
+- centralize styling, linting, and formatting decisions
+- keep financial definitions explicit and testable
 
-## Monorepo and package architecture
+The interface focuses on the selected instruments rather than presenting the entire dataset at once. Loading and failures stay close to the affected resource, so a slow request does not prevent comparison of the data already available.
 
-pnpm workspaces connect two applications and five shared packages. Nx orchestrates dependency-aware builds, typechecks, tests, and other validation targets. The root development launcher owns API/UI processes, readiness checks, port handling, and cleanup; the repository does not use an Nx .NET plugin. Node, pnpm, and the .NET SDK are pinned for reproducible setup.
+## Monorepo and Package Architecture
 
-| Owner | Responsibility |
-| --- | --- |
-| `apps/pharo-dashboard-api` | CSV ingestion, immutable store, statistics, HTTP controllers, and .NET tests |
-| `apps/pharo-dashboard-ui` | Application lifecycle, routes, API services, comparison logic, dashboard composition, and browser tests |
-| `packages/pharo-react-components` | Reusable React Aria buttons, multi-select combobox, tags, dialog, segmented control, and spinner |
-| `packages/pharo-react-charts` | Generic line-chart geometry, recorded-date inspection, and accessible data-table rendering |
-| `packages/pharo-tailwind-plugin` | Shared Tailwind tokens and semantic visual states |
-| `packages/pharo-eslint-config` | Shared lint configuration |
-| `packages/pharo-prettier-config` | Shared formatting configuration |
+The repository uses pnpm workspaces for package management and Nx for dependency-aware builds, tests, and typechecks. Two applications and five shared packages make up the workspace:
 
-The reusable UI packages expose built ESM and TypeScript declarations through their public roots. Separate controls and chart Storybooks exercise those packages without the API. Instrument selection and statistics presentation stay in the application, while the backend calculates financial statistics; shared packages do not import dashboard-specific types. The repository retains components with production consumers and their required helpers, without an unused form-component package.
+- `apps/pharo-dashboard-ui`: the React dashboard, routes, API services, and browser tests
+- `apps/pharo-dashboard-api`: CSV ingestion, statistics, HTTP controllers, and .NET tests
+- `@pharo/react-components`: shared accessible controls
+- `@pharo/react-charts`: line charts, recorded-date inspection, and data tables
+- `@pharo/tailwind-plugin`: shared theme tokens and semantic utilities
+- `@pharo/eslint-config`: common lint rules
+- `@pharo/prettier-config`: common formatting rules
 
-The dashboard is the `/` route. Its grouped file route, `src/routes/(dashboard)/index.tsx`, composes page UI under `-components/Dashboard`. Substantial child components live recursively under their nearest owner's `components` directory. Owner-local hooks, `types.ts`, `styles.ts`, and pure utilities keep behavior close to its consumer; shared helpers move only to their nearest common owner. The route group does not introduce a `/dashboard` URL.
+The React packages expose built ESM and TypeScript declarations through their public entry points. Controls and charts have separate Storybooks so they can be developed independently of the API. Shared packages contain the components used by the application and their required helpers, keeping the library focused on the assessment.
 
-## Backend and strict CSV ingestion
+After the initial workspace build, the root development launcher starts the API and UI, checks readiness, and handles ports and process cleanup. This uses ordinary Node and .NET commands without an Nx .NET plugin. Pinned Node, pnpm, and .NET SDK versions keep setup consistent.
 
-ASP.NET Core loads `Data/market_data.csv` before reporting readiness. CsvHelper handles quoting, while the loader requires exactly the `date,ticker,price` header, valid ISO date-only values, canonicalizable ASCII tickers, and positive invariant decimal prices. Duplicate canonical ticker/date pairs, malformed records, and interior blank rows reject the complete dataset. Empty trailing records are ignored. Invalid or unavailable input prevents startup.
+## Shared UI Layer
 
-`MarketDataStore` sorts observations by date into immutable series, freezes ticker lookup, and materializes a sorted instrument list. The CSV does not need to arrive in chronological row order. `PricesService` prepares response series and statistics once for that dataset generation. Controllers perform lookup and serialization without rereading the file or recalculating statistics; history serialization still scales with the number of returned observations.
+The UI package is built on React Aria Components. React Aria supplies accessible semantics, keyboard navigation, focus management, and overlay behavior, while the wrappers apply Pharo styling and the application's common interaction patterns.
 
-| Endpoint                         | Response                                                   |
-| -------------------------------- | ---------------------------------------------------------- |
-| `GET /api/instruments`           | Sorted canonical ticker identifiers                        |
-| `GET /api/prices/{ticker}`       | Chronological date/price observations                      |
-| `GET /api/prices/{ticker}/stats` | Full-period return, daily volatility, and maximum drawdown |
-| `GET /health`                    | Readiness after successful dataset initialization          |
+The shared controls include buttons, an icon button, a multi-select combobox, removable tags, a dialog, a segmented control, and a spinner. The Price/Performance control uses radio-group semantics. The instrument picker composes a multi-select combobox and listbox, with selected instruments shown as removable tags.
 
-Invalid or unknown tickers return HTTP 404 Problem Details. Unexpected server failures return safe summaries without exposing stacks, request internals, or filesystem paths. Stored prices and price JSON retain decimal values. Statistical calculations explicitly convert prices to doubles, reject non-finite results, and retain unrounded output.
+Loading remains a presentation concern in the reusable combobox. The application supplies the Query loading state; the component displays an input spinner and an empty-popup loading state. Search results, loading, and errors remain distinct, with error text and Retry outside the listbox options. This keeps fetching in the application while making the wrapper useful wherever the same interaction is needed.
 
-## Financial calculations
+## Styling and Design System
 
-For positive chronological prices `P[0] … P[n−1]`, statistics are expressed in percentage points:
+Tailwind CSS and `@pharo/tailwind-plugin` provide the shared design system. Tokens own color, spacing, typography, focus, and control states. Components compose these semantic utilities in owner-local `styles.ts` files, keeping the application and both Storybooks on the same visual language.
+
+The dashboard uses navy, blue, and cyan with neutral analytical surfaces. The layout is compact and readable, with clear selection, disabled, loading, and error states. Stable colors and dash patterns connect selected tags, chart series, and comparison columns. Positive and negative values also use text signs so color is not the only cue.
+
+Day.js UTC initialization and application-owned formatters keep recorded dates consistent across timezones. The dataset does not identify a currency, so prices are displayed without an inferred currency symbol.
+
+## Frontend Architecture
+
+The frontend uses React, TypeScript, Vite, TanStack Router, and TanStack Query. These tools have distinct responsibilities:
+
+- **TanStack Router** owns selected tickers and the chart view in the URL.
+- **TanStack Query** owns the instrument list, price histories, and statistics cache.
+- **Local React state** owns picker search, dialogs, and chart inspection.
+- **Axios and Zod** handle transport and response validation through the API layer.
+
+The dashboard is the `/` route. Its grouped file route composes the page under `-components/Dashboard`; the directory group does not add a `/dashboard` URL. Child components, hooks, types, styles, and pure utilities live under their nearest owner. This makes the dependency structure visible without moving one-use behavior into shared packages.
+
+The `tickers` parameter preserves selection order. Validation trims, uppercases, deduplicates, and retains the first three valid identifiers, with feedback for malformed or excessive selections. Unknown but syntactically valid tickers stay selected and removable, with a visible unavailable-instrument message. An action queue applies overlapping selection changes against the latest URL state rather than keeping a second selection store.
+
+The optional `view=price|performance` parameter preserves an explicit chart choice. Without it, zero or one selected ticker uses Price and two or three use Performance. Clear selection removes both fields; reload and browser Back/Forward follow the same URL rules.
+
+One application bootstrap owns the React root, router history, API client, and Query cache. Disposal unmounts the UI, cancels requests, and releases those resources. This also keeps hot replacement and isolated tests predictable.
+
+## API Layer
+
+The frontend uses the `InstrumentsApi` and `PricesApi` service namespaces. Each plain request function is immediately followed by its corresponding TanStack Query hook in the same service file. Components consume `InstrumentsApi.useGetInstruments()`, `PricesApi.useGetPrices()`, and `PricesApi.useGetPriceStats()`, passing the application client and selected tickers where required.
+
+Query keys, `useQuery`, `useQueries`, and request configuration stay in the API layer. Prices and statistics have independent per-ticker cache entries, and their hooks return results in the requested ticker order. Both resource families start concurrently without waiting for the instrument list. This preserves useful data when one ticker or one endpoint fails.
+
+The injected Axios client defaults to same-origin `/api` with a 10-second timeout. Query's `AbortSignal` reaches the transport, and Zod validates responses before the UI uses them. Failures become typed categories such as not-found, network, timeout, or invalid response, so components can offer useful recovery without showing raw server or Axios errors.
+
+The supplied dataset is immutable for an application session. Queries therefore use an infinite stale time, retain unused entries for 30 minutes, and disable polling and focus/reconnect refetches. Network failures, timeouts, and HTTP 5xx responses receive at most two automatic retries; other failures do not. Explicit retry actions target the affected resource, while missing instruments offer removal. A changed dataset requires a fresh application/cache generation.
+
+## Backend Architecture
+
+The backend uses ASP.NET Core with a small controller, service, and data-store structure. It loads `Data/market_data.csv` before reporting readiness, then serves an immutable in-memory snapshot. This fits the fixed assessment dataset without adding a database or a separate ingestion service.
+
+CsvHelper handles CSV quoting, while the loader enforces the domain contract: exactly the `date,ticker,price` header, valid ISO date-only values, canonicalizable ASCII tickers, and positive invariant decimal prices. Duplicate canonical ticker/date pairs, malformed records, and interior blank rows reject the complete dataset. Only empty trailing records are ignored. Missing, empty, or invalid data prevents startup rather than publishing a partial dataset.
+
+The store sorts observations chronologically and exposes a sorted instrument list. `PricesService` prepares response series and statistics once during initialization. Controllers then perform lookup and serialization without rereading the CSV or recalculating statistics.
+
+The API exposes four endpoints:
+
+- `GET /api/instruments`: sorted canonical ticker identifiers
+- `GET /api/prices/{ticker}`: chronological price observations
+- `GET /api/prices/{ticker}/stats`: full-period financial statistics
+- `GET /health`: readiness after dataset initialization
+
+Invalid and unknown tickers return HTTP 404 Problem Details. Unexpected failures use safe summaries without exposing stack traces or filesystem paths. Stored prices and price responses retain decimal values; statistical calculations explicitly convert to doubles and reject non-finite results.
+
+## Financial Calculations
+
+The C# API calculates total return, daily volatility, and maximum drawdown from each instrument's complete chronological history. For positive prices `P[0] … P[n−1]`, the formulas are:
 
 ```text
 Total return (%) = 100 × (P[n−1] / P[0] − 1)
@@ -55,68 +111,46 @@ Running peak peak[i] = max(P[0] … P[i])
 Maximum drawdown (%) = 100 × max((peak[i] − P[i]) / peak[i])
 ```
 
-Volatility uses two-pass sample variance across consecutive recorded returns. It is not annualized or weighted by elapsed calendar time. With fewer than three prices, sample volatility is unavailable (`null`); one price yields zero total return and drawdown. Maximum drawdown is a nonnegative loss magnitude measured from the running peak. For `[100, 200, 180]`, total return is `80%`, sample volatility is approximately `77.78174593%`, and maximum drawdown is `10%`.
+Volatility uses two-pass sample variance across consecutive recorded returns. It is not annualized or weighted by the number of calendar days between observations. Fewer than three prices produce unavailable (`null`) volatility; one price produces zero return and drawdown. Maximum drawdown is a nonnegative loss magnitude from the running peak. For `[100, 200, 180]`, total return is `80%`, sample volatility is approximately `77.78174593%`, and maximum drawdown is `10%`.
 
-The comparison matrix always shows each instrument's latest recorded close and the API's statistics over its complete supplied history: 30 observations per ticker from June 23 through August 3, 2026 in this dataset. Prices come from the cached history; total return, daily volatility, and maximum drawdown come from `/api/prices/{ticker}/stats`. The frontend does not recalculate those statistics. Independent price and statistics loading, errors, and retries remain visible.
+The comparison matrix always shows the latest recorded close from cached prices and full-period statistics from the API. The frontend does not recalculate those statistics, and inspecting a chart date does not change the matrix. Prices and statistics retain independent loading, error, and retry states.
 
-The UI rounds only for display, generally to two decimal places. Return includes a sign except at zero. Percentage-point values are not multiplied by 100 again. Missing observations remain unavailable; the application does not fabricate trading-calendar records, adjust corporate actions, or infer a currency from the dataset.
+The chart's Performance view is a separate presentation transform: `100 × (price / firstObservedPrice − 1)`. Each series uses its first non-null observation as a positive base and starts at 0%. The transform creates new chart points without changing cached raw prices. Missing values stay unavailable, and differing series windows or bases receive explanatory context.
 
-## Frontend state ownership
+Rounding happens only for display, generally to two decimal places. Percentage-point values are not multiplied by 100 again. The application does not invent missing trading dates or adjust prices for corporate actions.
 
-One application bootstrap owns the React root, Router/history, Axios client, and Query cache. Disposal unmounts the UI, cancels requests, clears the cache, and releases history. This lifecycle also supports hot replacement and isolated tests.
+## Testing Strategy
 
-TanStack Router owns ordered instrument selection in the `tickers` URL parameter and optional `view=price|performance`. Validation trims, uppercases, deduplicates, and keeps the first three valid identifiers, with feedback for invalid or limited selections. Syntactically valid unknown tickers remain selected and removable. Without an explicit view, zero or one selected ticker uses Price and two or three use Performance. An explicit view survives selection changes. Clear selection removes both URL fields; browser Back/Forward and reload preserve the URL rules.
+Testing follows the main application boundaries.
 
-A route-owned action queue applies overlapping add, remove, clear, and view intentions against the latest URL state. It does not maintain a second selected-ticker store. Picker search text, popover/dialog visibility, and the chart's inspected timestamp are local interaction state. The dashboard has no selected comparison date or date-navigation controls; chart inspection does not change comparison statistics. Stable app-owned color/dash assignments connect tags, plotted series, and comparison columns without duplicating financial data.
+### Frontend and Shared Packages
 
-TanStack Query owns the instrument list and separate price-history/statistics resources for each ticker. The dashboard starts both per-ticker resource families independently of instrument-list availability. A slow or failed resource does not block healthy siblings. The immutable dataset uses `staleTime: Infinity`, retains unused cache entries for 30 minutes, and disables polling, focus refetch, and reconnect refetch. A changed server dataset requires a new application/cache generation.
+Vitest, React Testing Library, and MSW exercise the actual UI and request flow. Coverage includes response validation, caching, independent loading and retries, cancellation, URL selection, and accessible controls. Shared component and chart tests run independently, with Storybook covering their interactive states.
 
-## API services and error handling
+### Backend
 
-Each API request function is immediately followed by its corresponding Query hook in the same service file. Feature barrels expose `InstrumentsApi` and `PricesApi` namespaces. Components use the public hooks:
+The .NET tests cover strict CSV parsing, immutable store behavior, financial examples, supplied-dataset oracle comparisons, startup failures, and HTTP/Problem Details contracts. Calculation tests include insufficient observations and the distinction between sample and population volatility.
 
-```tsx
-const instruments = InstrumentsApi.useGetInstruments(apiClient);
+### Browser Workflows
 
-const prices = PricesApi.useGetPrices(apiClient, selectedTickers);
+Playwright runs the compiled application against the C# API. It covers selection, URL history, keyboard and touch interaction, focus restoration, recovery, Price/Performance views, chart inspection, raw data, and responsive overflow. Comparison tests check that chart inspection leaves latest closes and backend statistics unchanged. Additional scenarios cover UTC timezones, enlarged text, reduced motion, and forced colors.
 
-const statistics = PricesApi.useGetPriceStats(apiClient, selectedTickers);
-```
+`pnpm validate` is the primary local verification command. The [README](README.md) describes setup and focused commands. Browser coverage uses automated viewport and input emulation; it does not imply testing on physical devices.
 
-`useGetInstruments` owns a single `useQuery`; the price and statistics hooks own `useQueries` and return independent results aligned with the supplied ticker order. Canonical resource keys preserve deduplication and cache reuse across selection changes. Query configuration stays inside the API layer, with `queryOptions` used only as an internal service implementation detail. There are no exported query-options factories for feature components.
+## UX and Accessibility
 
-The injected Axios client defaults to same-origin `/api` and a 10-second deadline. Query's `AbortSignal` reaches the transport, and Zod validates responses before they enter the application data layer. Failures become safe typed metadata for cancellation, not-found, network, timeout, HTTP, or invalid-response outcomes. The UI does not display raw Axios exceptions or server response bodies.
+The workspace keeps instrument selection, the chart, and comparison statistics close together. Larger screens place the chart and matrix side by side; narrow screens stack the sections. The comparison matrix makes horizontal overflow visible, keeps metric labels sticky, and provides a keyboard-focusable scroll region so all three tickers remain reachable. Tables scroll inside their panels instead of widening the page.
 
-Central Query defaults permit at most two automatic retries after the initial attempt for network failures, deadlines, and HTTP 5xx responses. HTTP 404, other 4xx responses, invalid payloads, and cancellation do not retry automatically. Explicit retry actions target the failed resource; missing instruments offer removal. Changing selection uses a different resource key without prior-ticker placeholder data, and obsolete requests are cancelled when their observers leave.
+The picker searches the cached instrument list without additional requests. At the three-instrument limit, unselected options are visibly disabled while selected instruments remain removable. Clear selection appears only when something is selected, and chart-view controls remain available in the empty state. Initial loading feedback uses Query's `isLoading`, so background fetching does not repeatedly interrupt the picker. Live announcements avoid duplicate loading messages.
 
-## React Aria, styling, and responsive behavior
+React renders the chart SVG, while focused D3 modules provide scales, ticks, paths, and timestamp lookup. The chart displays every supplied observation and adapts to its container and text size. Hover, clicks, completed touch taps, and the keyboard range control inspect recorded dates locally. Native touch scrolling remains available without selecting a point, and inspection stays independent of the comparison statistics.
 
-React Aria primitives provide selection, keyboard navigation, focus management, and dialog behavior. `PharoMultiComboBox` composes a multi-select `ComboBox`, `ListBox`, and removable tags. Search ranks the one cached instrument list without pagination or additional fetches. At the three-instrument limit, unselected options are visibly disabled while selected instruments remain removable. Clear selection appears only when something is selected; chart-view controls remain available in the empty state. The Price/Performance control uses a `RadioGroup` with radio-keyboard semantics.
+The reusable chart provides an inline data table by default. The dashboard explicitly supplies `dataTable={{ mode: 'external', triggerId }}` to use its View data action instead. A nonblank trigger ID connects the SVG through `aria-details` and suppresses the chart's inline control. This contract does not observe the DOM or infer visibility, so opening the picker cannot reveal a duplicate control. A consumer removing its external action must switch back to inline mode; omitted configuration or a blank ID uses the inline fallback.
 
-Autocomplete loading is a presentation prop on the reusable wrapper. The application supplies Query's initial `isLoading` state, so background refetches do not replace normal picker feedback with a loading spinner. A small spinner sits at the input's right edge; an open empty popup shows centered loading feedback. Live status is announced without competing duplicate messages. Empty results and request errors have distinct text, and error/Retry controls sit outside the ListBox options.
+View data opens an accessible Raw observations dialog using the chart package's shared table renderer. It always shows cached raw prices, including in Performance mode, with the union of recorded dates and every selected column. Matching ranges, counts, and performance bases appear once in a shared summary; differing or unavailable histories retain separate context. Dialog content scrolls locally, and closing restores focus.
 
-Tailwind tokens in `@pharo/tailwind-plugin` own color, spacing, typography, focus, and control states. Owner-local `styles.ts` files compose those semantic utilities. The interface uses navy/blue/cyan identity, neutral analytical surfaces, textual positive/negative signs, and stable series colors/dashes. Day.js UTC initialization and app-owned date formatters keep display dates consistent across timezones.
+## Tradeoffs
 
-Desktop presents chart and matrix side by side when space permits. Mobile stacks selection, view controls, chart, matrix, and View data. The comparison matrix advertises horizontal overflow, keeps metric labels sticky, and provides a keyboard-focusable scroll region so every selected instrument remains reachable. Wide tables scroll within their panels rather than expanding the page. Plot-height tokens use 16rem below the small breakpoint, 20rem above it, and a compact 17rem at the extra-large breakpoint; text preferences scale these values.
+An immutable in-memory backend and long-lived client cache are appropriate for this fixed dataset. A live market-data application would need explicit data versioning, invalidation, ingestion, authentication, and operational monitoring. Those concerns are outside this assessment.
 
-## Chart and raw-data workflow
-
-React owns SVG rendering and component lifetime. Focused D3 modules provide UTC/linear scales, ticks, paths, and timestamp lookup. The chart measures its container and text size to choose readable labels without changing observations. Resize and typography listeners are cleaned up with their owner.
-
-Price plots recorded raw values on a shared numeric scale. Performance creates new points using `100 × (price / firstObservedPrice − 1)`, using each series' first non-null observation as its base, which must be positive. Each valid series starts at 0%. It preserves raw cached prices, gaps, and the financial-statistics definitions. Invalid bases or non-finite transformed values remain unavailable. Different recorded windows or bases receive explicit context.
-
-The chart displays every supplied observation. Pointer hover, clicks, completed touch taps, and keyboard/range actions inspect recorded dates and values locally. Touch scrolling remains native and does not select a point. The comparison matrix continues showing latest closes and full-period API statistics throughout inspection.
-
-The generic chart provides an inline data table by default. A consumer can explicitly supply `dataTable={{ mode: 'external', triggerId }}` with a nonblank ID to own the accessible trigger and table. The chart then links the action through SVG `aria-details` and omits its inline control. This contract does not observe the DOM or infer trigger visibility, so temporarily masked backgrounds during picker/dialog use cannot reveal a duplicate control. Consumers that remove their external action must switch back to inline mode; omitted configuration or a blank ID uses the inline fallback.
-
-The dashboard supplies the View data button and an accessible Raw observations dialog using the chart package's shared table renderer. It always reads cached raw prices, including in Performance mode, retaining every selected column and the union of recorded dates. Identical ranges, counts, and performance bases share one labeled metadata summary; differing or unavailable histories keep separate details. Dialog content and table overflow scroll locally, and closing returns focus without replacing the chart.
-
-## Testing and tradeoffs
-
-Backend tests cover strict CSV parsing, immutable store behavior, literal financial examples, supplied-ticker oracle comparisons, startup failures, and HTTP/Problem Details contracts. Vitest, Testing Library, and MSW exercise real API validation and Query lifecycles, canonical caching, independent results, retries, cancellation, late-response isolation, selection and accessible controls.
-
-Playwright runs the compiled application against the C# API and exercises URL history, keyboard/touch/focus behavior, targeted recovery, Price/Performance views, chart inspection, raw data, and responsive overflow. Comparison coverage checks that inspection leaves latest closes and backend statistics unchanged. Additional browser scenarios cover UTC timezones, enlarged text, narrow reflow, reduced motion, and forced colors. These are automated browser checks, not claims about physical-device testing. Storybook and package tests exercise reusable controls and chart behavior independently.
-
-`pnpm validate` is the primary local verification command. The [README](README.md) provides setup, focused commands, and the AI-assistance disclosure. Documentation describes the verification boundaries; actual command results establish whether a particular checkout passes.
-
-The fixed, synthetic dataset makes an immutable in-memory store and fresh-for-life client cache appropriate for this assessment. A live system would need explicit data versioning, cache invalidation, ingestion, secured hosting, and operational monitoring. Authentication, streaming prices, durable storage, and production deployment are outside the current implementation. Shared packages add build coordination, while keeping generic controls and chart behavior independently testable. The current application eagerly bundles those packages and does not claim a bundle-size budget.
+The shared packages add build coordination, but keep controls, styling, and chart behavior independently testable. Application-specific selection, statistics presentation, and request orchestration stay in the dashboard so the reusable layer remains small.

@@ -1,199 +1,317 @@
 # Pharo Take Home Assessment
 
-A local full-stack dashboard for exploring the supplied synthetic historical prices, built with React and ASP.NET Core. Search all 200 tickers, select up to three, and compare closing prices, price performance, and financial statistics. Statistics cover all 30 supplied observations per ticker; individual chart points and raw observations remain available for inspection.
+This repository contains the submission for the Pharo take home assessment.
+
+It is organized as an Nx monorepo with:
+
+- an instrument analytics frontend in `apps/pharo-dashboard-ui`
+- an ASP.NET Core backend in `apps/pharo-dashboard-api`
+- shared UI, chart, styling, and tooling packages in `packages/`
+
+The dashboard lets you search the supplied instrument list, compare up to three tickers, and inspect their historical prices. The comparison matrix shows the latest closing price and full-period statistics for each selected instrument.
 
 ## Tech Stack
 
-| Layer | Technologies |
-| --- | --- |
-| Frontend | React, TypeScript, Vite, TanStack Router and Query, React Aria Components |
-| Visualization and styling | D3, Day.js UTC formatting, Tailwind CSS with shared Pharo tokens |
-| HTTP and validation | Axios and Zod |
-| Backend | C# / ASP.NET Core on .NET 10, CsvHelper, immutable in-memory data |
-| Tooling and tests | Nx, pnpm, Vitest, React Testing Library, MSW, Playwright, Storybook, xUnit, ESLint and Prettier |
+### Frontend
+
+- React and TypeScript
+- Vite
+- TanStack Router
+- TanStack Query
+- React Aria Components
+- D3
+- Tailwind CSS
+- Day.js for UTC date formatting
+- Axios and Zod
+
+### Backend
+
+- C# / ASP.NET Core on .NET 10
+- CsvHelper
+- Immutable in-memory market data
+
+### Tooling
+
+- Nx and pnpm workspaces
+- Vitest and React Testing Library
+- MSW
+- Playwright
+- Storybook
+- xUnit
+- ESLint and Prettier
 
 ## Workspace Layout
 
-The workspace has two applications and five shared packages:
+### Apps
 
-| Owner                      | Responsibility                                                    |
-| -------------------------- | ----------------------------------------------------------------- |
-| `apps/pharo-dashboard-ui`  | Dashboard, routing, API integration and application browser tests |
-| `apps/pharo-dashboard-api` | CSV ingestion, statistics, HTTP endpoints and backend tests       |
-| `@pharo/react-components`  | Accessible controls used by the dashboard                         |
-| `@pharo/react-charts`      | Generic SVG line chart and raw-data table                         |
-| `@pharo/tailwind-plugin`   | Shared Tailwind design tokens                                     |
-| `@pharo/eslint-config`     | Shared lint rules                                                 |
-| `@pharo/prettier-config`   | Shared formatting rules                                           |
+- `apps/pharo-dashboard-ui`: the instrument analytics dashboard
+- `apps/pharo-dashboard-api`: CSV ingestion, financial statistics, and HTTP endpoints
 
-The application owns instrument selection and financial comparison. Shared packages own reusable presentation and interaction primitives. For the reasoning behind these boundaries, see [DESIGN.md](DESIGN.md).
+### Shared Packages
 
-## Run locally
+- `@pharo/react-components`: accessible UI components built on React Aria
+- `@pharo/react-charts`: generic line charts and recorded-data tables
+- `@pharo/tailwind-plugin`: shared design tokens and Tailwind utilities
+- `@pharo/eslint-config`: shared lint rules
+- `@pharo/prettier-config`: shared formatting rules
 
-### Requirements
+Instrument selection, API integration, and dashboard composition stay in the application. Shared packages provide the controls and chart behavior used by that application. [DESIGN.md](DESIGN.md) explains these boundaries and the reasoning behind them.
 
-Install **Node.js 24.14.1**, **pnpm 10.33.0** and **.NET SDK 10.0.401**, with `node`, `pnpm` and `dotnet` on PATH. These versions are pinned in [.nvmrc](.nvmrc), [package.json](package.json) and [global.json](global.json); .NET SDK roll-forward is disabled. The first installation needs access to npm and NuGet registries.
+## Requirements
 
-On Windows or macOS, install Node.js and the **.NET SDK**, not only the runtime, for your machine's architecture. Follow Microsoft's [.NET installation instructions](https://learn.microsoft.com/en-us/dotnet/core/install/), then open a new terminal so it picks up PATH changes. Install pnpm with:
+- Node.js **24.14.1**
+- pnpm **10.33.0**
+- .NET SDK **10.0.401**
 
-```sh
+These versions are pinned in [.nvmrc](.nvmrc), [package.json](package.json), and [global.json](global.json). The .NET SDK version must match because SDK roll-forward is disabled.
+
+On Windows or macOS, install Node.js and the .NET **SDK** for your machine's architecture. Microsoft's [.NET installation guide](https://learn.microsoft.com/en-us/dotnet/core/install/) covers both platforms. Open a new terminal after installation and check that `node`, `pnpm`, and `dotnet` are on PATH.
+
+Install pnpm with:
+
+```bash
 npm install --global pnpm@10.33.0
 ```
 
-If using nvm on macOS, activate the pinned Node version from the repository root:
+If using nvm on macOS, run `nvm install` and `nvm use` from the repository root. For a custom .NET installation in `~/.dotnet`, add `export PATH="$HOME/.dotnet:$PATH"` to your shell startup file. The standard Windows installer sets PATH automatically.
 
-```sh
-nvm install
-nvm use
-```
+## Getting Started
 
-For a .NET installation in `~/.dotnet` on macOS or Linux, add `export PATH="$HOME/.dotnet:$PATH"` to your shell startup file, then reopen the terminal. The standard Windows installer sets PATH; custom installations must do so too. Check `node --version`, `pnpm --version` and `dotnet --version` from the repository root.
+### 1. Install dependencies
 
-### Install and start
+From the repository root:
 
-From the repository root, in PowerShell, Command Prompt or a macOS terminal:
-
-```sh
+```bash
 pnpm install --frozen-lockfile
-pnpm build
-pnpm dev
 ```
 
-The launcher checks the SDK, starts both applications, and waits for readiness:
+pnpm is the workspace package manager. The first installation needs access to npm and NuGet registries.
 
-- Dashboard: **http://127.0.0.1:5173**
-- API: **http://127.0.0.1:5080**
-- API readiness: **http://127.0.0.1:5080/health**
+### 2. Build the workspace
 
-Vite proxies `/api` to the local API, so no browser CORS setup is required. After installing and building with pnpm, `npm run dev` also starts the same launcher.
+```bash
+pnpm run build
+```
 
-Use **Ctrl+C** in the launcher terminal to stop both services. Cleanup targets only that launcher's process groups on macOS/Linux and process trees on Windows. Terminal-close signals also request cleanup; forcibly ending processes can bypass it.
+This builds the shared packages, frontend, and backend, including the supplied CSV in the API output.
 
-An occupied port is reported without killing its owner. If it belongs to an existing Pharo instance, use that dashboard or stop it from its terminal. To start another instance, this command works in Windows and macOS shells:
+### 3. Start the full development environment
 
-```sh
+```bash
+pnpm run dev
+```
+
+What this does:
+
+- checks the required .NET SDK
+- starts the API and UI
+- waits for both services to be ready
+- prints the local URLs
+
+Default local URLs:
+
+- UI: `http://127.0.0.1:5173`
+- API: `http://127.0.0.1:5080`
+- API readiness: `http://127.0.0.1:5080/health`
+
+The UI proxies `/api` requests to the backend. No browser CORS configuration is needed.
+
+Use `Ctrl + C` to stop both processes. The launcher only stops processes it started. After installing and building with pnpm, `npm run dev` also starts the same launcher.
+
+### Using different ports
+
+If a port is already occupied, the launcher reports it and leaves the existing process running. Use that instance, stop it from its terminal, or start Pharo on different ports:
+
+```bash
 node scripts/dev.mjs --api-port 5081 --ui-port 5174
 ```
 
-Use the UI URL printed by the launcher. CLI port options override environment variables, and the UI proxy follows the selected API port. Permission errors are distinguished from occupied ports.
-
-### Configuration and preview
-
-| Setting            | Default                       | Purpose                          |
-| ------------------ | ----------------------------- | -------------------------------- |
-| `PHARO_API_PORT`   | `5080`                        | API listener and UI proxy target |
-| `PHARO_UI_PORT`    | `5173`, or `4173` for preview | UI listener                      |
-| `MarketData__Path` | `Data/market_data.csv`        | Dataset loaded at API startup    |
-
-Ports must be distinct integers between 1024 and 65535. A relative dataset override resolves against the API's output/content directory, not the shell directory. The CSV is copied into build and publish output. Missing or invalid data prevents readiness; restart the API after changing the dataset.
-
-After `pnpm build`, run `pnpm preview` to serve the built UI and published API. The default preview UI is **http://127.0.0.1:4173**. This is a local preview, not a deployment setup.
+This command works in Windows and macOS shells. Use the UI URL printed by the launcher; its API proxy follows the selected API port.
 
 ## Root Commands
 
-Run these from the repository root:
+All commands below run from the workspace root.
 
-| Command                    | Purpose                                                            |
-| -------------------------- | ------------------------------------------------------------------ |
-| `pnpm dev`                 | Start both applications for development                            |
-| `pnpm preview`             | Run the built UI and published API                                 |
-| `pnpm build`               | Build applications and shared dependencies                         |
-| `pnpm lint`                | Lint frontend, packages and scripts                                |
-| `pnpm lint:fix`            | Apply available lint fixes                                         |
-| `pnpm typecheck`           | Check TypeScript and compile the .NET solution                     |
-| `pnpm test`                | Run backend, frontend, package, Storybook and infrastructure tests |
-| `pnpm test:infrastructure` | Run application lifecycle and launcher checks                      |
-| `pnpm check:routes`        | Check generated routes and route-file exclusions                   |
-| `pnpm test:e2e`            | Run application and public-package Playwright suites               |
-| `pnpm validate`            | Run the complete local validation graph                            |
-| `pnpm browser:install`     | Install the pinned Playwright Chromium browser                     |
-| `pnpm screenshots`         | Build and capture dashboard walkthrough screenshots                |
+### Development and Build
 
-Install Chromium before the first browser-backed test or screenshot run:
-
-```sh
-pnpm browser:install
+```bash
+pnpm run dev
+pnpm run build
+pnpm run preview
 ```
 
-On Linux, Playwright may also need system libraries: use `node scripts/playwright.mjs install --with-deps chromium`. Browser and .NET caches live under ignored `node_modules/.cache`.
+`preview` runs the built UI and published API. Its default UI address is `http://127.0.0.1:4173`.
 
-### Storybook and screenshots
+### Lint and Types
 
-Both catalogs work independently of the API:
+```bash
+pnpm run lint
+pnpm run lint:fix
+pnpm run typecheck
+```
 
-| Command                 | Default address                       |
-| ----------------------- | ------------------------------------- |
-| `pnpm storybook`        | http://127.0.0.1:6006 — base controls |
-| `pnpm storybook:charts` | http://127.0.0.1:6008 — line chart    |
+### Test and Validate
 
-`pnpm storybook:build` builds both catalogs.
+Install Chromium before the first browser-backed test run:
 
-`pnpm screenshots` writes numbered PNGs to the ignored root `screenshots/` folder, with no HTML gallery. It covers selection, chart modes, comparison, raw data, button states, loading, errors, retry and responsive layouts. Filenames containing `simulated` identify deliberately delayed, failed or empty API responses. The command uses separate test ports, stops its own servers and refreshes the numbered images on rerun.
+```bash
+pnpm run browser:install
+```
 
-## Application Walkthrough
+Then use:
 
-1. **Find and select instruments.** The **Compare instruments** picker filters the cached list, ranking exact matches before prefixes and other matches. All tickers remain reachable in its scrollable popup. Arrow keys and Enter select a result; Escape closes the popup. Choose up to three, with removable tags and an explanation when the limit is reached.
-2. **Choose Price or Performance.** Price shows recorded closing prices. Performance shows `100 × (price / firstObservedPrice − 1)` for each instrument, using its own first price. This is rebased price change, without corporate-action adjustments. Shared colors and dash patterns connect tags, lines and matrix columns.
-3. **Compare full-period statistics.** The matrix shows each instrument's latest recorded close and total return, daily volatility, and maximum drawdown from `/api/prices/{ticker}/stats` over all 30 supplied observations.
-4. **Inspect chart observations.** Hover, click/tap, or use the chart's keyboard control to read individual recorded dates and values. Inspection stays within the chart and does not change comparison statistics or request new data.
-5. **Inspect raw observations.** **View data** opens every selected column and recorded row, including in Performance mode. Shared range/count information appears once when histories agree. The dialog scrolls locally, closes with Close or Escape, and restores focus to its trigger.
+```bash
+pnpm run test
+pnpm run test:e2e
+pnpm run test:infrastructure
+pnpm run check:routes
+pnpm run validate
+```
 
-Selection and an explicitly chosen chart view are shareable:
+`validate` runs the complete local check: workspace and route checks, lint, typechecks, C# formatting, builds, unit and Storybook tests, browser tests, and infrastructure checks.
+
+On Linux, Playwright may also need system libraries. Install them with `node scripts/playwright.mjs install --with-deps chromium`. Browser and .NET caches live under ignored `node_modules/.cache`.
+
+### Storybook and Screenshots
+
+```bash
+pnpm run storybook
+pnpm run storybook:charts
+pnpm run storybook:build
+pnpm run screenshots
+```
+
+Storybook ports:
+
+- `@pharo/react-components`: `http://127.0.0.1:6006`
+- `@pharo/react-charts`: `http://127.0.0.1:6008`
+
+Both catalogs run independently of the API.
+
+`screenshots` builds the workspace and writes numbered PNGs to the ignored root `screenshots/` folder. It covers selection, chart modes, comparison, raw data, loading, errors, retry, button states, and responsive layouts. Filenames containing `simulated` identify deliberately delayed, failed, or empty responses. The command uses separate test ports, stops its own servers, and refreshes the images on rerun.
+
+## App-Specific Notes
+
+### pharo-dashboard-ui
+
+The frontend uses:
+
+- TanStack Router for selected tickers and chart mode in the URL
+- TanStack Query for independently cached price and statistics requests
+- app-scoped Axios services with Zod response validation
+- React Aria for instrument selection, buttons, and dialogs
+- D3 scales and paths inside React-owned SVG charts
+
+Components access the API through namespaced service hooks:
+
+- `InstrumentsApi.useGetInstruments()`
+- `PricesApi.useGetPrices()`
+- `PricesApi.useGetPriceStats()`
+
+Each hook receives the app's API client, and the price hooks also receive the selected tickers. Request functions and their corresponding hooks live together in the API layer.
+
+The main workflow is:
+
+1. Search the instrument list and select up to three tickers.
+2. Switch between raw **Price** and rebased **Performance** views.
+3. Compare the latest close, total return, daily volatility, and maximum drawdown.
+4. Hover, click/tap, or use the chart's keyboard control to inspect individual observations.
+5. Open **View data** to inspect all selected raw prices in the accessible dialog.
+
+The matrix always uses full-period API statistics. Chart inspection and Price/Performance switching leave those values unchanged.
+
+Selection and an explicit chart view can be shared through the URL:
 
 ```text
 /?tickers=TICK0001,TICK0002&view=performance
 ```
 
-Without `view`, zero or one selected ticker defaults to **Price**, and two or three default to **Performance**. An explicit choice survives subsequent selection changes, reload and browser Back/Forward. Chart inspection is local to the chart; changing the inspected point or Price/Performance view leaves comparison statistics unchanged.
+Without an explicit `view`, zero or one selected ticker uses Price, and two or three use Performance. An explicit choice survives selection changes, reload, and browser Back/Forward. **Clear selection** clears the tickers and explicit view.
 
-**Clear search** only resets the draft text. **Clear selection** appears when instruments are selected and removes both the selection and explicit chart view. The Price/Performance control remains available when selection is empty. Press `/` outside editable or modal contexts to focus the picker.
+Unknown tickers remain removable and show an error. Malformed identifiers are reported while valid selections remain usable. Loading, empty results, and failures have separate feedback, and transient failures offer a targeted Retry action.
 
-Initial instrument loading shows an input spinner and, when open, a popup loading state. Empty results have separate messages. Instrument-list failures offer a message and **Retry instruments** outside the options. Unknown URL tickers remain removable and show a prominent alert; malformed identifiers are reported while valid peers remain usable. Individual price/statistics failures do not block healthy instruments, and transient failures have targeted retry actions.
+### pharo-dashboard-api
 
-## Market Data and API
+The backend exposes:
 
-The supplied [CSV](apps/pharo-dashboard-api/Data/market_data.csv) contains **6,000 observations**: 200 synthetic tickers (`TICK0001`–`TICK0200`), each with 30 recorded dates from **2026-06-23 through 2026-08-03**. These describe the file, not hardcoded application limits. Prices have no specified currency or real company identity.
+- `GET /api/instruments`: sorted ticker identifiers
+- `GET /api/prices/{ticker}`: chronological price observations
+- `GET /api/prices/{ticker}/stats`: full-period statistics
+- `GET /health`: readiness after the dataset loads
 
-CSV SHA-256:
+The supplied [CSV](apps/pharo-dashboard-api/Data/market_data.csv) contains 6,000 observations: 200 synthetic tickers (`TICK0001`–`TICK0200`), each with 30 recorded dates from June 23 through August 3, 2026. Prices have no specified currency or real company identity.
 
-```text
-363970ba4e81bf2cf5d890b0be9df93d28bda0819f39ba10796012e4ec231440
-```
+The API loads and validates the CSV at startup, keeps the data in memory, and prepares statistics for each ticker. Invalid or missing data prevents startup. Invalid or unknown ticker requests return HTTP 404 Problem Details; unexpected failures return a safe 500 response.
 
-| Method | Route | Response |
-| --- | --- | --- |
-| `GET` | `/api/instruments` | Sorted canonical ticker strings |
-| `GET` | `/api/prices/{ticker}` | Chronological date/price observations |
-| `GET` | `/api/prices/{ticker}/stats` | Full-period `totalReturnPercent`, nullable `dailyVolatilityPercent`, `maxDrawdownPercent` |
-| `GET` | `/health` | `{"status":"ready"}` after dataset initialization |
+Statistics use percentage points: `5` displays as `5.00%`. Daily volatility is the sample standard deviation of consecutive simple returns, without annualization. Fewer than three prices produce `null`, shown as **Not enough observations**. Maximum drawdown is a nonnegative loss magnitude. The full formulas are documented in [DESIGN.md](DESIGN.md).
 
-While the app is running:
+While the app is running, inspect the API with:
 
-```sh
+```bash
 curl http://127.0.0.1:5080/api/instruments
 curl http://127.0.0.1:5080/api/prices/TICK0001
 curl http://127.0.0.1:5080/api/prices/TICK0001/stats
 ```
 
-Tickers are trimmed and uppercased. Invalid or unknown tickers return safe HTTP 404 Problem Details on the price routes. Unexpected request failures return generic 500 Problem Details without raw input or filesystem paths.
+### Configuration
 
-Statistics use **percentage points**: `5` displays as `5.00%`, not `500%`. Volatility is the sample standard deviation of consecutive simple returns, without annualization; fewer than three prices give `null`, displayed as **Not enough observations**. Drawdown is a nonnegative loss magnitude. [DESIGN.md](DESIGN.md) specifies the formulas and insufficient-observation behavior.
+- `PHARO_API_PORT`: API port, default `5080`
+- `PHARO_UI_PORT`: UI port, default `5173` for development or `4173` for preview
+- `MarketData__Path`: CSV path, default `Data/market_data.csv`
+
+CLI port options take precedence over environment variables. Ports must be distinct integers between 1024 and 65535. Relative CSV paths resolve against the API's output/content directory. Restart the API after changing the dataset.
 
 ## Testing
 
-- **Backend:** xUnit tests for CSV ingestion, immutable store, startup, HTTP contracts and statistics, including an independent oracle for all supplied tickers.
-- **Frontend:** Vitest, React Testing Library and MSW exercise API validation, Query cancellation/cache/retry behavior, selection, full-period comparison and error states.
-- **Browser:** Playwright runs the compiled dashboard against the real API and checks instrument selection, chart inspection, keyboard/touch/focus, URL navigation, raw data and responsive layouts. Inspection must leave the latest closes and full-period API statistics unchanged.
-- **Shared packages:** unit tests, executable Storybook scenarios and isolated browser consumers exercise reusable controls and charts.
+### Frontend
 
-Run `pnpm validate` for workspace/route-generation checks, lint, types, C# formatting, tests, builds, infrastructure and browser suites through one Nx graph. These are reproducible commands, not a claim that every environment or physical device has been tested.
+Vitest, React Testing Library, and MSW exercise the UI and its network behavior. Coverage includes:
 
-The full local `pnpm validate` run passed on 2026-10-08 at source commit `c7af484` with exit code 0: all 25 Nx tasks completed successfully with the cache disabled. This records that checkout's local result, not remote CI status.
+- instrument selection and URL state
+- loading, errors, retries, and cancellation
+- independent caching for each ticker
+- latest-price and full-period statistics presentation
+- accessible controls and focus behavior
 
-## Scope and AI Assistance
+### Backend
 
-This local assessment uses one immutable startup dataset. It does not include authentication, a database, live quotes, live ingestion, market calendars, corporate-action adjustments, production hosting or investment recommendations. Shared controls and chart code are loaded eagerly; no production bundle-size or performance guarantee is claimed.
+xUnit tests cover:
 
-OpenAI Codex assisted implementation, testing, review and documentation. Calculation tests, an independent dataset oracle, HTTP integration tests and browser scenarios let reviewers inspect and reproduce the behavior. The submitted code and architectural choices should be understood and explainable by the candidate.
+- strict CSV parsing and immutable data storage
+- startup and readiness behavior
+- HTTP and Problem Details contracts
+- financial formulas and insufficient-observation cases
+- an independent statistics oracle for all supplied tickers
 
-The navy/white/cyan treatment is inspired by [Pharo's public website](https://www.pharo.com/). UI and SVG marks are authored here, with system fonts and no copied external logos, photographs or fonts. Dependencies retain their own licensing requirements. See [DESIGN.md](DESIGN.md) and the [chart package README](packages/pharo-react-charts/README.md) for architecture and reusable chart contracts.
+### Browser and Shared Packages
+
+Playwright runs the compiled dashboard against the real C# API. It covers keyboard and touch inspection, Price/Performance switching, URL navigation, raw observations, responsive layouts, and recovery from failed requests. Regression tests verify that chart inspection leaves comparison statistics unchanged.
+
+The shared UI and chart packages also have unit tests, executable Storybook scenarios, and isolated browser consumers.
+
+The full local `pnpm validate` run passed on October 8, 2026 at source commit `c7af484`: all 25 Nx tasks completed with the cache disabled, and the command exited with code 0.
+
+## Shared Package Development
+
+Use the two Storybooks to develop and inspect components outside the dashboard. Both consume the same shared tokens and public package exports as the application.
+
+The [chart package README](packages/pharo-react-charts/README.md) documents series data, formatting, inspection, and the external data-table contract.
+
+## Recommended Developer Workflow
+
+1. Install dependencies with pnpm.
+2. Build the workspace.
+3. Start both applications with `pnpm run dev`.
+4. Use Storybook when working on shared controls or charts.
+5. Run the relevant tests during development and `pnpm run validate` before finishing.
+
+## Notes
+
+- The CSV is a fixed startup dataset; there is no database or live-price ingestion.
+- The application covers the assessment workflow. Authentication and production deployment are outside its current scope.
+- The design uses colors inspired by [Pharo's public website](https://www.pharo.com/), system fonts, and locally authored UI and SVG marks.
+- The root README is the starting point for setup; [DESIGN.md](DESIGN.md) explains the architecture and tradeoffs.
+
+## AI Assistance
+
+OpenAI Codex assisted with implementation, testing, review, and documentation. Financial calculation tests, an independent dataset oracle, API integration tests, and browser scenarios make the behavior reproducible. The candidate remains responsible for understanding and explaining the submitted code and design choices.
