@@ -14,7 +14,10 @@ export const styles: Record<
   | 'text'
   | 'state'
   | 'selection'
-  | 'empty',
+  | 'empty'
+  | 'loading'
+  | 'announcement'
+  | 'spinner',
   string
 > = {
   root: 'flex min-w-0 flex-col gap-pharo-2',
@@ -38,4 +41,8 @@ export const styles: Record<
   state: 'shrink-0 text-pharo-xs font-medium',
   selection: 'flex min-w-0 flex-wrap items-center gap-pharo-2',
   empty: 'p-pharo-3 text-pharo-sm text-pharo-muted',
+  loading:
+    'flex min-h-pharo-control items-center justify-center gap-pharo-2 p-pharo-3 text-pharo-sm text-pharo-muted',
+  announcement: 'sr-only',
+  spinner: 'inline-flex shrink-0',
 };

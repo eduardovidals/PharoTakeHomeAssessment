@@ -224,10 +224,14 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     const input = app.view.getByRole('combobox', { name: 'Compare instruments' });
     try {
       expect(input).toBeEnabled();
+      expect(input).toHaveAttribute('aria-busy', 'true');
       expect(
         within(app.view.getByRole('region', { name: 'Comparison controls' })).getByRole('status'),
       ).toHaveTextContent('Loading instruments');
       await user.type(input, '  002  ');
+      expect(popup().getAllByRole('status')).toHaveLength(1);
+      expect(popup().getByRole('status')).toHaveTextContent('Loading instruments');
+      expect(popup().queryAllByRole('option', { selected: false })).toHaveLength(0);
       await act(async () => {
         first.release();
       });
@@ -235,6 +239,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
       expect(await app.view.findByRole('alert')).toHaveTextContent(
         'The service could not complete the request.',
       );
+      expect(input).toHaveAttribute('aria-busy', 'false');
       expect(app.view.queryByText(/private failure/)).not.toBeInTheDocument();
       await user.click(app.view.getByRole('button', { name: 'Remove UNKNOWN' }));
       await waitFor(() => expect(input).toHaveFocus());
@@ -242,9 +247,10 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
       await user.keyboard('{Escape}');
       await user.click(app.view.getByRole('button', { name: 'Retry instruments' }));
       await waitFor(() => expect(attempts).toBe(2));
-      expect(
-        within(app.view.getByRole('region', { name: 'Comparison controls' })).getByRole('status'),
-      ).toHaveTextContent('Loading instruments');
+      expect(input).toHaveFocus();
+      expect(input).toHaveAttribute('aria-busy', 'true');
+      expect(popup().getAllByRole('status')).toHaveLength(1);
+      expect(popup().getByRole('status')).toHaveTextContent('Loading instruments');
       await user.click(input);
       if (input.getAttribute('aria-expanded') !== 'true') await user.keyboard('{ArrowDown}');
       await act(async () => {
@@ -258,6 +264,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
         ).toEqual(['TICK0002', 'TICK0020', 'TICK0021', 'TICK0022', 'TICK0023']),
       );
       expect(input).toHaveFocus();
+      expect(input).toHaveAttribute('aria-busy', 'false');
       expect(input).toHaveValue('  002  ');
       expect(attempts).toBe(2);
       expect(requests.prices).toBe(1);
@@ -288,7 +295,12 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
       act(() => {
         refresh = app.queryClient.invalidateQueries({ queryKey: instrumentsKey });
       });
-      expect(await app.view.findByText('Refreshing instruments…', { exact: false })).toBeVisible();
+      await waitFor(() => expect(app.queryClient.isFetching({ queryKey: instrumentsKey })).toBe(1));
+      expect(input).toHaveAttribute('aria-busy', 'false');
+      expect(popup().queryByRole('progressbar', { hidden: true })).not.toBeInTheDocument();
+      expect(
+        popup().queryByText(/Loading instruments|Refreshing instruments/),
+      ).not.toBeInTheDocument();
       expect(popup().getByRole('option', { name: 'TICK0023' })).toBeInTheDocument();
       await act(async () => {
         gate.release();

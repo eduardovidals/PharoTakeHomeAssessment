@@ -50,6 +50,10 @@ export function InstrumentPicker(props: Props) {
     setQuery('');
     inputRef.current?.focus();
   };
+  const handleRetry = () => {
+    void instruments.refetch();
+    inputRef.current?.focus();
+  };
   const handleClearSelection = async () => {
     try {
       const outcome = await onAction({ type: 'clear' });
@@ -75,11 +79,11 @@ export function InstrumentPicker(props: Props) {
         onSelectionAction={handleSelection}
         inputRef={inputRef}
         maxSelected={3}
-        isLoading={instruments.isFetching}
-        loadingMessage={instruments.isPending ? 'Loading instruments…' : 'Refreshing instruments…'}
+        isLoading={instruments.isLoading}
+        loadingMessage="Loading instruments…"
         emptyMessage={
           listFailure
-            ? 'Instrument list unavailable.'
+            ? 'Instrument list unavailable. Close options to retry.'
             : known.length === 0
               ? 'No instruments are available.'
               : 'No instruments match your search.'
@@ -110,18 +114,13 @@ export function InstrumentPicker(props: Props) {
           </div>
         }
       />
-      {instruments.isPending && (
-        <p role="status" className={pickerStyles.help}>
-          Loading instruments…
-        </p>
-      )}
       {listFailure && (
         <div className={pickerStyles.error}>
           <p role="alert">{instruments.error.message}</p>
           <PharoButton
             variant="secondary"
             isDisabled={instruments.isFetching}
-            onPress={() => void instruments.refetch()}
+            onPress={handleRetry}
           >
             {instruments.isFetching ? 'Retrying instruments…' : 'Retry instruments'}
           </PharoButton>

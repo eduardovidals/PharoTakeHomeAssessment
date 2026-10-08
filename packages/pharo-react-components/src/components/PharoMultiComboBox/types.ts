@@ -53,13 +53,16 @@ export interface PharoMultiComboBoxProps<Item extends object> {
   readonly errorMessage?: ReactNode;
   /** Message for a collection without available results. */
   readonly emptyMessage?: ReactNode;
-  /** Visible message while the collection is loading. */
+  /** Initial-loading message, announced once and visible in an empty open popup. */
   readonly loadingMessage?: ReactNode;
   /** Guidance shown when additional selections are unavailable at the configured cap. */
   readonly limitMessage?: ReactNode;
   /** Input hint; the visible label remains the accessible name. */
   readonly placeholder?: string;
-  /** Mark collection loading without discarding existing results or selected tags. */
+  /** Wrapper-owned loading presentation; not forwarded to React Aria ComboBox.
+   * Consumers own fetching and should use initial loading rather than background refresh.
+   * Existing results and selected tags remain available.
+   */
   readonly isLoading?: boolean;
   /** Keep values focusable and readable while suppressing edits and removal. */
   readonly isReadOnly?: boolean;

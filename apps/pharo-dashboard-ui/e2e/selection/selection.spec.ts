@@ -307,3 +307,166 @@ test.describe('Share a real historical-data selection', () => {
     await expectSelection(page, []);
   });
 });
+
+function deferredRequest() {
+  let release: () => void = () => undefined;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { pending, release };
+}
+
+async function expectContainedDocument(page: Page) {
+  // e2e-locator: Root dimensions distinguish a contained popup from page overflow.
+  expect(
+    await page.locator('html').evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+}
+
+for (const viewport of [
+  { width: 1366, height: 768, touch: false },
+  { width: 390, height: 844, touch: true },
+]) {
+  test.describe(`Instrument loading at ${viewport.width}px`, () => {
+    test.use({
+      viewport: { width: viewport.width, height: viewport.height },
+      hasTouch: viewport.touch,
+    });
+
+    test('keeps initial loading inside the picker and preserves selection after it resolves', async ({
+      page,
+    }, testInfo) => {
+      const request = deferredRequest();
+      await page.route('**/api/instruments', async (route) => {
+        await request.pending;
+        await route.continue();
+      });
+      await page.goto('/');
+      const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+      const trigger = page.getByRole('button', { name: /^Show options/ });
+      const announcement = page.getByRole('status').filter({ hasText: 'Loading instruments…' });
+      await expect(input).toHaveAttribute('aria-busy', 'true');
+      await expect(input).toBeEnabled();
+      await expect(trigger.getByRole('progressbar', { includeHidden: true })).toBeVisible();
+      await expect(page.getByRole('progressbar')).toHaveCount(0);
+      await expect(announcement).toHaveCount(1);
+      expect((await announcement.boundingBox())?.height).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: testInfo.outputPath('loading-closed.png'), fullPage: true });
+
+      if (viewport.touch) await input.tap();
+      else await input.press('ArrowDown');
+      const listbox = page.getByRole('listbox');
+      await expect(listbox).toBeVisible();
+      await expect(announcement).toHaveCount(1);
+      await expect(listbox.getByRole('status')).toHaveText('Loading instruments…');
+      // React Aria wraps renderEmptyState in a nonselectable option without aria-selected.
+      await expect(listbox.getByRole('option')).not.toHaveAttribute('aria-selected', /.+/);
+      await expect(input).not.toHaveAttribute('aria-activedescendant', /.+/);
+      await input.press('Enter');
+      expect(new URL(page.url()).search).toBe('');
+      await input.press('ArrowDown');
+      await expect(listbox.getByRole('status')).toHaveText('Loading instruments…');
+      await expectContainedDocument(page);
+      await page.screenshot({ path: testInfo.outputPath('loading-open.png'), fullPage: true });
+      await input.press('Escape');
+      await expect(listbox).toBeHidden();
+      await expect(input).toBeFocused();
+      request.release();
+      await expect(input).not.toHaveAttribute('aria-busy', 'true');
+      await expect(announcement).toHaveCount(0);
+      await expect(trigger.getByRole('progressbar', { includeHidden: true })).toHaveCount(0);
+
+      await input.fill('not-an-instrument');
+      await expect(
+        listbox.getByText('No instruments match your search.', { exact: true }),
+      ).toBeVisible();
+      await expect(listbox.getByRole('option')).not.toHaveAttribute('aria-selected', /.+/);
+      await expect(page.getByRole('progressbar', { includeHidden: true })).toHaveCount(0);
+      await input.fill('TICK0001');
+      const option = page.getByRole('option', { name: 'TICK0001', exact: true });
+      await expect(option).toBeVisible();
+      if (viewport.touch) {
+        expect((await option.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        await option.tap();
+      } else {
+        await expect(input).toHaveAttribute(
+          'aria-activedescendant',
+          (await option.getAttribute('id')) ?? '',
+        );
+        await input.press('Enter');
+      }
+      await expect.poll(() => new URL(page.url()).searchParams.get('tickers')).toBe('TICK0001');
+      await expect(input).toHaveValue('');
+      await input.press('Escape');
+      await expect(input).toBeFocused();
+      await expect(
+        page.getByRole('img', { name: 'Historical closing prices', exact: true }),
+      ).toBeVisible();
+      await expectContainedDocument(page);
+    });
+
+    test('keeps retry outside the choices and recovers to the actual instrument list', async ({
+      page,
+    }, testInfo) => {
+      const retry = deferredRequest();
+      let requests = 0;
+      await page.route('**/api/instruments', async (route) => {
+        requests += 1;
+        if (requests === 1) {
+          await route.fulfill({ status: 400, contentType: 'application/json', body: '{}' });
+          return;
+        }
+        await retry.pending;
+        await route.continue();
+      });
+      await page.goto('/');
+      const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+      const error = page
+        .getByRole('alert')
+        .filter({ hasText: 'The service could not complete the request.' });
+      const retryButton = page.getByRole('button', { name: 'Retry instruments', exact: true });
+      await expect(error).toBeVisible();
+      await expect(retryButton).toBeEnabled();
+      await expect(page.getByRole('progressbar', { includeHidden: true })).toHaveCount(0);
+      await expect(
+        page.getByRole('status').filter({ hasText: 'Loading instruments…' }),
+      ).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath('loading-error.png'), fullPage: true });
+      if (viewport.touch) await input.tap();
+      else await input.press('ArrowDown');
+      const listbox = page.getByRole('listbox');
+      await expect(
+        listbox.getByText('Instrument list unavailable. Close options to retry.', { exact: true }),
+      ).toBeVisible();
+      await expect(listbox.getByRole('button', { name: /Retry/ })).toHaveCount(0);
+      await expect(listbox.getByRole('option')).not.toHaveAttribute('aria-selected', /.+/);
+      await expectContainedDocument(page);
+      await page.screenshot({
+        path: testInfo.outputPath('loading-error-open.png'),
+        fullPage: true,
+      });
+      await input.press('Escape');
+      await expect(input).toBeFocused();
+      if (viewport.touch) {
+        expect((await retryButton.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        await retryButton.tap();
+      } else await retryButton.press('Enter');
+      await expect(input).toBeFocused();
+      await expect(input).toHaveAttribute('aria-busy', 'true');
+      await expect(
+        page.getByRole('status').filter({ hasText: 'Loading instruments…' }),
+      ).toHaveCount(1);
+      await expect(error).toHaveCount(0);
+      retry.release();
+      await expect(input).not.toHaveAttribute('aria-busy', 'true');
+      await expect(input).toBeFocused();
+      await expect(retryButton).toHaveCount(0);
+      await input.fill('TICK0001');
+      await expect(page.getByRole('option', { name: 'TICK0001', exact: true })).toBeVisible();
+      await input.press('Escape');
+      await expect(input).toBeFocused();
+      expect(requests).toBe(2);
+      await expectContainedDocument(page);
+    });
+  });
+}

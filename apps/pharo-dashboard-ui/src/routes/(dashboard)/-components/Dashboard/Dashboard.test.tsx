@@ -373,7 +373,10 @@ describe('Dashboard URL selection and independently owned resources', () => {
       await waitFor(() =>
         expect(started).toEqual(new Set(['instruments', 'prices', 'statistics'])),
       );
-      expect(app.view.getByText('Loading instruments…', { exact: true })).toBeVisible();
+      expect(app.view.getByRole('combobox', { name: 'Compare instruments' })).toHaveAttribute(
+        'aria-busy',
+        'true',
+      );
       const resources = within(app.view.getByRole('group', { name: 'AAA resources' }));
       expect(resources.getByText('Loading prices…', { exact: true })).toBeVisible();
       expect(resources.getByText('Loading statistics…', { exact: true })).toBeVisible();
@@ -383,7 +386,10 @@ describe('Dashboard URL selection and independently owned resources', () => {
         expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45'),
       );
       expect(resources.getByText('Loading statistics…', { exact: true })).toBeVisible();
-      expect(app.view.getByText('Loading instruments…', { exact: true })).toBeVisible();
+      expect(app.view.getByRole('combobox', { name: 'Compare instruments' })).toHaveAttribute(
+        'aria-busy',
+        'true',
+      );
       statsGate.release();
       await waitFor(() =>
         expect(matrixCell(app, 'AAA', 'Daily volatility')).toHaveTextContent(

@@ -197,9 +197,7 @@ test.describe('Review the dashboard screens and interactions', () => {
     });
     try {
       await page.goto('/?tickers=TICK0001');
-      await expect(
-        page.getByRole('status').filter({ hasText: 'Loading instruments…' }),
-      ).toBeVisible();
+      await expect(search).toHaveAttribute('aria-busy', 'true');
       const resources = page.getByRole('group', { name: 'TICK0001 resources', exact: true });
       await expect(resources.getByText('Loading prices…', { exact: true })).toBeVisible();
       await expect(resources.getByText('Loading statistics…', { exact: true })).toBeVisible();

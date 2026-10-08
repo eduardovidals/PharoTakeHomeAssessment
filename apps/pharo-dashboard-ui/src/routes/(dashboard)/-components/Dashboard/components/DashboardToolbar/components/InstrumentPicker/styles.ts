@@ -1,10 +1,9 @@
 import type { PharoChartAppearance } from '@pharo/react-charts';
 
 /** Compact picker support and recovery controls. */
-export const pickerStyles: Record<'root' | 'actions' | 'help' | 'shortcut' | 'error', string> = {
+export const pickerStyles: Record<'root' | 'actions' | 'shortcut' | 'error', string> = {
   root: 'min-w-0 flex-1',
   actions: 'flex flex-wrap items-center gap-pharo-2',
-  help: 'text-pharo-sm text-pharo-muted',
   shortcut: 'hidden text-pharo-xs text-pharo-muted lg:inline',
   error: 'mt-pharo-2 text-pharo-sm text-pharo-error',
 };

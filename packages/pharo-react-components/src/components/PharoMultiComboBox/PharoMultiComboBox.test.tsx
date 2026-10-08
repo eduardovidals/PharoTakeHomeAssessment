@@ -1,5 +1,5 @@
 import { createRef, useState } from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Key } from 'react-aria-components';
@@ -73,6 +73,95 @@ describe('PharoMultiComboBox', () => {
     expect(input).toHaveValue('Or');
     expect(input).toHaveFocus();
     expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+  it('shows decorative input and popup spinners with one accessible loading announcement', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn();
+    const { rerender } = render(
+      <Harness items={[]} isLoading loadingMessage="Loading plants…" onSelectionAction={action} />,
+    );
+    const input = screen.getByRole('combobox');
+    expect(input).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading plants…');
+    expect(
+      screen
+        .getByRole('button', { name: 'Show options Plants' })
+        .querySelector('[role="progressbar"]'),
+    ).toBeInTheDocument();
+    expect(screen.queryAllByRole('progressbar')).toHaveLength(0);
+    expect(input).not.toHaveAccessibleDescription(/Loading plants/);
+    await user.click(input);
+    const list = await screen.findByRole('listbox');
+    expect(within(list).getByRole('status')).toHaveTextContent('Loading plants…');
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.queryAllByRole('option', { selected: false })).toHaveLength(0);
+    expect(input).not.toHaveAttribute('aria-activedescendant');
+    expect(screen.getAllByRole('progressbar', { hidden: true })).toHaveLength(2);
+    await user.keyboard('{ArrowDown}{Enter}');
+    expect(action).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Show options Plants' }));
+    rerender(<Harness items={[]} loadingMessage="Loading plants…" onSelectionAction={action} />);
+    expect(await screen.findByText('No options found.')).toBeVisible();
+    expect(screen.queryByText('Loading plants…')).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('progressbar', { hidden: true })).toHaveLength(0);
+    expect(input).toHaveAttribute('aria-busy', 'false');
+    rerender(<Harness onSelectionAction={action} />);
+    const fern = await screen.findByRole('option', { name: 'Fern' });
+    await waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', fern.id));
+    await user.keyboard('{Enter}');
+    expect(action).toHaveBeenCalledExactlyOnceWith({ kind: 'add', key: 7 });
+    await user.keyboard('{Escape}');
+    expect(input).toHaveFocus();
+  });
+  it('retains available options and selected tags when its owner marks the collection loading', async () => {
+    const user = userEvent.setup();
+    render(<Harness isLoading initialKeys={[7]} />);
+    const input = screen.getByRole('combobox');
+    expect(screen.getByRole('button', { name: 'Remove Fern' })).toBeVisible();
+    await user.click(input);
+    expect(await screen.findByRole('option', { name: 'Maple' })).toBeVisible();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading options…');
+    expect(input).not.toHaveAccessibleDescription(/Loading options/);
+    await user.keyboard('{Escape}');
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Remove Fern' })).toBeVisible();
+  });
+  it('preserves disabled and read-only semantics during loading', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn();
+    const changed = vi.fn();
+    const { rerender } = render(
+      <Harness
+        items={[]}
+        isLoading
+        isDisabled
+        initialKeys={[7]}
+        onSelectionAction={action}
+        onInputChange={changed}
+      />,
+    );
+    const input = screen.getByRole('combobox');
+    expect(input).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Show options Plants' })).toBeDisabled();
+    await user.click(input);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    rerender(
+      <Harness
+        items={[]}
+        isLoading
+        isReadOnly
+        initialKeys={[7]}
+        onSelectionAction={action}
+        onInputChange={changed}
+      />,
+    );
+    await user.type(input, 'Map');
+    expect(input).toHaveAttribute('readonly');
+    expect(input).toHaveFocus();
+    expect(screen.queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
+    expect(action).not.toHaveBeenCalled();
+    expect(changed).not.toHaveBeenCalled();
   });
   it('preserves unknown controlled tags through filtering, pending and failed collections', async () => {
     const user = userEvent.setup();

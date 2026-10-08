@@ -118,7 +118,30 @@ export const Empty: Story = {
     await userEvent.keyboard('{Escape}');
   },
 };
-export const Pending: Story = { args: { items: [], selectedKeys: ['retired'], isLoading: true } };
+export const Pending: Story = {
+  args: { items: [], selectedKeys: ['retired'], isLoading: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    const input = canvas.getByRole('combobox');
+    await expect(canvas.getByRole('status')).toHaveTextContent('Loading options…');
+    await expect(input).toHaveAttribute('aria-busy', 'true');
+    await expect(input).not.toHaveAccessibleDescription(/Loading options/);
+    await userEvent.click(input);
+    const list = await body.findByRole('listbox');
+    await expect(within(list).getByRole('status')).toHaveTextContent('Loading options…');
+    await expect(body.getAllByRole('status')).toHaveLength(1);
+    await expect(body.queryAllByRole('progressbar')).toHaveLength(0);
+    await expect(body.getAllByRole('progressbar', { hidden: true })).toHaveLength(2);
+    await expect(body.queryAllByRole('option', { selected: false })).toHaveLength(0);
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+    await expect(input).not.toHaveAttribute('aria-activedescendant');
+    await userEvent.keyboard('{Escape}');
+    await expect(input).toHaveFocus();
+    await expect(canvas.getByRole('button', { name: 'Remove Unknown retired' })).toBeVisible();
+    await expect(body.getAllByRole('status')).toHaveLength(1);
+  },
+};
 export const Failed: Story = {
   args: {
     items: [],

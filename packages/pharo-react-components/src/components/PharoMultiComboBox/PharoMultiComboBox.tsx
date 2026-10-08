@@ -12,6 +12,7 @@ import {
 } from 'react-aria-components';
 import type { Key } from 'react-aria-components';
 import { mergeClasses } from '../../styles/mergeClasses';
+import { PharoSpinner } from '../PharoSpinner';
 import { PharoTagGroup } from '../PharoTagGroup';
 import { PharoActiveOption } from './components/PharoActiveOption';
 import { useSelectionActions } from './hooks/useSelectionActions';
@@ -99,49 +100,88 @@ export function PharoMultiComboBox<Item extends object>(props: Props<Item>) {
         isInvalid={isInvalid || failed}
         className={styles.field}
       >
-        <Label className={styles.label}>{label}</Label>
-        <div className={styles.control}>
-          <Input ref={fieldRef} placeholder={placeholder} className={styles.input} />
-          <Button aria-label="Show options" className={styles.trigger}>
-            <span aria-hidden="true">▾</span>
-          </Button>
-        </div>
-        <Text slot="description" className={styles.help}>
-          {description != null ? <>{description} </> : null}
-          {maxSelected !== undefined
-            ? `${selectedKeys.length}/${maxSelected} selected`
-            : `${selectedKeys.length} selected`}
-          .{isLoading && items.length > 0 ? <> {loadingMessage}</> : null}
-          {atLimit || limited ? <> {limitMessage}</> : null}
-        </Text>
-        <FieldError className={styles.error}>
-          {errorMessage ?? (failed ? 'Selection could not be updated. Try again.' : undefined)}
-        </FieldError>
-        <Popover className={styles.popover}>
-          <ListBox<Item>
-            className={styles.list}
-            dependencies={[itemKey, itemText, renderItem]}
-            renderEmptyState={() => (
-              <div className={styles.empty}>{isLoading ? loadingMessage : emptyMessage}</div>
-            )}
-          >
-            {(item) => (
-              <ListBoxItem id={itemKey(item)} textValue={itemText(item)} className={styles.option}>
-                {({ isSelected, isDisabled: isOptionDisabled }) => (
-                  <span className={styles.content}>
-                    <span className={styles.text}>
-                      {renderItem ? renderItem(item) : itemText(item)}
-                    </span>
-                    <span aria-hidden="true" className={styles.state}>
-                      {isOptionDisabled ? 'Limit reached' : isSelected ? '✓' : null}
-                    </span>
+        {({ isOpen }) => (
+          <>
+            <Label className={styles.label}>{label}</Label>
+            <div className={styles.control}>
+              <Input
+                ref={fieldRef}
+                placeholder={placeholder}
+                aria-busy={Boolean(isLoading)}
+                className={styles.input}
+              />
+              <Button aria-label="Show options" className={styles.trigger}>
+                {isLoading ? (
+                  <span aria-hidden="true" className={styles.spinner}>
+                    <PharoSpinner size="sm" />
                   </span>
+                ) : (
+                  <span aria-hidden="true">▾</span>
                 )}
-              </ListBoxItem>
+              </Button>
+            </div>
+            <Text slot="description" className={styles.help}>
+              {description != null ? <>{description} </> : null}
+              {maxSelected !== undefined
+                ? `${selectedKeys.length}/${maxSelected} selected`
+                : `${selectedKeys.length} selected`}
+              .{atLimit || limited ? <> {limitMessage}</> : null}
+            </Text>
+            <FieldError className={styles.error}>
+              {errorMessage ?? (failed ? 'Selection could not be updated. Try again.' : undefined)}
+            </FieldError>
+            {!isOpen && (
+              <span role="status" aria-live="polite" className={styles.announcement}>
+                {isLoading ? loadingMessage : null}
+              </span>
             )}
-          </ListBox>
-        </Popover>
-        <PharoActiveOption query={inputValue} />
+            <Popover className={styles.popover}>
+              {isLoading && items.length > 0 && (
+                <span role="status" aria-live="polite" className={styles.announcement}>
+                  {loadingMessage}
+                </span>
+              )}
+              <ListBox<Item>
+                className={styles.list}
+                dependencies={[itemKey, itemText, renderItem]}
+                renderEmptyState={() =>
+                  isLoading ? (
+                    <div className={styles.loading}>
+                      <span aria-hidden="true" className={styles.spinner}>
+                        <PharoSpinner size="sm" />
+                      </span>
+                      <span role="status" aria-live="polite">
+                        {loadingMessage}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className={styles.empty}>{emptyMessage}</div>
+                  )
+                }
+              >
+                {(item) => (
+                  <ListBoxItem
+                    id={itemKey(item)}
+                    textValue={itemText(item)}
+                    className={styles.option}
+                  >
+                    {({ isSelected, isDisabled: isOptionDisabled }) => (
+                      <span className={styles.content}>
+                        <span className={styles.text}>
+                          {renderItem ? renderItem(item) : itemText(item)}
+                        </span>
+                        <span aria-hidden="true" className={styles.state}>
+                          {isOptionDisabled ? 'Limit reached' : isSelected ? '✓' : null}
+                        </span>
+                      </span>
+                    )}
+                  </ListBoxItem>
+                )}
+              </ListBox>
+            </Popover>
+            <PharoActiveOption query={inputValue} />
+          </>
+        )}
       </ComboBox>
       <div className={styles.selection}>
         <PharoTagGroup
