@@ -9,6 +9,101 @@ import react from '@vitejs/plugin-react';
 import { build, preview } from 'vite';
 import type { PreviewServer } from 'vite';
 
+test('multiple picker keeps generic unknown tags, filters with native keyboard focus, and recovers from rejection', async ({
+  page,
+}) => {
+  const input = page.getByRole('combobox', { name: 'Plant varieties' });
+  await expect(page.getByRole('button', { name: 'Remove Unknown retired' })).toBeVisible();
+  await page.getByRole('button', { name: 'Reject next selection' }).click();
+  await input.fill('Variety 12');
+  const option = page.getByRole('option', { name: 'Variety 12', exact: true });
+  await expect(option).toBeVisible();
+  await expect(input).toHaveAttribute(
+    'aria-activedescendant',
+    (await option.getAttribute('id')) ?? '',
+  );
+  await input.press('Enter');
+  await expect(input).toHaveValue('Variety 12');
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await input.press('Enter');
+  await expect(input).toHaveValue('');
+  await input.press('Escape');
+  await expect(page.getByRole('button', { name: 'Remove Variety 12' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove Unknown retired' })).toBeVisible();
+  await expect(page.getByTestId('variety-submissions')).toHaveText('Variety submissions: 0');
+  await page.getByRole('button', { name: 'Restore shared selection' }).click();
+  await expect(page.getByRole('button', { name: 'Remove Unknown shared' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove Variety 12' })).toHaveCount(0);
+});
+
+test('multiple picker allows removal at its cap and returns focus after the final tag', async ({
+  page,
+}) => {
+  const input = page.getByRole('combobox', { name: 'Plant varieties' });
+  for (const name of ['Variety 01', 'Variety 02', 'Variety 03']) {
+    if (name === 'Variety 01') {
+      await input.scrollIntoViewIfNeeded();
+      await page.getByRole('button', { name: 'Show options Plant varieties' }).click();
+    }
+    await input.fill(name);
+    await page.getByRole('option', { name, exact: true }).click();
+    await expect(input).toHaveValue('');
+  }
+  await expect(page.getByRole('option', { name: 'Variety 04', exact: true })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  await expect(input).toBeEnabled();
+  await expect(input).toHaveAccessibleDescription(/4\/4.*Selection limit/);
+  await input.press('Escape');
+  for (const name of ['Unknown retired', 'Variety 01', 'Variety 02', 'Variety 03']) {
+    await page.getByRole('button', { name: `Remove ${name}`, exact: true }).click();
+  }
+  await expect(input).toBeFocused();
+  await expect(input).toHaveAccessibleDescription(/0\/4/);
+});
+
+test('multiple picker keeps all 24 choices reachable in bounded desktop and mobile popovers', async ({
+  page,
+}, testInfo) => {
+  const input = page.getByRole('combobox', { name: 'Plant varieties' });
+  for (const viewport of [
+    { width: 1280, height: 800 },
+    { width: 360, height: 500 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await input.scrollIntoViewIfNeeded();
+    await page.getByRole('button', { name: 'Show options Plant varieties' }).click();
+    const list = page.getByRole('listbox', { name: 'Plant varieties' });
+    await expect(list).toBeVisible();
+    await expect(list.getByRole('option')).toHaveCount(24);
+    await expect(page.getByRole('combobox', { name: 'Plant varieties' })).toHaveCount(1);
+    const size = await input.boundingBox();
+    expect(size?.height).toBeGreaterThanOrEqual(44);
+    expect(await input.evaluate((element) => getComputedStyle(element).fontSize)).toBe('16px');
+    const last = list.getByRole('option', { name: 'Variety 24', exact: true });
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport();
+    const bounds = await list.boundingBox();
+    if (!bounds) throw new Error('The open list has no layout box.');
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.y).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: testInfo.outputPath(`multiple-picker-${viewport.width}.png`) });
+    await input.press('Escape');
+  }
+  await page.getByRole('button', { name: 'Show options Plant varieties' }).click();
+  const final = page.getByRole('option', { name: 'Variety 24', exact: true });
+  await final.scrollIntoViewIfNeeded();
+  await final.click();
+  await input.press('Escape');
+  await expect(page.getByRole('button', { name: 'Remove Variety 24' })).toBeVisible();
+});
+
 const packageDirectory = fileURLToPath(new URL('../../', import.meta.url));
 const repositoryDirectory = path.resolve(packageDirectory, '../..');
 const marker = `PHARO_COMPONENT_PRIVATE_${randomUUID()}`;

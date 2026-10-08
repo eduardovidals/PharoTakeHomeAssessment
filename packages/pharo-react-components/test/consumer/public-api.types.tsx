@@ -6,6 +6,9 @@ import {
   PharoSegmentedControl,
   PharoSpinner,
   PharoTextField,
+  PharoMultiComboBox,
+  PharoTagGroup,
+  type PharoMultiComboBoxProps,
   type PharoButtonProps,
   type PharoComboBoxInputProps,
   type PharoTextFieldInputProps,
@@ -24,6 +27,43 @@ const hints: PharoTextFieldInputProps = {
 const comboHints: PharoComboBoxInputProps = { autoComplete: 'off', spellCheck: false };
 const buttonProps: PharoButtonProps = { variant: 'quiet', size: 'sm', onPress: () => undefined };
 const items = [{ code: 1, label: 'One' }];
+
+const multipleProps: PharoMultiComboBoxProps<(typeof items)[number]> = {
+  label: 'Numbers',
+  items,
+  itemKey: (item) => item.code,
+  itemText: (item) => item.label,
+  selectedKeys: [1, 'unlisted'],
+  selectedText: String,
+  inputValue: '',
+  onInputChange: () => undefined,
+  onSelectionAction: async () => 'committed' as const,
+  maxSelected: 5,
+};
+export const multipleConsumer = (
+  <PharoMultiComboBox
+    {...multipleProps}
+    inputRef={inputRef}
+    renderItem={(item) => <strong>{item.label}</strong>}
+  />
+);
+export const readOnlyTags = <PharoTagGroup label="Saved keys" items={[{ id: 1, text: 'One' }]} />;
+// @ts-expect-error The multiple picker cannot accept a competing single-selection owner.
+export const invalidSingleKey = <PharoMultiComboBox {...multipleProps} selectedKey={1} />;
+export const invalidDefaultKeys = (
+  // @ts-expect-error Selection is controlled, not initialized by an internal second store.
+  <PharoMultiComboBox {...multipleProps} defaultSelectedKeys={[1]} />
+);
+// @ts-expect-error Financial validation belongs to the application.
+export const invalidTickerDomain = <PharoMultiComboBox {...multipleProps} tickerRegex={/^TICK/} />;
+// @ts-expect-error Generic selection has no Router coupling.
+export const invalidPickerRouter = <PharoMultiComboBox {...multipleProps} router={{}} />;
+// @ts-expect-error The optional cap is numeric.
+export const invalidPickerCap = <PharoMultiComboBox {...multipleProps} maxSelected="3" />;
+export const invalidPickerOutcome = (
+  // @ts-expect-error A callback explicitly states whether the action committed.
+  <PharoMultiComboBox {...multipleProps} onSelectionAction={() => undefined} />
+);
 type Layout = 'list' | 'grid';
 const layouts: readonly PharoSegmentedOption<Layout>[] = [
   { value: 'list', label: 'List' },

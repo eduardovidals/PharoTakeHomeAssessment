@@ -5,9 +5,11 @@ import {
   PharoButton,
   PharoComboBox,
   PharoDialog,
+  PharoMultiComboBox,
   PharoSegmentedControl,
   PharoSpinner,
   PharoTextField,
+  type PharoSelectionAction,
 } from '@pharo/react-components';
 import './styles.css';
 
@@ -19,6 +21,70 @@ const plants = [
 ];
 const plantKey = (plant: (typeof plants)[number]) => plant.id;
 const plantText = (plant: (typeof plants)[number]) => plant.name;
+
+const varieties = Array.from({ length: 24 }, (_, index) => ({
+  id: index + 1,
+  name: `Variety ${String(index + 1).padStart(2, '0')}`,
+}));
+function MultipleChoices() {
+  const [keys, setKeys] = useState<readonly Key[]>(['retired']);
+  const [query, setQuery] = useState('');
+  const [submissions, setSubmissions] = useState(0);
+  const [failNext, setFailNext] = useState(false);
+  const handleAction = async (action: PharoSelectionAction) => {
+    if (failNext) {
+      setFailNext(false);
+      throw new Error('Private fixture rejection');
+    }
+    setKeys((previous) =>
+      action.kind === 'add'
+        ? [...previous, action.key]
+        : action.kind === 'clear'
+          ? []
+          : previous.filter((key) => !action.keys.includes(key)),
+    );
+    return 'committed' as const;
+  };
+  return (
+    <section
+      aria-label="Multiple choices"
+      className="space-y-pharo-4 rounded-pharo-card bg-pharo-surface p-pharo-4 pharo-shadow-card"
+    >
+      <h2 className="text-pharo-lg font-semibold">Multiple choices</h2>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubmissions((value) => value + 1);
+        }}
+      >
+        <PharoMultiComboBox
+          label="Plant varieties"
+          items={varieties.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()))}
+          itemKey={(item) => item.id}
+          itemText={(item) => item.name}
+          selectedKeys={keys}
+          selectedText={(key) =>
+            varieties.find((item) => item.id === key)?.name ?? `Unknown ${key}`
+          }
+          inputValue={query}
+          onInputChange={setQuery}
+          onSelectionAction={handleAction}
+          maxSelected={4}
+          errorMessage="Could not update varieties. Try again."
+          placeholder="Search varieties"
+        />
+        <button type="submit">Submit varieties</button>
+      </form>
+      <p data-testid="variety-submissions">Variety submissions: {submissions}</p>
+      <PharoButton variant="secondary" onPress={() => setFailNext(true)}>
+        Reject next selection
+      </PharoButton>
+      <PharoButton variant="secondary" onPress={() => setKeys([24, 'shared'])}>
+        Restore shared selection
+      </PharoButton>
+    </section>
+  );
+}
 
 function Consumer() {
   const [presses, setPresses] = useState(0);
@@ -116,6 +182,7 @@ function Consumer() {
         />
         <p data-testid="retired-changes">Retired selection changes: {retiredChanges}</p>
       </section>
+      <MultipleChoices />
       <section
         aria-labelledby="progress-heading"
         className="space-y-pharo-4 rounded-pharo-card bg-pharo-surface p-pharo-4 pharo-shadow-card"

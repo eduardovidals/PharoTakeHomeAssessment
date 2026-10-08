@@ -17,3 +17,11 @@ export type {
   PharoSegmentedControlProps,
   PharoSegmentedOption,
 } from './components/PharoSegmentedControl';
+export { PharoMultiComboBox } from './components/PharoMultiComboBox';
+export type {
+  PharoMultiComboBoxProps,
+  PharoSelectionAction,
+  PharoSelectionOutcome,
+} from './components/PharoMultiComboBox';
+export { PharoTagGroup } from './components/PharoTagGroup';
+export type { PharoTagGroupProps, PharoTagItem } from './components/PharoTagGroup';
