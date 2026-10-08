@@ -100,7 +100,7 @@ test(
     try {
       const readiness = await fetch(host.uiUrl + '/health');
       assert.deepEqual(await readiness.json(), { status: 'ready' });
-      assert.match(await (await fetch(host.uiUrl)).text(), /Instrument price dashboard/);
+      assert.match(await (await fetch(host.uiUrl)).text(), /<title>Pharo \| Instrument Analytics<\/title>/);
       const duplicate = spawnSync(
         process.execPath,
         [
@@ -176,7 +176,7 @@ test(
     try {
       const readiness = await fetch(host.uiUrl + '/health');
       assert.deepEqual(await readiness.json(), { status: 'ready' });
-      assert.match(await (await fetch(host.uiUrl)).text(), /Instrument price dashboard/);
+      assert.match(await (await fetch(host.uiUrl)).text(), /<title>Pharo \| Instrument Analytics<\/title>/);
     } finally {
       await host.stop();
     }
