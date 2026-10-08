@@ -55,6 +55,15 @@ Ports must be distinct integers between 1024 and 65535. A relative dataset overr
 
 ## Check the project
 
+For a folder of numbered screenshots of the dashboard and its main flows, run:
+
+```sh
+pnpm browser:install # first time only
+pnpm screenshots
+```
+
+PNG images are written to `screenshots/` at the repository root. The walkthrough covers selections, search, pagination, button states, charts, tables, loading, errors, retry recovery, and desktop/tablet/mobile layouts. Filenames containing `simulated` identify deliberately delayed, failed or empty API responses. It uses separate test ports, stops its own servers, and produces no HTML gallery. Images are ignored by Git; rerunning refreshes the numbered files.
+
 Install the pinned Chromium browser before browser-backed checks:
 
 ```sh

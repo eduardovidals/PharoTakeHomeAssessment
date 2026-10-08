@@ -21,6 +21,7 @@
     "storybook:charts": "node scripts/nx.mjs run @pharo/react-charts:storybook",
     "storybook:build": "node scripts/nx.mjs run-many -t storybook:build -p @pharo/react-components,@pharo/react-form-components,@pharo/react-charts",
     "test:e2e": "node scripts/nx.mjs run-many -t e2e -p pharo-dashboard-ui,@pharo/react-components,@pharo/react-form-components,@pharo/react-charts",
+    "screenshots": "pnpm build && node scripts/playwright.mjs test --config apps/pharo-dashboard-ui/playwright.screenshots.config.ts",
     "test:infrastructure": "node scripts/nx.mjs run pharo-dashboard-ui:infrastructure",
     "check:routes": "node --test scripts/route-generation.test.mjs",
     "browser:install": "node scripts/playwright.mjs install chromium"
