@@ -20,7 +20,10 @@ export interface PriceHistoryProps {
   readonly resources: readonly PriceHistoryResource[];
   /** Effective route-owned view; standalone resource tests default to raw Price. */
   readonly mode?: ChartMode;
+  /** Reachable application-owned raw-data disclosure; standalone charts retain inline data. */
+  readonly externalDataTriggerId?: string;
 }
 
 /** The finite visual responsibilities in the history panel. */
-export type PriceHistoryStylePart = 'panel' | 'heading' | 'description' | 'placeholder' | 'notice';
+export type PriceHistoryStylePart =
+  'panel' | 'heading' | 'description' | 'chart' | 'placeholder' | 'notice';

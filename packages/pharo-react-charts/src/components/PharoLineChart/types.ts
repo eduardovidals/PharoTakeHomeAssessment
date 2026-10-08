@@ -120,6 +120,8 @@ export interface ReadyChartGeometry {
   readonly width: number;
   /** Measured content-box height in pixels. */
   readonly height: number;
+  /** Computed axis font size in CSS pixels, also used for plotting reservations. */
+  readonly axisFontSize: number;
   /** Deliberate plotting bounds with reserved space for axes and marker radii. */
   readonly plot: {
     /** Left plot coordinate, after the numerical label gutter. */

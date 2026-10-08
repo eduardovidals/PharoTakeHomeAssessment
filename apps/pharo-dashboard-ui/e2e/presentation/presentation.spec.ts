@@ -91,10 +91,8 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
         expect(labels.length).toBeGreaterThan(1);
         if (reference) expect(labels).toEqual(reference);
         else reference = labels;
-        await page
-          .getByRole('button', { name: 'Show data table for Historical closing prices' })
-          .click();
-        const table = page.getByRole('table', { name: 'Data for Historical closing prices' });
+        await page.getByRole('button', { name: 'View data', exact: true }).click();
+        const table = page.getByRole('table', { name: 'Recorded closing prices' });
         await expect(table.getByRole('rowheader')).toHaveCount(30);
         await expect(
           table.getByRole('rowheader', { name: 'Tuesday, June 23, 2026', exact: true }),
@@ -110,6 +108,10 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
           'datetime',
           '2026-08-03T00:00:00.000Z',
         );
+        await page
+          .getByRole('dialog', { name: 'Raw observations', exact: true })
+          .getByRole('button', { name: 'Close', exact: true })
+          .click();
         expect(requests).toEqual(before);
         expect(failures).toEqual([]);
       } finally {
@@ -172,6 +174,214 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
           .evaluate((element: { scrollWidth: number }) => element.scrollWidth),
       ).toBeLessThanOrEqual(width);
       await chart.screenshot({ path: testInfo.outputPath(`recorded-ticks-${width}.png`) });
+    }
+  });
+});
+
+test.describe('Preserve analytical access with text scaling and user display preferences', () => {
+  test('keeps the picker, matrix and raw dialog usable under enlarged text, reduced motion and forced colors', async ({
+    browser,
+    baseURL,
+  }, testInfo) => {
+    for (const scenario of [
+      {
+        name: 'root-text-scaling-200-percent',
+        width: 640,
+        height: 900,
+        scaleText: true,
+        reducedMotion: 'no-preference',
+        forcedColors: 'none',
+      },
+      {
+        name: 'reduced-motion-320-reflow',
+        width: 320,
+        height: 568,
+        scaleText: false,
+        reducedMotion: 'reduce',
+        forcedColors: 'none',
+      },
+      {
+        name: 'forced-colors-320-reflow',
+        width: 320,
+        height: 568,
+        scaleText: false,
+        reducedMotion: 'no-preference',
+        forcedColors: 'active',
+      },
+    ] as const) {
+      const context = await browser.newContext({
+        baseURL,
+        viewport: { width: scenario.width, height: scenario.height },
+        reducedMotion: scenario.reducedMotion,
+        forcedColors: scenario.forcedColors,
+      });
+      try {
+        const page = await context.newPage();
+        const requests: string[] = [];
+        page.on('request', (request) => {
+          const path = new URL(request.url()).pathname;
+          if (path.startsWith('/api/')) requests.push(path);
+        });
+        await page.goto('/?tickers=TICK0001,TICK0002,TICK0003');
+        for (const ticker of ['TICK0001', 'TICK0002', 'TICK0003']) {
+          await expect(await matrixCell(page, ticker, 'Latest close')).toHaveText(
+            /^[\d,]+\.\d{2}$/,
+          );
+          await expect(await matrixCell(page, ticker, 'Total return')).toHaveText(
+            /^[+−-]?\d+\.\d{2}%$/,
+          );
+        }
+        const loaded = [...requests];
+        // e2e-locator: Root typography is deliberately scaled in CSS; this is not deviceScaleFactor or a claimed browser zoom setting.
+        const documentRoot = page.locator('html');
+        if (scenario.scaleText) {
+          await expect(documentRoot).toHaveCSS('font-size', '16px');
+          await documentRoot.evaluate((element) => {
+            element.style.fontSize = '200%';
+          });
+          await expect(documentRoot).toHaveCSS('font-size', '32px');
+        }
+        if (scenario.scaleText) {
+          const chart = page.getByRole('img', { name: 'Rebased price change', exact: true });
+          // e2e-locator: SVG text nodes own the visible glyphs; title children preserve alternate full labels and must not enter this measurement.
+          const axisText = chart.locator('text');
+          await expect.poll(async () => axisText.count()).toBeGreaterThan(0);
+          await expect
+            .poll(async () => {
+              const svg = await chart.boundingBox();
+              if (!svg) return ['The plotted SVG has no bounds.'];
+              const labels = await axisText.evaluateAll((elements) =>
+                elements.map((element) => {
+                  const nodes = [...element.childNodes].filter(
+                    (node) => node.nodeType === node.TEXT_NODE && node.textContent?.trim(),
+                  );
+                  const rectangles = nodes.map((node) => {
+                    const range = element.ownerDocument.createRange();
+                    range.selectNodeContents(node);
+                    const bounds = range.getBoundingClientRect();
+                    return {
+                      left: bounds.left,
+                      right: bounds.right,
+                      top: bounds.top,
+                      bottom: bounds.bottom,
+                    };
+                  });
+                  return {
+                    text: nodes
+                      .map((node) => node.textContent)
+                      .join('')
+                      .trim(),
+                    axis: element.parentElement?.getAttribute('aria-label') ?? 'Axis label',
+                    fontSize: element.ownerDocument.defaultView?.getComputedStyle(element).fontSize,
+                    left: Math.min(...rectangles.map((bounds) => bounds.left)),
+                    right: Math.max(...rectangles.map((bounds) => bounds.right)),
+                    top: Math.min(...rectangles.map((bounds) => bounds.top)),
+                    bottom: Math.max(...rectangles.map((bounds) => bounds.bottom)),
+                  };
+                }),
+              );
+              const problems: string[] = [];
+              for (const axis of ['UTC time axis', 'Value axis']) {
+                if (!labels.some((label) => label.axis === axis && label.text))
+                  problems.push(`${axis} has no rendered tick labels.`);
+              }
+              for (const text of ['Price change (%)', 'Date (UTC)']) {
+                if (!labels.some((label) => label.axis === 'Axis label' && label.text === text))
+                  problems.push(`Missing visible axis label: ${text}`);
+              }
+              for (const label of labels) {
+                if (label.fontSize !== '24px')
+                  problems.push(
+                    `${label.text}: expected the actual enlarged24px axis text, got ${label.fontSize}.`,
+                  );
+                if (!label.text || label.right <= label.left || label.bottom <= label.top)
+                  problems.push(`${label.text}: missing rendered text bounds.`);
+                // Half a CSS pixel accounts only for fractional glyph-bound rounding at the SVG edge.
+                if (
+                  label.left < svg.x - 0.5 ||
+                  label.right > svg.x + svg.width + 0.5 ||
+                  label.top < svg.y - 0.5 ||
+                  label.bottom > svg.y + svg.height + 0.5
+                )
+                  problems.push(`${label.text}: clipped outside its SVG.`);
+              }
+              for (const [index, label] of labels.entries()) {
+                for (const other of labels.slice(index + 1)) {
+                  if (
+                    label.left < other.right &&
+                    other.left < label.right &&
+                    label.top < other.bottom &&
+                    other.top < label.bottom
+                  )
+                    problems.push(`${label.text} overlaps ${other.text}.`);
+                }
+              }
+              return problems;
+            })
+            .toEqual([]);
+        }
+        const preferences = await documentRoot.evaluate((element) => ({
+          reducedMotion: element.ownerDocument.defaultView?.matchMedia(
+            '(prefers-reduced-motion: reduce)',
+          ).matches,
+          forcedColors:
+            element.ownerDocument.defaultView?.matchMedia('(forced-colors: active)').matches,
+        }));
+        expect(preferences).toEqual({
+          reducedMotion: scenario.reducedMotion === 'reduce',
+          forcedColors: scenario.forcedColors === 'active',
+        });
+        const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+        await input.fill('TICK0004');
+        await expect(page.getByRole('option', { name: 'TICK0004', exact: true })).toBeDisabled();
+        expect((await input.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        await input.press('Escape');
+        const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+        await expect(matrix.getByRole('columnheader')).toHaveText([
+          'Metric',
+          'TICK0001',
+          'TICK0002',
+          'TICK0003',
+        ]);
+        await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
+        expect(await documentRoot.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(
+          scenario.width,
+        );
+        await page.screenshot({
+          path: testInfo.outputPath(`${scenario.name}-workspace.png`),
+          fullPage: true,
+        });
+        const trigger = page.getByRole('button', { name: 'View data', exact: true });
+        await trigger.scrollIntoViewIfNeeded();
+        expect((await trigger.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        await trigger.press('Enter');
+        const dialog = page.getByRole('dialog', { name: 'Raw observations', exact: true });
+        const close = dialog.getByRole('button', { name: 'Close', exact: true });
+        await expect(close).toBeFocused();
+        expect((await close.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        await expect(
+          dialog
+            .getByRole('table', { name: 'Recorded closing prices', exact: true })
+            .getByRole('rowheader'),
+        ).toHaveCount(30);
+        const bounds = await close.boundingBox();
+        if (!bounds) throw new Error('Expected the visible modal dismissal control.');
+        expect(bounds.y).toBeGreaterThanOrEqual(0);
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(scenario.height);
+        expect(await documentRoot.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(
+          scenario.width,
+        );
+        await page.screenshot({
+          path: testInfo.outputPath(`${scenario.name}-dialog.png`),
+          fullPage: false,
+        });
+        await page.keyboard.press('Escape');
+        await expect(dialog).toBeHidden();
+        await expect(trigger).toBeFocused();
+        expect(requests).toEqual(loaded);
+      } finally {
+        await context.close();
+      }
     }
   });
 });

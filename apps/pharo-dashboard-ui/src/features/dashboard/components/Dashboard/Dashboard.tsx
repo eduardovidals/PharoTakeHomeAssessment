@@ -4,6 +4,7 @@ import { pricesQueryOptions, priceStatsQueryOptions } from '../../../../api/pric
 import { getSeriesWindows, toChartSeries } from '../../adapters/priceSeries';
 import { DashboardToolbar } from './components/DashboardToolbar';
 import { ComparisonMatrix } from './components/ComparisonMatrix';
+import { ObservationDialog } from './components/ObservationDialog';
 import { PriceHistory } from '../PriceHistory';
 import { dashboardStyles } from './styles';
 import { useSeriesAppearances } from './hooks/useSeriesAppearances';
@@ -20,6 +21,7 @@ import type { DashboardProps as Props } from './types';
 export function Dashboard(props: Props) {
   const { apiClient, selectedTickers, selectionNotice, mode, onAction } = props;
   const selectionId = useId();
+  const dataTriggerId = useId();
   const pickerInputRef = useRef<HTMLInputElement>(null);
   const appearances = useSeriesAppearances(selectedTickers);
   // Start both resource families together, independent of instrument-list availability.
@@ -53,9 +55,10 @@ export function Dashboard(props: Props) {
     if (outcome === 'committed') pickerInputRef.current?.focus();
   };
 
-  const windows = getSeriesWindows(
-    priceResources.map(({ ticker, query }) => toChartSeries(ticker, query.data ?? [])),
+  const rawSeries = priceResources.map(({ ticker, query, appearance }) =>
+    toChartSeries(ticker, query.data ?? [], appearance),
   );
+  const windows = getSeriesWindows(rawSeries);
 
   return (
     <main className={dashboardStyles.page}>
@@ -93,8 +96,15 @@ export function Dashboard(props: Props) {
           </div>
         ) : (
           <div className={dashboardStyles.workspace}>
-            <PriceHistory resources={priceResources} mode={mode} />
-            <ComparisonMatrix columns={columns} onRemove={removeInstrument} />
+            <PriceHistory
+              resources={priceResources}
+              mode={mode}
+              externalDataTriggerId={dataTriggerId}
+            />
+            <div className={dashboardStyles.details}>
+              <ComparisonMatrix columns={columns} onRemove={removeInstrument} />
+              <ObservationDialog triggerId={dataTriggerId} series={rawSeries} />
+            </div>
           </div>
         )}
       </section>

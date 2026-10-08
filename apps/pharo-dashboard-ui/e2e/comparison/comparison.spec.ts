@@ -147,10 +147,8 @@ test.describe('Compare independently cached historical instruments', () => {
         await expect(line).toHaveCSS('stroke', strokes[index] ?? '');
         await expect(line).toHaveCSS('stroke-dasharray', patterns[index] ?? '');
       }
-      await page
-        .getByRole('button', { name: 'Show data table for Historical closing prices' })
-        .click();
-      const table = page.getByRole('table', { name: 'Data for Historical closing prices' });
+      await page.getByRole('button', { name: 'View data', exact: true }).click();
+      const table = page.getByRole('table', { name: 'Recorded closing prices' });
       await expect(table.getByRole('columnheader')).toHaveText(['Date (UTC)', ...tickers]);
       const dates = expected[0]?.map((point) => point.date) ?? [];
       expect(dates).toHaveLength(30);
@@ -168,6 +166,10 @@ test.describe('Compare independently cached historical instruments', () => {
       const loaded = [...requests.paths];
       expect(loaded).toHaveLength(7);
       expect(new Set(loaded).size).toBe(7);
+      await page
+        .getByRole('dialog', { name: 'Raw observations', exact: true })
+        .getByRole('button', { name: 'Close', exact: true })
+        .click();
 
       await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click();
       await page.getByRole('button', { name: 'Remove TICK0003', exact: true }).click();
@@ -182,12 +184,17 @@ test.describe('Compare independently cached historical instruments', () => {
       await chooseInstrument(page, 'TICK0001');
       await chooseInstrument(page, 'TICK0003');
       await ready(page, tickers);
+      await page.getByRole('button', { name: 'View data', exact: true }).click();
       await expect(table.getByRole('columnheader')).toHaveText([
         'Date (UTC)',
         'TICK0002',
         'TICK0001',
         'TICK0003',
       ]);
+      await page
+        .getByRole('dialog', { name: 'Raw observations', exact: true })
+        .getByRole('button', { name: 'Close', exact: true })
+        .click();
       for (const [index, ticker] of tickers.entries()) {
         // e2e-locator: returning identities reuse their still-free historical appearance slots.
         await expect(chart.locator(`[data-series-id="${ticker}"]`)).toHaveAttribute(
@@ -230,10 +237,8 @@ test.describe('Compare independently cached historical instruments', () => {
       await expect(
         chart.locator('[data-series-id="UNKNOWN"] path, [data-series-id="UNKNOWN"] circle'),
       ).toHaveCount(0);
-      await page
-        .getByRole('button', { name: 'Show data table for Historical closing prices' })
-        .click();
-      const table = page.getByRole('table', { name: 'Data for Historical closing prices' });
+      await page.getByRole('button', { name: 'View data', exact: true }).click();
+      const table = page.getByRole('table', { name: 'Recorded closing prices' });
       await expect(table.getByRole('columnheader')).toHaveText([
         'Date (UTC)',
         'TICK0001',
@@ -241,6 +246,10 @@ test.describe('Compare independently cached historical instruments', () => {
         'TICK0002',
       ]);
       await expect(table.getByRole('cell', { name: 'Unavailable', exact: true })).toHaveCount(30);
+      await page
+        .getByRole('dialog', { name: 'Raw observations', exact: true })
+        .getByRole('button', { name: 'Close', exact: true })
+        .click();
       const loaded = [...requests.paths];
       const chartInstance = await chart.elementHandle();
       if (!chartInstance) throw new Error('Expected the healthy chart instance.');
@@ -644,27 +653,30 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     ).toHaveValue('1');
     expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
     await expect(matrix.getByRole('cell')).toHaveText(fullWindowValues);
-    await page
-      .getByRole('button', { name: 'Show data table for Rebased price change', exact: true })
-      .click();
+    await page.getByRole('button', { name: 'View data', exact: true }).click();
     const performanceTable = page.getByRole('table', {
-      name: 'Data for Rebased price change',
+      name: 'Recorded closing prices',
       exact: true,
     });
     await expect(performanceTable.getByRole('rowheader')).toHaveCount(30);
-    // e2e-ordinal: The first value is the first recorded date for the first URL-selected ticker.
-    await expect(performanceTable.getByRole('cell').first()).toHaveText('0.00%');
+    const rawHistories = await Promise.all(['TICK0001', 'TICK0002', 'TICK0003'].map(csvPrices));
+    const rawCells = raw.flatMap(({ date }) =>
+      rawHistories.map((history) => {
+        const point = history.find((candidate) => candidate.date === date);
+        if (!point) throw new Error('Expected each real CSV observation in the raw dialog.');
+        return priceLabel.format(point.price);
+      }),
+    );
+    await expect(performanceTable.getByRole('cell')).toHaveText(rawCells);
+    const dialog = page.getByRole('dialog', { name: 'Raw observations', exact: true });
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     await choice.getByText('Price', { exact: true }).click();
-    // e2e-ordinal: Compare the same first recorded date and first URL-selected ticker in raw-price mode.
-    await expect(
-      page
-        .getByRole('table', { name: 'Data for Historical closing prices', exact: true })
-        .getByRole('cell')
-        .first(),
-    ).toHaveText(first.price.toFixed(2));
     // e2e-locator: Raw-price view omits the generic zero reference without changing its observations.
     await expect(chart.locator('[data-chart-baseline]')).toHaveCount(0);
+    await page.getByRole('button', { name: 'View data', exact: true }).click();
+    await expect(performanceTable.getByRole('cell')).toHaveText(rawCells);
     await page.screenshot({ path: testInfo.outputPath('three-price-data.png'), fullPage: true });
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     await page.goBack();
     await expect(choice.getByRole('radio', { name: 'Performance', exact: true })).toBeChecked();
     await page.goForward();

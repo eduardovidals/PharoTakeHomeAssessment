@@ -17,6 +17,41 @@ function ready(input: readonly PharoChartSeries[], width = 672, height = 320) {
 }
 
 describe('prepareChartGeometry', () => {
+  it('scales plotting reservations with measured typography while keeping normal geometry', () => {
+    const input = Object.freeze([
+      series(
+        Object.freeze([
+          { x: 0, y: 0 },
+          { x: day, y: 20 },
+        ]),
+      ),
+    ]);
+    const before = JSON.stringify(input);
+    const normal = prepareChartGeometry(input, 672, 320);
+    expect(prepareChartGeometry(input, 672, 320, undefined, undefined, 12)).toEqual(normal);
+    const large = prepareChartGeometry(input, 672, 320, undefined, 0, 24);
+    if (normal.kind !== 'ready' || large.kind !== 'ready')
+      throw new Error('Expected measured charts.');
+    expect(normal.plot).toEqual({ left: 56, top: 16, right: 656, bottom: 272 });
+    expect(large.plot).toEqual({ left: 112, top: 32, right: 640, bottom: 224 });
+    expect(large.axisFontSize).toBe(24);
+    expect(large.series[0]?.path).toBe('M112,224L640,32');
+    expect(large.xDomain).toEqual(normal.xDomain);
+    expect(large.yDomain).toEqual(normal.yDomain);
+    expect(large.baseline).toEqual({ value: 0, position: 224 });
+    expect(large.yTicks.length).toBeLessThanOrEqual(normal.yTicks.length);
+    expect(JSON.stringify(input)).toBe(before);
+  });
+
+  it.each([0, -1, NaN, Infinity, 1000])(
+    'fails safely when font size %s leaves no valid plot',
+    (fontSize) => {
+      expect(
+        prepareChartGeometry([series([{ x: 0, y: 1 }])], 320, 240, undefined, undefined, fontSize),
+      ).toMatchObject({ kind: 'unmeasured', reason: 'PHARO-CHART-SIZE' });
+    },
+  );
+
   it.each([
     { baseline: 0, domain: [0, 20], position: 272 },
     { baseline: 15, domain: [10, 20], position: 144 },

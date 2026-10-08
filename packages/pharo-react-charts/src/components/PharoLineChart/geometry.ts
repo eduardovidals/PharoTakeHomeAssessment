@@ -19,6 +19,7 @@ export function prepareChartGeometry(
   height: number,
   xTickValues?: readonly number[],
   baselineY?: number,
+  axisFontSize = 12,
 ): ChartGeometry {
   const invalidData: ChartGeometry = {
     kind: 'invalid',
@@ -61,8 +62,16 @@ export function prepareChartGeometry(
     maxY = Math.max(maxY, baselineY);
   }
 
-  const plot = { left: 56, top: 16, right: width - 16, bottom: height - 48 };
+  const fontScale = axisFontSize / 12;
+  const plot = {
+    left: 56 * fontScale,
+    top: 16 * fontScale,
+    right: width - 16 * fontScale,
+    bottom: height - 48 * fontScale,
+  };
   if (
+    !Number.isFinite(axisFontSize) ||
+    axisFontSize <= 0 ||
     !Number.isFinite(width) ||
     !Number.isFinite(height) ||
     plot.right <= plot.left ||
@@ -94,8 +103,14 @@ export function prepareChartGeometry(
   const yDomain: readonly [number, number] = [minY, maxY];
   const xScale = scaleUtc().domain(xDomain).range([plot.left, plot.right]);
   const yScale = scaleLinear().domain(yDomain).range([plot.bottom, plot.top]);
-  const xTickCount = Math.min(6, Math.max(2, Math.floor((plot.right - plot.left) / 110)));
-  const yTickCount = Math.min(6, Math.max(2, Math.floor((plot.bottom - plot.top) / 55)));
+  const xTickCount = Math.min(
+    6,
+    Math.max(2, Math.floor((plot.right - plot.left) / (110 * fontScale))),
+  );
+  const yTickCount = Math.min(
+    6,
+    Math.max(2, Math.floor((plot.bottom - plot.top) / (55 * fontScale))),
+  );
   // D3's reciprocal tick increment cannot represent subnormal steps safely.
   if (!Number.isFinite(1 / ((maxY - minY) / yTickCount))) return invalidDomain;
   let xTicks: ChartTick[];
@@ -161,6 +176,7 @@ export function prepareChartGeometry(
     kind: 'ready',
     width,
     height,
+    axisFontSize,
     plot,
     xDomain,
     yDomain,

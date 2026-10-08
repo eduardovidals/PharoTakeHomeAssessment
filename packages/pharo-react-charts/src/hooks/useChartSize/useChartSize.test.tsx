@@ -12,7 +12,7 @@ interface MeasurementHarnessProps {
 
 function MeasurementHarness(props: MeasurementHarnessProps) {
   const { nodeKey = 'initial', name = 'Measured area', committed } = props;
-  const { ref, width, height } = useChartSize();
+  const { ref, width, height, fontSize } = useChartSize();
   useEffect(() => {
     committed?.();
   });
@@ -21,6 +21,7 @@ function MeasurementHarness(props: MeasurementHarnessProps) {
       <output aria-label={`${name} size`}>
         {width} × {height}
       </output>
+      <output aria-label={`${name} font`}>{fontSize}</output>
     </div>
   );
 }
@@ -34,6 +35,65 @@ function observerFor(element: Element) {
 }
 
 describe('useChartSize', () => {
+  it('updates computed typography from an ancestor change without a new box measurement', async () => {
+    const committed = vi.fn();
+    const view = render(<MeasurementHarness committed={committed} />);
+    const element = screen.getByLabelText('Measured area');
+    const observer = observerFor(element);
+    const computed = document.createElement('div').style;
+    computed.fontSize = '12px';
+    const getComputedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((target) =>
+      target === element ? computed : getComputedStyle(target),
+    );
+    act(() => observer.deliver(element, 672, 320));
+    expect(screen.getByLabelText('Measured area font')).toHaveTextContent('12');
+    const priorRootStyle = document.documentElement.getAttribute('style');
+    try {
+      // jsdom supplies no layout; the computed declaration is a controlled DOM measurement.
+      computed.fontSize = '24px';
+      await act(async () => {
+        document.documentElement.style.fontSize = '200%';
+      });
+      expect(screen.getByLabelText('Measured area font')).toHaveTextContent('24');
+      expect(screen.getByLabelText('Measured area size')).toHaveTextContent('672 × 320');
+      committed.mockClear();
+      await act(async () => {
+        document.documentElement.style.fontSize = '200%';
+        window.dispatchEvent(new Event('resize'));
+      });
+      expect(committed).not.toHaveBeenCalled();
+      computed.fontSize = '18px';
+      act(() => window.dispatchEvent(new Event('resize')));
+      expect(screen.getByLabelText('Measured area font')).toHaveTextContent('18');
+    } finally {
+      view.unmount();
+      if (priorRootStyle === null) document.documentElement.removeAttribute('style');
+      else document.documentElement.setAttribute('style', priorRootStyle);
+    }
+  });
+
+  it('releases typography observers and resize listeners with their owning instance', async () => {
+    const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
+    const remove = vi.spyOn(window, 'removeEventListener');
+    const first = render(<MeasurementHarness name="First" />);
+    const second = render(<MeasurementHarness name="Second" />);
+    const firstElement = screen.getByLabelText('First');
+    const secondElement = screen.getByLabelText('Second');
+    const read = vi.spyOn(window, 'getComputedStyle');
+    first.unmount();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledWith('resize', expect.any(Function));
+    read.mockClear();
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect(read.mock.calls.some(([target]) => target === firstElement)).toBe(false);
+    expect(read.mock.calls.some(([target]) => target === secondElement)).toBe(true);
+    second.unmount();
+    expect(disconnect).toHaveBeenCalledTimes(2);
+  });
+
   it('observes its actual element and commits only changed measurements', () => {
     const committed = vi.fn();
     render(<MeasurementHarness committed={committed} />);

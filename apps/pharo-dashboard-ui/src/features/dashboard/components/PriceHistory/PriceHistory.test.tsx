@@ -243,32 +243,6 @@ describe('PriceHistory', () => {
     });
   });
 
-  test('describes differing actual windows and bases without relative-date alignment', async () => {
-    server.use(
-      http.get(base + '/prices/A', () =>
-        HttpResponse.json([
-          { date: '2024-03-10', price: 100 },
-          { date: '2024-03-12', price: 110 },
-        ]),
-      ),
-      http.get(base + '/prices/B', () => HttpResponse.json([{ date: '2024-03-11', price: 30 }])),
-    );
-    await withHistory(['A', 'B'], async ({ show, cache }) => {
-      await settled(cache, 'A');
-      await settled(cache, 'B');
-      show(['A', 'B'], 'performance');
-      const windows = within(screen.getByRole('list', { name: 'Recorded windows by instrument' }));
-      expect(
-        windows.getByText(
-          /A: Mar 10 – Mar 12, 2024 \(UTC\), 2 observations\. Base: Mar 10, 2024\./,
-        ),
-      ).toBeVisible();
-      expect(
-        windows.getByText(/B: Mar 11, 2024 \(UTC\), 1 observation\. Base: Mar 11, 2024\./),
-      ).toBeVisible();
-    });
-  });
-
   test('renders human UTC detail and a complete table while preserving exact cached prices', async () => {
     const raw = [
       { date: '2024-02-29', price: 11.125 },

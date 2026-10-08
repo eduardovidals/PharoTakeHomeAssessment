@@ -169,6 +169,39 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(app.view.getByRole('radio', { name: 'Price' })).toBeChecked();
   });
 
+  test('discloses cached raw observations in both views and keeps unavailable selected columns', async () => {
+    const requests = installMarketHandlers();
+    const user = userEvent.setup();
+    const app = await renderApp({ initialEntries: ['/?tickers=AAA,UNKNOWN'] });
+    await waitFor(() => expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45'));
+    await app.view.findByText('Not in this dataset');
+    const loaded = [...requests];
+    for (const mode of ['Performance', 'Price']) {
+      if (mode === 'Price') await user.click(app.view.getByRole('radio', { name: mode }));
+      await waitFor(() => expect(app.view.getByRole('radio', { name: mode })).toBeChecked());
+      const trigger = app.view.getByRole('button', { name: 'View data' });
+      await user.click(trigger);
+      const dialog = await within(document.body).findByRole('dialog', { name: 'Raw observations' });
+      const table = within(within(dialog).getByRole('table', { name: 'Recorded closing prices' }));
+      expect(table.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
+        'Date (UTC)',
+        'AAA',
+        'UNKNOWN',
+      ]);
+      expect(table.getAllByRole('rowheader')).toHaveLength(2);
+      expect(table.getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
+        '100.00',
+        'Unavailable',
+        '123.45',
+        'Unavailable',
+      ]);
+      await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+      await waitFor(() => expect(trigger).toHaveFocus());
+      expect(matrixCell(app, 'AAA', 'Total return')).toHaveTextContent('+23.45%');
+      expect([...requests]).toEqual(loaded);
+    }
+  });
+
   test('handles a rejected view change safely and lets the next choice recover', async () => {
     installMarketHandlers();
     const user = userEvent.setup();

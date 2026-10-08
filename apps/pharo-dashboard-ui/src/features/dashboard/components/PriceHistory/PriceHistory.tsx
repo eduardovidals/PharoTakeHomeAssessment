@@ -1,17 +1,11 @@
 import { PharoLineChart } from '@pharo/react-charts';
-import {
-  getSeriesWindows,
-  haveMismatchedWindows,
-  toChartSeries,
-  toPerformanceSeries,
-} from '../../adapters/priceSeries';
+import { toChartSeries, toPerformanceSeries } from '../../adapters/priceSeries';
 import { recordedDateTicks } from '../../adapters/recordedDateTicks';
 import {
   datesSpanYears,
   formatDateAccessible,
   formatDateAxis,
   formatDateDetail,
-  formatDateRange,
   formatDateTable,
 } from '../../../../utils/date';
 import { formatPrice, formatPriceAxis, formatSignedPercentage } from '../../../../utils/number';
@@ -26,7 +20,7 @@ import type { PriceHistoryProps as Props } from './types';
  * ```
  */
 export function PriceHistory(props: Props) {
-  const { resources, mode = 'price' } = props;
+  const { resources, mode = 'price', externalDataTriggerId } = props;
   const available = resources.filter((resource) => (resource.query.data?.length ?? 0) > 0).length;
   const pending = resources.some((resource) => resource.query.isPending);
   const rawSeries = resources.map((resource) =>
@@ -34,8 +28,6 @@ export function PriceHistory(props: Props) {
   );
   const transformed = mode === 'performance' ? rawSeries.map(toPerformanceSeries) : undefined;
   const series = transformed?.map((result) => result.series) ?? rawSeries;
-  const windows = getSeriesWindows(rawSeries);
-  const mismatched = haveMismatchedWindows(windows);
   const label = mode === 'performance' ? 'Rebased price change' : 'Historical closing prices';
   const description =
     mode === 'performance'
@@ -49,38 +41,28 @@ export function PriceHistory(props: Props) {
       <h2 className={historyStyles.heading}>{label}</h2>
       <p className={historyStyles.description}>{description}</p>
       {available > 0 ? (
-        <>
-          {mismatched ? (
-            <div className={historyStyles.notice}>
-              <ul aria-label="Recorded windows by instrument">
-                {windows.map((window) => (
-                  <li key={window.id}>
-                    {window.label}: {formatDateRange(window.firstTimestamp, window.lastTimestamp)}{' '}
-                    (UTC), {window.observationCount}{' '}
-                    {window.observationCount === 1 ? 'observation' : 'observations'}.
-                    {mode === 'performance' && <> Base: {formatDateTable(window.baseTimestamp)}.</>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <PharoLineChart
-            label={label}
-            description={description}
-            series={series}
-            xAxisLabel="Date (UTC)"
-            yAxisLabel={mode === 'performance' ? 'Price change (%)' : 'Price'}
-            baselineY={mode === 'performance' ? 0 : undefined}
-            xTickValues={ticks}
-            formatXAxis={formatAxis}
-            formatXDetail={formatDateDetail}
-            formatXTable={formatDateTable}
-            formatXAccessible={formatDateAccessible}
-            formatYAxis={formatPriceAxis}
-            formatYDetail={mode === 'performance' ? formatSignedPercentage : formatPrice}
-            formatYTable={mode === 'performance' ? formatSignedPercentage : formatPrice}
-          />
-        </>
+        <PharoLineChart
+          className={historyStyles.chart}
+          dataTable={
+            externalDataTriggerId
+              ? { mode: 'external', triggerId: externalDataTriggerId }
+              : undefined
+          }
+          label={label}
+          description={description}
+          series={series}
+          xAxisLabel="Date (UTC)"
+          yAxisLabel={mode === 'performance' ? 'Price change (%)' : 'Price'}
+          baselineY={mode === 'performance' ? 0 : undefined}
+          xTickValues={ticks}
+          formatXAxis={formatAxis}
+          formatXDetail={formatDateDetail}
+          formatXTable={formatDateTable}
+          formatXAccessible={formatDateAccessible}
+          formatYAxis={formatPriceAxis}
+          formatYDetail={mode === 'performance' ? formatSignedPercentage : formatPrice}
+          formatYTable={mode === 'performance' ? formatSignedPercentage : formatPrice}
+        />
       ) : (
         <p className={historyStyles.placeholder}>
           {resources.length === 0

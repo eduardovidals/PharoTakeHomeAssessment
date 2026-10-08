@@ -30,7 +30,7 @@ export const matrixStyles: Record<ComparisonStylePart, string> = {
   columnHeader:
     'border-b border-pharo-border px-pharo-2 py-pharo-3 text-end font-semibold text-pharo-foreground',
   identity: 'flex items-center justify-end gap-pharo-1',
-  ticker: 'break-all',
+  ticker: 'whitespace-nowrap',
   rowHeader:
     'border-b border-pharo-border py-pharo-3 pe-pharo-2 text-start font-medium text-pharo-foreground',
   value: 'border-b border-pharo-border px-pharo-2 py-pharo-3 text-end font-pharo-mono tabular-nums',

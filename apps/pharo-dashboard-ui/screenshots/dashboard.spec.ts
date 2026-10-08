@@ -86,12 +86,13 @@ test.describe('Review the dashboard screens and interactions', () => {
     await capture('chart-last-date-keyboard-focus');
     await inspector.press('Home');
     await capture('chart-first-date');
-    await button('Show data table for Historical closing prices').click();
-    await expect(
-      page.getByRole('table', { name: 'Data for Historical closing prices' }),
-    ).toBeVisible();
-    await capture('expanded-price-data-table');
-    await button('Hide data table for Historical closing prices').click();
+    await button('View data').click();
+    await expect(page.getByRole('table', { name: 'Recorded closing prices' })).toBeVisible();
+    await capture('raw-observations-dialog');
+    await page
+      .getByRole('dialog', { name: 'Raw observations', exact: true })
+      .getByRole('button', { name: 'Close', exact: true })
+      .click();
 
     await add('TICK0002');
     await ready(['TICK0001', 'TICK0002']);
@@ -262,9 +263,12 @@ test.describe('Review the dashboard screens and interactions', () => {
     await capture('tablet-three-instrument-comparison');
     await page.setViewportSize({ width: 390, height: 844 });
     await capture('mobile-three-instrument-comparison');
-    await button('Show data table for Historical closing prices').click();
-    await capture('mobile-expanded-comparison-table');
-    await button('Hide data table for Historical closing prices').click();
+    await button('View data').click();
+    await capture('mobile-raw-observations-dialog');
+    await page
+      .getByRole('dialog', { name: 'Raw observations', exact: true })
+      .getByRole('button', { name: 'Close', exact: true })
+      .click();
     await inspector.press('End');
     await capture('mobile-chart-inspection');
     await button('Clear selection').click();

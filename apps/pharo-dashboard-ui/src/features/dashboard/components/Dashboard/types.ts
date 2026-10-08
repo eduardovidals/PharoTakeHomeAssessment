@@ -33,4 +33,5 @@ export type DashboardStylePart =
   | 'selectionHeading'
   | 'notice'
   | 'workspace'
+  | 'details'
   | 'empty';

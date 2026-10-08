@@ -12,6 +12,7 @@ export const dashboardStyles: Record<DashboardStylePart, string> = {
   analysis: 'flex min-w-0 flex-col gap-pharo-4',
   selectionHeading: 'sr-only',
   workspace: 'grid min-w-0 items-start gap-pharo-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]',
+  details: 'flex min-w-0 flex-col gap-pharo-3',
   subheading:
     'flex min-w-0 items-center gap-pharo-2 break-words text-pharo-lg font-semibold text-pharo-foreground',
   notice:

@@ -74,7 +74,7 @@ export function PharoLineChart(props: Props) {
     dataTable,
     className,
   } = props;
-  const { ref, width, height } = useChartSize();
+  const { ref, width, height, fontSize } = useChartSize();
   const [figure, setFigure] = useState<HTMLElement | null>(null);
   const externalTrigger = useExternalDataTrigger({
     owner: figure,
@@ -109,7 +109,7 @@ export function PharoLineChart(props: Props) {
     identities = resolveIdentities(identityState, series, configuration);
     setIdentityState(identities);
   }
-  const prepared = prepareChartGeometry(series, width, height, xTickValues, baselineY);
+  const prepared = prepareChartGeometry(series, width, height, xTickValues, baselineY, fontSize);
   const geometry: ChartGeometry =
     identities.valid || prepared.kind === 'invalid'
       ? prepared
@@ -126,7 +126,9 @@ export function PharoLineChart(props: Props) {
       new Date(geometry.xDomain[1]).getUTCFullYear();
   const axisDate = formatXAxis ?? ((timestamp: number) => formatAxisDate(timestamp, includeYear));
   const xLabels =
-    geometry.kind === 'ready' ? prepareXLabels(geometry.xTicks, axisDate, geometry.plot) : [];
+    geometry.kind === 'ready'
+      ? prepareXLabels(geometry.xTicks, axisDate, geometry.plot, fontSize)
+      : [];
   let inspectedTimestamp: number | undefined;
   if (geometry.kind === 'ready') {
     inspectedTimestamp = findNearestTimestamp(

@@ -124,6 +124,34 @@ function expectLegendAppearance(label: string, id: string, token: number) {
 }
 
 describe('PharoLineChart', () => {
+  it('reflows axis typography without replacing the chart or the chosen observation', async () => {
+    const view = renderChart({
+      series: observations,
+      label: 'Larger text',
+      xAxisLabel: 'Date (UTC)',
+      yAxisLabel: 'Degrees',
+    });
+    const chart = screen.getByRole('img', { name: 'Larger text' });
+    const slider = screen.getByRole('slider', { name: 'Inspect Larger text' });
+    fireEvent.change(slider, { target: { value: '0' } });
+    const details = screen.getByRole('region', { name: 'Details for Larger text' });
+    const chosenDetails = details.textContent;
+    const measured = measuredContainer(view.container);
+    const computed = document.createElement('div').style;
+    computed.fontSize = '24px';
+    const getComputedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) =>
+      element === measured ? computed : getComputedStyle(element),
+    );
+    await act(async () => window.dispatchEvent(new Event('resize')));
+    expect(screen.getByRole('img', { name: 'Larger text' })).toBe(chart);
+    expect(chart.querySelector('clipPath rect')).toHaveAttribute('x', '112');
+    expect(chart.querySelector('clipPath rect')).toHaveAttribute('y', '32');
+    expect(slider).toHaveValue('0');
+    expect(details.textContent).toBe(chosenDetails);
+    expect(chart.querySelector('[textLength]')).toBeNull();
+  });
+
   it('adds a quiet baseline without changing recorded inspection and removes it on omission', () => {
     const input = Object.freeze([
       Object.freeze({

@@ -126,7 +126,10 @@ test.describe('Browse and inspect historical instruments', () => {
     page,
   }, testInfo) => {
     for (const width of [320, 390, 768, 1366, 1440]) {
-      await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+      await page.setViewportSize({
+        width,
+        height: width === 1366 ? 768 : width === 768 ? 1024 : width < 768 ? 844 : 900,
+      });
       for (const [state, route] of [
         ['empty', '/'],
         ['single', '/?tickers=TICK0001'],
@@ -165,6 +168,22 @@ test.describe('Browse and inspect historical instruments', () => {
               throw new Error('Expected both measured analytical surfaces.');
             expect(matrixBox.x).toBeGreaterThan(chartBox.x + chartBox.width);
             expect(matrixBox.y).toBe(chartBox.y);
+          }
+          if (state === 'three') {
+            // e2e-locator: The document height measures the primary workspace, without an observation dialog.
+            const height = await page.locator('html').evaluate((element) => element.scrollHeight);
+            if (width === 390) expect(height).toBeLessThanOrEqual(2 * 844);
+            if (width >= 1366 || width === 390)
+              await testInfo.attach(`workspace-dimensions-${width}`, {
+                body: JSON.stringify({
+                  width,
+                  viewportHeight: page.viewportSize()?.height,
+                  documentHeight: height,
+                  matrixContentWidth: dimensions.content,
+                  matrixViewportWidth: dimensions.width,
+                }),
+                contentType: 'application/json',
+              });
           }
           if (width === 320 && state === 'three') {
             expect(dimensions.content).toBeGreaterThan(dimensions.width);
@@ -299,10 +318,8 @@ test.describe('Browse and inspect historical instruments', () => {
     expect(analysisBox.y).toBeGreaterThanOrEqual(selectorBox.y + selectorBox.height);
     await expectContainedDocument(page);
     await page.screenshot({ path: testInfo.outputPath('dashboard-desktop.png'), fullPage: true });
-    await page
-      .getByRole('button', { name: 'Show data table for Historical closing prices' })
-      .click();
-    const table = page.getByRole('table', { name: 'Data for Historical closing prices' });
+    await page.getByRole('button', { name: 'View data', exact: true }).click();
+    const table = page.getByRole('table', { name: 'Recorded closing prices' });
     await expect(table.getByRole('columnheader')).toHaveText(['Date (UTC)', 'TICK0001']);
     await expect(table.getByRole('rowheader')).toHaveText(
       expectedPrices.map((point) => dateLabel.format(new Date(`${point.date}T00:00:00.000Z`))),
@@ -311,6 +328,10 @@ test.describe('Browse and inspect historical instruments', () => {
       expectedPrices.map((point) => priceLabel.format(point.price)),
     );
 
+    await page
+      .getByRole('dialog', { name: 'Raw observations', exact: true })
+      .getByRole('button', { name: 'Close', exact: true })
+      .click();
     await page.setViewportSize({ width: 768, height: 1024 });
     const stackedSelector = await selector.boundingBox();
     const stackedAnalysis = await analysis.boundingBox();
@@ -356,15 +377,15 @@ test.describe('Inspect prices on a narrow touch screen', () => {
     await chart.scrollIntoViewIfNeeded();
     const box = await chart.boundingBox();
     if (!box) throw new Error('Expected a measured touch chart');
-    expect(box.height).toBe(320);
+    expect(box.height).toBe(256);
     expect(box.width).toBeGreaterThan(200);
     await chart.tap({ position: { x: box.width - 20, y: 160 } });
     const details = page.getByRole('region', { name: 'Details for Historical closing prices' });
     await expect(details.getByText('Mon, Aug 3, 2026', { exact: true })).toBeVisible();
     await expect(details.getByText('172.89', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Show data table for Historical closing prices' }).tap();
+    await page.getByRole('button', { name: 'View data', exact: true }).tap();
     const tableRegion = page.getByRole('region', {
-      name: 'Data for Historical closing prices',
+      name: 'Recorded closing prices',
     });
     await expect(tableRegion.getByRole('rowheader')).toHaveCount(30);
     const scroll = await tableRegion.evaluate(
@@ -384,11 +405,154 @@ test.describe('Inspect prices on a narrow touch screen', () => {
       path: testInfo.outputPath('dashboard-narrow-touch.png'),
       fullPage: true,
     });
+    await page
+      .getByRole('dialog', { name: 'Raw observations', exact: true })
+      .getByRole('button', { name: 'Close', exact: true })
+      .tap();
     await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).tap();
     await expect(search).toBeFocused();
     await expect(search).toHaveValue('');
     await search.press('Escape');
     await expect(page.getByRole('table', { name: 'Comparison', exact: true })).toHaveCount(0);
     expect(new URL(page.url()).search).toBe('');
+  });
+});
+
+test.describe('Inspect complete raw observations on demand', () => {
+  test('contains modal focus and local scrolling while preserving the chart, page and cache', async ({
+    page,
+  }, testInfo) => {
+    const requests: string[] = [];
+    page.on('request', (request) => {
+      const path = new URL(request.url()).pathname;
+      if (path.startsWith('/api/')) requests.push(path);
+    });
+    await page.goto('/?tickers=TICK0001,TICK0002,TICK0003');
+    for (const ticker of ['TICK0001', 'TICK0002', 'TICK0003']) {
+      await expect(await matrixCell(page, ticker, 'Latest close')).toHaveText(/^[\d,]+\.\d{2}$/);
+      await expect(await matrixCell(page, ticker, 'Total return')).toHaveText(
+        /^[+−-]?\d+\.\d{2}%$/,
+      );
+    }
+    const loaded = [...requests];
+    expect(loaded).toHaveLength(7);
+    const chart = page.getByRole('img', { name: 'Rebased price change', exact: true });
+    const instance = await chart.elementHandle();
+    if (!instance) throw new Error('Expected the mounted analysis chart.');
+    const trigger = page.getByRole('button', { name: 'View data', exact: true });
+    const dialog = page.getByRole('dialog', { name: 'Raw observations', exact: true });
+    // e2e-locator: The document root supplies page dimensions and its own browsing-context scroll position.
+    const documentRoot = page.locator('html');
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+      { width: 320, height: 568 },
+      { width: 568, height: 320 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect(page.getByRole('button', { name: /Show data table for/ })).toHaveCount(0);
+      await expect(
+        page.getByRole('table', { name: 'Recorded closing prices', exact: true }),
+      ).toHaveCount(0);
+      expect((await chart.boundingBox())?.height).toBe(viewport.width < 640 ? 256 : 320);
+      await trigger.scrollIntoViewIfNeeded();
+      const before = await documentRoot.evaluate((element) => ({
+        scroll: element.ownerDocument.defaultView?.scrollY ?? 0,
+        height: element.scrollHeight,
+      }));
+      await trigger.click();
+      const close = dialog.getByRole('button', { name: 'Close', exact: true });
+      const tableRegion = dialog.getByRole('region', {
+        name: 'Recorded closing prices',
+        exact: true,
+      });
+      const table = tableRegion.getByRole('table', {
+        name: 'Recorded closing prices',
+        exact: true,
+      });
+      await expect(close).toBeFocused();
+      await expect(table.getByRole('columnheader')).toHaveText([
+        'Date (UTC)',
+        'TICK0001',
+        'TICK0002',
+        'TICK0003',
+      ]);
+      await expect(table.getByRole('rowheader')).toHaveCount(30);
+      await expect(
+        table.getByRole('row', {
+          name: 'Tuesday, June 23, 2026 190.34 461.28 372.18',
+          exact: true,
+        }),
+      ).toBeVisible();
+      const bounds = await dialog.boundingBox();
+      if (!bounds) throw new Error('Expected the actual modal bounds.');
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.y).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+      expect((await close.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      await page.keyboard.press('Shift+Tab');
+      await expect(tableRegion).toBeFocused();
+      await page.keyboard.press('Tab');
+      await expect(close).toBeFocused();
+      await page.mouse.move(2, 2);
+      await page.mouse.wheel(0, -600);
+      await expect
+        .poll(() =>
+          documentRoot.evaluate((element) => element.ownerDocument.defaultView?.scrollY ?? 0),
+        )
+        .toBe(before.scroll);
+      expect(await documentRoot.evaluate((element) => element.scrollHeight)).toBe(before.height);
+      expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
+      expect(requests).toEqual(loaded);
+      await page.screenshot({
+        path: testInfo.outputPath(`raw-dialog-${viewport.width}-${viewport.height}.png`),
+        fullPage: false,
+      });
+      // e2e-locator: The final direct Dialog child is its existing vertically scrolling content, below the fixed Close header.
+      // e2e-ordinal: PharoDialog renders the fixed header first and its content as the final direct child.
+      const content = dialog.locator(':scope > div').last();
+      await table
+        .getByRole('rowheader', { name: 'Monday, August 3, 2026', exact: true })
+        .scrollIntoViewIfNeeded();
+      expect(await content.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      const closeBounds = await close.boundingBox();
+      if (!closeBounds) throw new Error('Expected a persistent visible dismissal control.');
+      expect(closeBounds.y).toBeGreaterThanOrEqual(0);
+      expect(closeBounds.y + closeBounds.height).toBeLessThanOrEqual(viewport.height);
+      if (viewport.width === 320) {
+        const horizontal = await tableRegion.evaluate((element) => ({
+          content: element.scrollWidth,
+          width: element.clientWidth,
+        }));
+        expect(horizontal.content).toBeGreaterThan(horizontal.width);
+        await tableRegion.press('ArrowRight');
+        await expect
+          .poll(() => tableRegion.evaluate((element) => element.scrollLeft))
+          .toBeGreaterThan(0);
+      }
+      await expectContainedDocument(page);
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+      await expect
+        .poll(() =>
+          documentRoot.evaluate((element) => element.ownerDocument.defaultView?.scrollY ?? 0),
+        )
+        .toBe(before.scroll);
+      expect(await documentRoot.evaluate((element) => element.scrollHeight)).toBe(before.height);
+      await expect(page.getByRole('button', { name: /Show data table for/ })).toHaveCount(0);
+      await trigger.click();
+      await close.click();
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+      await expect
+        .poll(() =>
+          documentRoot.evaluate((element) => element.ownerDocument.defaultView?.scrollY ?? 0),
+        )
+        .toBe(before.scroll);
+      expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
+      expect(requests).toEqual(loaded);
+    }
   });
 });
