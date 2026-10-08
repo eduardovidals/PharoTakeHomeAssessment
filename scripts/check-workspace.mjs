@@ -6,7 +6,6 @@ import { rootDirectory } from './runtime.mjs';
 
 const packages = [
   'react-components',
-  'react-form-components',
   'react-charts',
   'tailwind-plugin',
   'eslint-config',
@@ -33,10 +32,10 @@ assert.deepEqual(
     'pharo-dashboard-api',
     ...packages.map((name) => `@pharo/${name}`),
   ].toSorted(),
-  'Project discovery must contain exactly the eight public owners',
+  'Project discovery must contain exactly the seven public owners',
 );
 
-console.log('Workspace contains exactly the eight public projects.');
+console.log('Workspace contains exactly the seven public projects.');
 
 // run-many skips missing targets; assert each currently required lane before running it.
 const requiredTargets = {
@@ -46,17 +45,6 @@ const requiredTargets = {
   '@pharo/prettier-config': ['test'],
   '@pharo/tailwind-plugin': ['typecheck', 'test'],
   '@pharo/react-components': [
-    'build',
-    'typecheck',
-    'test',
-    'test:unit',
-    'test:stories',
-    'e2e',
-    'typecheck:catalog',
-    'storybook',
-    'storybook:build',
-  ],
-  '@pharo/react-form-components': [
     'build',
     'typecheck',
     'test',

@@ -1,7 +1,6 @@
 packages:
   - apps/pharo-dashboard-ui
   - packages/pharo-react-components
-  - packages/pharo-react-form-components
   - packages/pharo-react-charts
   - packages/pharo-tailwind-plugin
   - packages/pharo-eslint-config

@@ -5,7 +5,7 @@ import { createApiClient } from '../client';
 import { getPrices, getPriceStats } from './PricesApi';
 import { pricesKey, priceStatsKey } from './keys';
 import { pricePointSchema, priceSeriesSchema, priceStatsSchema } from './schema';
-import type { PricePoint, PriceSeries, PriceStats } from './types';
+import type { PriceSeries, PriceStats } from './types';
 
 const base = 'http://localhost/api';
 const client = () => createApiClient({ baseURL: base });
@@ -48,7 +48,6 @@ test('requests canonical encoded history and stats paths with unrounded readonly
 
   expectTypeOf(prices).toEqualTypeOf<PriceSeries>();
   expectTypeOf(stats).toEqualTypeOf<PriceStats>();
-  expectTypeOf<PricePoint>().toEqualTypeOf<Readonly<{ date: string; price: number }>>();
 
   expect(pricesKey(' abc ')).toEqual(['prices', 'ABC']);
   expect(priceStatsKey('abc')).toEqual(['price-stats', 'ABC']);

@@ -1,4 +1,0 @@
-@import '@pharo/tailwind-plugin';
-@source './main.tsx';
-@source './node_modules/@pharo/react-components/dist';
-@source './node_modules/@pharo/react-form-components/dist';

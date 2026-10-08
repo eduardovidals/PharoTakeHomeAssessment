@@ -6,17 +6,6 @@ namespace PharoDashboard.Api.Features.Instruments;
 /// </summary>
 public static class Ticker
 {
-    /// <summary>Returns a canonical identifier or rejects an invalid ticker.</summary>
-    public static string Normalize(string value)
-    {
-        if (!TryNormalize(value, out var canonical))
-        {
-            throw new ArgumentException("Ticker must contain 1–32 permitted ASCII characters.", nameof(value));
-        }
-
-        return canonical;
-    }
-
     /// <summary>Normalizes a valid identifier; null, empty or invalid values return false.</summary>
     public static bool TryNormalize(string? value, out string canonical)
     {

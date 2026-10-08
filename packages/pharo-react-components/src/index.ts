@@ -6,10 +6,6 @@ export type {
 } from './components/PharoButton';
 export { PharoIconButton } from './components/PharoIconButton';
 export type { PharoIconButtonProps } from './components/PharoIconButton';
-export { PharoTextField } from './components/PharoTextField';
-export type { PharoTextFieldInputProps, PharoTextFieldProps } from './components/PharoTextField';
-export { PharoComboBox } from './components/PharoComboBox';
-export type { PharoComboBoxInputProps, PharoComboBoxProps } from './components/PharoComboBox';
 export { PharoSpinner } from './components/PharoSpinner';
 export type { PharoSpinnerProps, PharoSpinnerSize } from './components/PharoSpinner';
 export { PharoDialog } from './components/PharoDialog';

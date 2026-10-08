@@ -25,7 +25,7 @@ const commands = [
       '-t',
       'typecheck,typecheck:catalog,format,test,build,infrastructure,e2e',
       '-p',
-      'pharo-dashboard-ui,pharo-dashboard-api,@pharo/eslint-config,@pharo/prettier-config,@pharo/react-components,@pharo/react-form-components,@pharo/react-charts,@pharo/tailwind-plugin',
+      'pharo-dashboard-ui,pharo-dashboard-api,@pharo/eslint-config,@pharo/prettier-config,@pharo/react-components,@pharo/react-charts,@pharo/tailwind-plugin',
     ],
   ],
 ];

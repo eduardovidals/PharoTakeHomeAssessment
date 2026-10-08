@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/index.mjs"
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "lint": "eslint src test",
     "test": "node --test test/*.test.mjs"

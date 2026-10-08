@@ -77,15 +77,14 @@ pnpm validate
 
 On Linux, Playwright may also require system libraries: use `node scripts/playwright.mjs install --with-deps chromium`. Browser and .NET caches live under ignored `node_modules/.cache`.
 
-Three independent catalogs are available:
+Two independent catalogs are available:
 
-| Command                 | Catalog URL                                  |
-| ----------------------- | -------------------------------------------- |
-| `pnpm storybook`        | http://127.0.0.1:6006 — base controls        |
-| `pnpm storybook:forms`  | http://127.0.0.1:6007 — schema/form bindings |
-| `pnpm storybook:charts` | http://127.0.0.1:6008 — generic line chart   |
+| Command                 | Catalog URL                                |
+| ----------------------- | ------------------------------------------ |
+| `pnpm storybook`        | http://127.0.0.1:6006 — base controls      |
+| `pnpm storybook:charts` | http://127.0.0.1:6008 — generic line chart |
 
-`pnpm storybook:build` builds all three catalogs. Each catalog works without the API.
+`pnpm storybook:build` builds both catalogs. Each catalog works without the API.
 
 ## Data and API
 
@@ -122,7 +121,7 @@ A link such as `/?tickers=TICK0001,TICK0002&view=price` preserves ordered select
 
 **Price** plots raw closing prices. **Performance** plots `100 × (price / firstObservedPrice − 1)` for each instrument, using its own first recorded price without rounding the source values. It describes price change, not adjusted total return. The chart preserves gaps and shows a zero reference in Performance mode. A shared recorded range/count appears once when available histories agree; differing windows are identified, with per-instrument ranges and bases in **View data**. Missing resources never become zero-valued data, and prices carry no specified currency.
 
-Dates are formatted in UTC with Day.js; the date axis samples actual recorded timestamps. Color and dash identities agree across tags, chart and matrix. **Latest** is the default and retains the API’s full-window statistics. Click or tap the chart, use its labeled keyboard range, or choose a **Comparison date** to pin the matrix. Previous/Next date navigate recorded dates; **Back to latest** restores the default. Hover only previews chart values and never changes the comparison. A pin survives chart-mode changes; clearing all instruments or reloading starts at Latest. The pin is local interaction state, while instruments and chart mode remain URL-owned.
+Dates are formatted in UTC with Day.js; the date axis samples actual recorded timestamps. Color and dash identities agree across tags, chart and matrix. **Latest** is the default and retains the API’s full-window statistics. Click or tap the chart, use its labeled keyboard range, or enter a **Comparison date** in the segmented field or calendar to pin the matrix. Previous/Next date navigate recorded dates; **Back to latest** restores the default. Hover only previews chart values and never changes the comparison. A pin survives chart-mode changes; clearing all instruments or reloading starts at Latest. The pin is local interaction state, while instruments and chart mode remain URL-owned.
 
 For a pinned date, closing price requires an observation on that exact date; missing records show **No observation**. Total return, daily sample volatility and maximum drawdown use each instrument’s first observation through the selected date, inclusive, from existing cached prices. The calculations mirror the backend’s unrounded formulas, including null volatility for fewer than three prices. Period labels explain differing histories; date navigation makes no additional API requests.
 

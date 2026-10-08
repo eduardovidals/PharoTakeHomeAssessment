@@ -10,4 +10,22 @@ export interface ComparisonDateNavigationProps {
 
 /** Static parts of the date-navigation surface. */
 export type ComparisonDateNavigationStylePart =
-  'group' | 'select' | 'label' | 'trigger' | 'arrow' | 'back' | 'popover' | 'list' | 'option';
+  | 'group'
+  | 'picker'
+  | 'labelRow'
+  | 'label'
+  | 'latest'
+  | 'field'
+  | 'input'
+  | 'segment'
+  | 'trigger'
+  | 'arrow'
+  | 'back'
+  | 'error'
+  | 'popover'
+  | 'dialog'
+  | 'calendar'
+  | 'calendarHeader'
+  | 'heading'
+  | 'grid'
+  | 'cell';

@@ -1,8 +1,5 @@
 import type { z } from 'zod';
-import type { pricePointSchema, priceSeriesSchema, priceStatsSchema } from './schema';
-
-/** Readonly date-only price with the validated unrounded numeric value. */
-export type PricePoint = z.infer<typeof pricePointSchema>;
+import type { priceSeriesSchema, priceStatsSchema } from './schema';
 
 /** Readonly strictly chronological price observations. */
 export type PriceSeries = z.infer<typeof priceSeriesSchema>;

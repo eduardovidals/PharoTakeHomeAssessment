@@ -95,7 +95,6 @@ export function createPharoEslintConfig(options) {
       files: [
         'apps/pharo-dashboard-ui/src/**/*.{js,jsx,ts,tsx}',
         'packages/pharo-react-components/**/*.{js,jsx,ts,tsx}',
-        'packages/pharo-react-form-components/**/*.{js,jsx,ts,tsx}',
         'packages/pharo-react-charts/**/*.{js,jsx,ts,tsx}',
         '**/.storybook/preview.{js,ts,tsx}',
       ],

@@ -1,7 +1,21 @@
-import { useEffect, useRef } from 'react';
-import { PharoButton } from '@pharo/react-components';
-import { Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
-import { formatDateTable } from '../../../../../../../../utils/date';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { DateValue } from '@internationalized/date';
+import { PharoButton, PharoIconButton } from '@pharo/react-components';
+import {
+  Calendar,
+  CalendarCell,
+  CalendarGrid,
+  DateInput,
+  DatePicker,
+  DateSegment,
+  Dialog,
+  FieldError,
+  Group,
+  Heading,
+  Label,
+  Popover,
+} from 'react-aria-components';
+import { toCalendarDate } from './utils';
 import { navigationStyles as styles } from './styles';
 import type { ComparisonDateNavigationProps as Props } from './types';
 
@@ -15,15 +29,26 @@ import type { ComparisonDateNavigationProps as Props } from './types';
 export function ComparisonDateNavigation(props: Props) {
   const { selectedTimestamp, timeline, onTimestampChange } = props;
 
-  const selectRef = useRef<HTMLDivElement>(null);
+  const value = useMemo(
+    () => (selectedTimestamp === null ? null : toCalendarDate(selectedTimestamp)),
+    [selectedTimestamp],
+  );
+
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [entryErrorFor, setEntryErrorFor] = useState<number | null | undefined>(undefined);
   const restoreDateFocus = useRef<number | null | undefined>(undefined);
 
   useEffect(() => {
     if (selectedTimestamp === restoreDateFocus.current) {
       restoreDateFocus.current = undefined;
-      selectRef.current?.querySelector('button')?.focus();
+      pickerRef.current?.querySelector('button')?.focus();
     }
   }, [selectedTimestamp]);
+
+  // Discard validation from an earlier pin when another control changes the date.
+  if (entryErrorFor !== undefined && entryErrorFor !== selectedTimestamp) {
+    setEntryErrorFor(undefined);
+  }
 
   const current = selectedTimestamp ?? timeline.at(-1);
   const previous = timeline
@@ -36,42 +61,75 @@ export function ComparisonDateNavigation(props: Props) {
     selectedTimestamp !== null && !timeline.includes(selectedTimestamp)
       ? [...timeline, selectedTimestamp].sort((left, right) => left - right)
       : timeline;
-  const options = [
-    { id: 'latest', label: 'Latest' },
-    ...dates.map((timestamp) => ({
-      id: String(timestamp),
-      label: formatDateTable(timestamp),
-    })),
-  ];
+  const firstDate = dates[0];
+  const lastDate = dates.at(-1);
+  const availableDates = new Set(dates);
 
-  const handleChange = (key: string | number | null) => {
-    if (key === 'latest') onTimestampChange(null);
-    else if (key !== null) onTimestampChange(Number(key));
+  const isDateUnavailable = (date: DateValue) => !availableDates.has(date.toDate('UTC').getTime());
+
+  const handleChange = (date: DateValue | null) => {
+    if (date !== null && isDateUnavailable(date)) {
+      setEntryErrorFor(selectedTimestamp);
+      return;
+    }
+
+    setEntryErrorFor(undefined);
+    onTimestampChange(date === null ? null : date.toDate('UTC').getTime());
   };
 
   return (
     <div className={styles.group}>
-      <Select
-        ref={selectRef}
-        className={styles.select}
-        value={selectedTimestamp === null ? 'latest' : String(selectedTimestamp)}
+      <DatePicker
+        ref={pickerRef}
+        className={styles.picker}
+        value={value}
         onChange={handleChange}
+        minValue={firstDate === undefined ? undefined : toCalendarDate(firstDate)}
+        maxValue={lastDate === undefined ? undefined : toCalendarDate(lastDate)}
+        placeholderValue={lastDate === undefined ? undefined : toCalendarDate(lastDate)}
+        isDateUnavailable={isDateUnavailable}
+        isDisabled={timeline.length === 0}
+        isInvalid={entryErrorFor !== undefined && entryErrorFor === selectedTimestamp}
+        validationBehavior="aria"
+        granularity="day"
       >
-        <Label className={styles.label}>Comparison date</Label>
-        <PharoButton variant="secondary" size="sm" className={styles.trigger}>
-          <SelectValue />
-          <span aria-hidden="true">⌄</span>
-        </PharoButton>
-        <Popover className={styles.popover}>
-          <ListBox items={options} className={styles.list}>
-            {(item) => (
-              <ListBoxItem id={item.id} textValue={item.label} className={styles.option}>
-                {item.label}
-              </ListBoxItem>
-            )}
-          </ListBox>
+        <div className={styles.labelRow}>
+          <Label className={styles.label}>Comparison date</Label>
+          {selectedTimestamp === null && <span className={styles.latest}>Latest</span>}
+        </div>
+        <Group className={styles.field}>
+          <DateInput className={styles.input}>
+            {(segment) => <DateSegment segment={segment} className={styles.segment} />}
+          </DateInput>
+          <PharoIconButton
+            aria-label="Choose comparison date"
+            aria-labelledby=""
+            variant="quiet"
+            className={styles.trigger}
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M7 3v4M17 3v4M3 11h18" />
+              </svg>
+            }
+          />
+        </Group>
+        <FieldError className={styles.error}>Choose a date with recorded observations.</FieldError>
+        <Popover className={styles.popover} containerPadding={4}>
+          <Dialog aria-label="Choose comparison date" className={styles.dialog}>
+            <Calendar className={styles.calendar}>
+              <header className={styles.calendarHeader}>
+                <PharoIconButton slot="previous" aria-label="Previous month" icon="←" />
+                <Heading className={styles.heading} />
+                <PharoIconButton slot="next" aria-label="Next month" icon="→" />
+              </header>
+              <CalendarGrid className={styles.grid} weekdayStyle="short">
+                {(date) => <CalendarCell date={date} className={styles.cell} />}
+              </CalendarGrid>
+            </Calendar>
+          </Dialog>
         </Popover>
-      </Select>
+      </DatePicker>
       <PharoButton
         variant="secondary"
         size="sm"

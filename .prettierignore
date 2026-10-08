@@ -6,4 +6,5 @@ node_modules/
 **/coverage/
 **/storybook-static/
 pnpm-lock.yaml
+**/packages.lock.json
 apps/pharo-dashboard-ui/src/routeTree.gen.ts

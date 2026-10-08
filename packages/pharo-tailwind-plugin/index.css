@@ -2,13 +2,10 @@
 @plugin 'tailwindcss-react-aria-components';
 
 @source '../pharo-react-components/src';
-@source '../pharo-react-form-components/src';
 @source '../pharo-react-charts/src';
 @source '../pharo-react-components/dist';
-@source '../pharo-react-form-components/dist';
 @source '../pharo-react-charts/dist';
 @source '../react-components/dist';
-@source '../react-form-components/dist';
 @source '../react-charts/dist';
 
 /*

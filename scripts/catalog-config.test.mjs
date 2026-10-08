@@ -8,7 +8,7 @@ import { build, createServer, mergeConfig, resolveConfig } from 'vite';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
-const catalogs = ['pharo-react-components', 'pharo-react-form-components', 'pharo-react-charts'];
+const catalogs = ['pharo-react-components', 'pharo-react-charts'];
 
 const protectedPaths = [
   '.env',

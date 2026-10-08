@@ -147,7 +147,7 @@ test('only the app generated route and actual private/build outputs are ignored'
     'apps/pharo-dashboard-ui/src/routes/index.tsx',
     'packages/pharo-react-charts/src/routeTree.gen.ts',
     'packages/pharo-react-components/src/components/Example/Example.test.tsx',
-    'packages/pharo-react-form-components/src/components/Example/Example.stories.tsx',
+    'packages/pharo-react-charts/src/components/Example/Example.stories.tsx',
   ]) {
     assert.equal(await eslint.isPathIgnored(path.join(rootDirectory, filePath)), false, filePath);
   }

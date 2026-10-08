@@ -341,7 +341,9 @@ test.describe('Use the built Pharo components without application providers', ()
 
     await page.keyboard.press('Enter');
 
-    await expect(page.getByRole('status')).toHaveText('Saved 1 times');
+    await expect(page.getByRole('region', { name: 'Actions' }).getByRole('status')).toHaveText(
+      'Saved 1 times',
+    );
 
     await page.keyboard.press('Tab');
 
@@ -374,190 +376,15 @@ test.describe('Use the built Pharo components without application providers', ()
     await page.screenshot({ path: testInfo.outputPath('components-focus.png'), fullPage: true });
   });
 
-  test('field ownership preserves editing, descriptions, error focus, and read-only state', async ({
-    page,
-  }) => {
-    const input = page.getByRole('textbox', { name: 'Display name' });
-
-    await input.fill('Grace Hopper');
-
-    await expect(input).toHaveValue('Grace Hopper');
-    await expect(input).toHaveAttribute('name', 'displayName');
-    await expect(input).toHaveAttribute('autocomplete', 'name');
-    await expect(input).toHaveAccessibleDescription('Shown next to your contributions.');
-
-    const invalid = page.getByRole('textbox', { name: 'Email address' });
-
-    await expect(invalid).toHaveAttribute('aria-invalid', 'true');
-    await expect(invalid).toHaveAccessibleDescription(/Enter a valid email address\./);
-    await expect(invalid).toHaveCSS('border-top-color', 'rgb(180, 35, 58)');
-
-    await page.getByRole('button', { name: 'Focus email field' }).click();
-
-    await expect(invalid).toBeFocused();
-    // e2e-locator: The consumer callback class identifies the field wrapper whose state is under test.
-    await expect(page.locator('.consumer-invalid')).toContainText('Email address');
-    await expect(page.getByRole('textbox', { name: 'Read-only note' })).toHaveAttribute(
-      'readonly',
-      '',
-    );
-    await expect(page.getByRole('textbox', { name: 'Disabled note' })).toBeDisabled();
-  });
-
-  test('the real combobox portal supports filtering, selection, escape, and disabled options', async ({
-    page,
-  }, testInfo) => {
-    const input = page.getByRole('combobox', { name: 'Plant', exact: true });
-
-    // Settle the document scroll before opening a popup that dismisses on scroll.
-    await input.scrollIntoViewIfNeeded();
-    await input.click();
-    await input.fill('Fer');
-
-    await expect(page.getByRole('option', { name: 'Fern', exact: true })).toBeVisible();
-
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Enter');
-
-    await expect(input).toHaveValue('Fern');
-    await expect(page.getByText('Selected: fern', { exact: true })).toBeVisible();
-
-    await input.clear();
-    await input.press('ArrowDown');
-
-    const list = page.getByRole('listbox', { name: 'Suggestions Plant', exact: true });
-
-    await expect(list).toBeVisible();
-    expect(
-      await list.evaluate((element) => document.getElementById('root')?.contains(element)),
-    ).toBe(false);
-    // e2e-locator: The roleless popup surface around the named listbox owns its background.
-    await expect(list.locator('..')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-
-    // e2e-locator: Read the document font to compare actual body-portal inheritance.
-    const bodyFont = await page
-      .locator('body')
-      .evaluate((element) => getComputedStyle(element).fontFamily);
-
-    await expect(list).toHaveCSS('font-family', bodyFont);
-    await expect(page.getByRole('option', { name: 'Maple' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
-
-    await page.screenshot({ path: testInfo.outputPath('components-portal.png'), fullPage: true });
-    await page.keyboard.press('Escape');
-
-    await expect(list).toBeHidden();
-    await expect(input).toBeFocused();
-  });
-
-  test('clicking empty collection content cannot fabricate a selected value', async ({ page }) => {
-    const empty = page.getByRole('combobox', { name: 'Empty collection' });
-
-    await empty.scrollIntoViewIfNeeded();
-    await empty.click();
-    await empty.press('ArrowDown');
-
-    await expect(page.getByText('No options found.', { exact: true })).toBeVisible();
-
-    await page.getByText('No options found.', { exact: true }).click();
-
-    await expect(empty).toHaveValue('');
-    await expect(page.getByText('Selected empty key: none', { exact: true })).toBeVisible();
-  });
-
-  test('a focused empty combobox cannot select with Enter and keeps focus after Escape', async ({
-    page,
-  }) => {
-    const empty = page.getByRole('combobox', { name: 'Empty collection' });
-
-    await empty.scrollIntoViewIfNeeded();
-    await empty.click();
-
-    await expect(empty).toBeFocused();
-
-    await empty.press('ArrowDown');
-
-    await expect(page.getByText('No options found.', { exact: true })).toBeVisible();
-
-    await empty.press('Enter');
-
-    await expect(empty).toHaveValue('');
-    await expect(page.getByText('Selected empty key: none', { exact: true })).toBeVisible();
-    await expect(empty).toBeFocused();
-    await expect(empty).toHaveAttribute('aria-expanded', 'false');
-
-    await empty.press('ArrowDown');
-
-    await expect(page.getByText('No options found.', { exact: true })).toBeVisible();
-
-    await empty.press('Escape');
-
-    await expect(empty).toBeFocused();
-    await expect(empty).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  test('a retained disabled selection stays readable and cannot be selected again', async ({
-    page,
-  }) => {
-    const input = page.getByRole('combobox', { name: 'Retired selection' });
-
-    await expect(input).toHaveValue('Fern');
-
-    await input.scrollIntoViewIfNeeded();
-    await page.getByRole('button', { name: 'Show options Retired selection' }).click();
-
-    const option = page.getByRole('option', { name: 'Fern', exact: true });
-
-    await expect(option).toHaveAttribute('aria-selected', 'true');
-    await expect(option).toHaveAttribute('aria-disabled', 'true');
-    await expect(option).toHaveCSS('color', 'rgb(82, 97, 118)');
-    await expect(option).toHaveCSS('background-color', 'rgb(229, 235, 242)');
-
-    // Playwright intentionally refuses a disabled target; dispatch a real pointer click
-    // at its bounds to verify React Aria itself suppresses selection.
-    const bounds = await option.boundingBox();
-
-    if (!bounds) throw new Error('Retained option has no layout bounds.');
-
-    await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-
-    await expect(input).toHaveValue('Fern');
-    await expect(page.getByText('Retired selection changes: 0', { exact: true })).toBeVisible();
-
-    await page.keyboard.press('Escape');
-
-    await expect(input).toBeFocused();
-  });
-
-  test('long option text remains inside a narrow viewport and reduced motion keeps progress visible', async ({
+  test('retained controls fit a narrow viewport and reduced motion keeps progress visible', async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 800 });
 
-    const input = page.getByRole('combobox', { name: 'Plant', exact: true });
-
-    await input.scrollIntoViewIfNeeded();
-    await input.click();
-    await input.fill('particularly');
-
-    const option = page.getByRole('option', { name: /A particularly long botanical/ });
-
-    await expect(option).toBeVisible();
-
-    const bounds = await option.boundingBox();
-
-    if (!bounds) throw new Error('Long option has no layout bounds.');
-
-    expect(bounds.x).toBeGreaterThanOrEqual(0);
-    expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       320,
     );
 
-    await page.screenshot({ path: testInfo.outputPath('components-mobile.png'), fullPage: true });
-    await page.keyboard.press('Escape');
     await page.emulateMedia({ reducedMotion: 'reduce' });
 
     await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCSS(
@@ -572,6 +399,8 @@ test.describe('Use the built Pharo components without application providers', ()
 
     await expect(ring).toHaveCSS('animation-name', 'none');
     await expect(ring).toBeVisible();
+
+    await page.screenshot({ path: testInfo.outputPath('components-mobile.png'), fullPage: true });
   });
 
   test('the dialog contains keyboard focus and restores its trigger and background scroll', async ({

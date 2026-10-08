@@ -359,7 +359,7 @@ test.describe('Browse and inspect historical instruments', () => {
     const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
 
     await expect(chart).toBeVisible();
-    expect((await chart.boundingBox())?.height).toBe(320);
+    expect((await chart.boundingBox())?.height).toBe(272);
 
     // e2e-locator: the SVG series path proves actual line geometry for the selected identity.
     const line = chart.locator('[data-series-id="TICK0001"] path');
@@ -561,7 +561,9 @@ test.describe('Inspect complete raw observations on demand', () => {
       await expect(
         page.getByRole('table', { name: 'Recorded closing prices', exact: true }),
       ).toHaveCount(0);
-      expect((await chart.boundingBox())?.height).toBe(viewport.width < 640 ? 256 : 320);
+      expect((await chart.boundingBox())?.height).toBe(
+        viewport.width >= 1280 ? 272 : viewport.width >= 640 ? 320 : 256,
+      );
 
       await trigger.scrollIntoViewIfNeeded();
       const before = await documentRoot.evaluate((element) => ({

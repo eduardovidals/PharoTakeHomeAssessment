@@ -1355,57 +1355,61 @@ test.describe('independent built charts', () => {
         );
       });
 
-      const [motion] = await Promise.all([
-        inspection.evaluate((element) => {
-          const dot = element.querySelector('[data-inspection-series-id="unequal-south"]');
+      // Attach the observer before moving the pointer so the mutation cannot be missed.
+      const capture = await inspection.evaluateHandle((element) => {
+        const dot = element.querySelector('[data-inspection-series-id="unequal-south"]');
 
-          if (!dot) throw new Error('The exact southern observation marker is missing.');
+        if (!dot) throw new Error('The exact southern observation marker is missing.');
 
-          const position = () => ({
-            x: new DOMMatrix(getComputedStyle(element).transform).e,
-            y: new DOMMatrix(getComputedStyle(dot).transform).f,
-          });
+        const position = () => ({
+          x: new DOMMatrix(getComputedStyle(element).transform).e,
+          y: new DOMMatrix(getComputedStyle(dot).transform).f,
+        });
 
-          const start = position();
-          const originalTransform = element.getAttribute('transform');
+        const start = position();
+        const originalTransform = element.getAttribute('transform');
 
-          return new Promise<{
-            start: typeof start;
-            halfway: typeof start;
-            end: typeof start;
-            animations: number;
-          }>((resolve, reject) => {
-            const observer = new MutationObserver(() => {
-              if (element.getAttribute('transform') === originalTransform) return;
+        const result = new Promise<{
+          start: typeof start;
+          halfway: typeof start;
+          end: typeof start;
+          animations: number;
+        }>((resolve, reject) => {
+          const observer = new MutationObserver(() => {
+            if (element.getAttribute('transform') === originalTransform) return;
 
-              observer.disconnect();
+            observer.disconnect();
 
-              try {
-                // Flush the real SVG style change, then seek its native transitions to avoid clock races.
-                position();
+            try {
+              // Flush the real SVG style change, then seek its native transitions to avoid clock races.
+              position();
 
-                const animations = [...element.getAnimations(), ...dot.getAnimations()];
+              const animations = [...element.getAnimations(), ...dot.getAnimations()];
 
-                for (const animation of animations) {
-                  animation.pause();
-                  animation.currentTime = Number(animation.effect?.getTiming().duration) / 2;
-                }
-
-                const halfway = position();
-
-                for (const animation of animations) animation.finish();
-
-                resolve({ start, halfway, end: position(), animations: animations.length });
-              } catch (error) {
-                reject(error);
+              for (const animation of animations) {
+                animation.pause();
+                animation.currentTime = Number(animation.effect?.getTiming().duration) / 2;
               }
-            });
 
-            observer.observe(element, { attributes: true, attributeFilter: ['transform'] });
+              const halfway = position();
+
+              for (const animation of animations) animation.finish();
+
+              resolve({ start, halfway, end: position(), animations: animations.length });
+            } catch (error) {
+              reject(error);
+            }
           });
-        }),
-        page.mouse.move(left + (2 * span) / 3, y),
-      ]);
+
+          observer.observe(element, { attributes: true, attributeFilter: ['transform'] });
+        });
+
+        return { result };
+      });
+
+      await page.mouse.move(left + (2 * span) / 3, y);
+      const motion = await capture.evaluate(({ result }) => result);
+      await capture.dispose();
 
       expect(motion.animations).toBe(2);
       expect(motion.halfway.x).toBeGreaterThan(motion.start.x);
