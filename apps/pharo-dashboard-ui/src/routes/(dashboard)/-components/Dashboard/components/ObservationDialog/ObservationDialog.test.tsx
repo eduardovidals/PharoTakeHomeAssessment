@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 import { toUtcTimestamp } from '../../../../../../utils/date';
 import { ObservationDialog } from './ObservationDialog';
 
-const series: readonly PharoChartSeries[] = Object.freeze([
+const series = Object.freeze([
   Object.freeze({
     id: 'A',
     label: 'A',
@@ -20,7 +20,7 @@ const series: readonly PharoChartSeries[] = Object.freeze([
     points: Object.freeze([Object.freeze({ x: toUtcTimestamp('2024-03-11'), y: 250.123456789 })]),
   }),
   Object.freeze({ id: 'UNKNOWN', label: 'UNKNOWN', points: Object.freeze([]) }),
-]);
+] as const satisfies readonly PharoChartSeries[]);
 
 async function openDialog() {
   await userEvent.click(screen.getByRole('button', { name: 'View data' }));
@@ -28,6 +28,96 @@ async function openDialog() {
 }
 
 describe('ObservationDialog', () => {
+  test('describes shared windows once while retaining every instrument and raw value', async () => {
+    const shared = ['A', 'B', 'C'].map((id, index) => ({
+      id,
+      label: id,
+      points: [
+        { x: toUtcTimestamp('2024-03-10'), y: 10 + index },
+        { x: toUtcTimestamp('2024-03-12'), y: 20 + index },
+      ],
+    }));
+    render(<ObservationDialog triggerId="raw-shared" series={shared} />);
+    const dialog = await openDialog();
+    const windows = within(
+      within(dialog).getByRole('list', { name: 'Recorded windows by instrument' }),
+    );
+    expect(windows.getAllByRole('listitem')).toHaveLength(1);
+    expect(windows.getByRole('listitem')).toHaveTextContent(
+      'A, B, C: Mar 10 – Mar 12, 2024 (UTC), 2 observations each. Performance base: Mar 10, 2024.',
+    );
+    const table = within(dialog).getByRole('table', { name: 'Recorded closing prices' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Date (UTC)', 'A', 'B', 'C']);
+    expect(
+      within(table)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual(['10.00', '11.00', '12.00', '20.00', '21.00', '22.00']);
+  });
+
+  test('shares only matching metadata when other datasets differ or are unavailable', async () => {
+    const first = series[0];
+    render(
+      <ObservationDialog
+        triggerId="raw-partially-shared"
+        series={[...series, { ...first, id: 'C', label: 'C' }]}
+      />,
+    );
+    const dialog = await openDialog();
+    const windows = within(
+      within(dialog).getByRole('list', { name: 'Recorded windows by instrument' }),
+    );
+    expect(windows.getAllByRole('listitem')).toHaveLength(3);
+    expect(windows.getByText(/^A, C:/)).toHaveTextContent('2 observations each.');
+    expect(windows.getByText(/^B:/)).toHaveTextContent('Mar 11, 2024 (UTC), 1 observation.');
+    expect(windows.getByText(/^UNKNOWN:/)).toHaveTextContent(
+      'No recorded observations currently available.',
+    );
+  });
+
+  test.each([
+    {
+      difference: 'count',
+      points: [
+        { x: toUtcTimestamp('2024-03-10'), y: 10 },
+        { x: toUtcTimestamp('2024-03-11'), y: 15 },
+        { x: toUtcTimestamp('2024-03-12'), y: 20 },
+      ],
+      detail: '3 observations. Performance base: Mar 10, 2024.',
+    },
+    {
+      difference: 'performance base',
+      points: [
+        { x: toUtcTimestamp('2024-03-10'), y: null },
+        { x: toUtcTimestamp('2024-03-12'), y: 20 },
+      ],
+      detail: '2 observations. Performance base: Mar 12, 2024.',
+    },
+  ])(
+    'keeps matching ranges distinct when their $difference differs',
+    async ({ points, detail }) => {
+      render(
+        <ObservationDialog
+          triggerId="raw-different-metadata"
+          series={[series[0], { id: 'B', label: 'B', points }]}
+        />,
+      );
+      const dialog = await openDialog();
+      const windows = within(
+        within(dialog).getByRole('list', { name: 'Recorded windows by instrument' }),
+      );
+      expect(windows.getAllByRole('listitem')).toHaveLength(2);
+      expect(windows.getByText(/^A:/)).toHaveTextContent(
+        '2 observations. Performance base: Mar 10, 2024.',
+      );
+      expect(windows.getByText(/^B:/)).toHaveTextContent(detail);
+    },
+  );
+
   test('shows every actual raw row and selected column with truthful windows and bases', async () => {
     const original = JSON.stringify(series);
     render(<ObservationDialog triggerId="raw-data" series={series} />);

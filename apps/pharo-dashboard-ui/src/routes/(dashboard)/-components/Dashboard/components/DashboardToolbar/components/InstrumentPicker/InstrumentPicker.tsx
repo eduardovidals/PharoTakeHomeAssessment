@@ -92,9 +92,15 @@ export function InstrumentPicker(props: Props) {
         }
         selectionActions={
           <div className={pickerStyles.actions}>
-            <PharoButton variant="secondary" size="sm" onPress={() => void handleClearSelection()}>
-              Clear selection
-            </PharoButton>
+            {selectedTickers.length > 0 && (
+              <PharoButton
+                variant="secondary"
+                size="sm"
+                onPress={() => void handleClearSelection()}
+              >
+                Clear selection
+              </PharoButton>
+            )}
             {query.length > 0 && (
               <PharoButton variant="quiet" size="sm" onPress={handleClearSearch}>
                 Clear search

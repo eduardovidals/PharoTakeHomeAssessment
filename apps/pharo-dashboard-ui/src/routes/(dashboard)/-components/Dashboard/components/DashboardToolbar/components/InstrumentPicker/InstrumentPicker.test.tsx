@@ -357,13 +357,14 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     }
   });
 
-  test('Clear selection resets explicit view even when there are no selected keys', async () => {
+  test('hides Clear selection when empty while keeping chart mode controls usable', async () => {
     installMarketHandlers();
     const user = userEvent.setup();
     const app = await renderApp({ initialEntries: ['/?view=performance'] });
-    await user.click(app.view.getByRole('button', { name: 'Clear selection' }));
-    await waitFor(() => expect(app.history.location.search).toBe(''));
-    await user.keyboard('{Escape}');
+    expect(app.view.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+    await user.click(app.view.getByRole('radio', { name: 'Price' }));
+    await waitFor(() => expect(app.history.location.search).toBe('?view=price'));
     expect(app.view.getByRole('radio', { name: 'Price' })).toBeChecked();
+    expect(app.view.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
   });
 });

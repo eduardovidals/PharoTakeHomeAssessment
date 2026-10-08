@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { PharoDialog } from '@pharo/react-components';
 import { PharoChartDataTable } from '@pharo/react-charts';
-import { getSeriesWindows } from '../../adapters/priceSeries';
 import {
   formatDateAccessible,
   formatDateRange,
@@ -10,6 +9,7 @@ import {
 import { formatPrice } from '../../../../../../utils/number';
 import { observationStyles } from './styles';
 import type { ObservationDialogProps as Props } from './types';
+import { getObservationWindowGroups } from './utils';
 
 /**
  * Reveal complete raw records without fetching or changing the surrounding analysis.
@@ -21,7 +21,7 @@ import type { ObservationDialogProps as Props } from './types';
 export function ObservationDialog(props: Props) {
   const { triggerId, series } = props;
   const [isOpen, setIsOpen] = useState(false);
-  const windows = getSeriesWindows(series);
+  const windows = getObservationWindowGroups(series);
 
   return (
     <div className={observationStyles.trigger}>
@@ -38,26 +38,24 @@ export function ObservationDialog(props: Props) {
             values stay raw in both Price and Performance views.
           </p>
           <ul aria-label="Recorded windows by instrument" className={observationStyles.windows}>
-            {series.map((item) => {
-              const window = windows.find((candidate) => candidate.id === item.id);
-              return (
-                <li key={item.id} className={observationStyles.window}>
-                  {item.label}:{' '}
-                  {window ? (
-                    <>
-                      {formatDateRange(window.firstTimestamp, window.lastTimestamp)} (UTC),{' '}
-                      {window.observationCount}{' '}
-                      {window.observationCount === 1 ? 'observation' : 'observations'}.
-                      {window.baseTimestamp !== undefined && (
-                        <> Performance base: {formatDateTable(window.baseTimestamp)}.</>
-                      )}
-                    </>
-                  ) : (
-                    'No recorded observations currently available.'
-                  )}
-                </li>
-              );
-            })}
+            {windows.map(({ id, labels, window }) => (
+              <li key={id} className={observationStyles.window}>
+                {labels.join(', ')}:{' '}
+                {window ? (
+                  <>
+                    {formatDateRange(window.firstTimestamp, window.lastTimestamp)} (UTC),{' '}
+                    {window.observationCount}{' '}
+                    {window.observationCount === 1 ? 'observation' : 'observations'}
+                    {labels.length > 1 ? ' each.' : '.'}
+                    {window.baseTimestamp !== undefined && (
+                      <> Performance base: {formatDateTable(window.baseTimestamp)}.</>
+                    )}
+                  </>
+                ) : (
+                  'No recorded observations currently available.'
+                )}
+              </li>
+            ))}
           </ul>
           <PharoChartDataTable
             className={observationStyles.table}

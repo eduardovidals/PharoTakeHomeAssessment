@@ -1,4 +1,5 @@
 import type { PharoChartSeries } from '@pharo/react-charts';
+import type { SeriesWindow } from '../../adapters/types';
 
 /** Raw cached observations with a stable trigger shared by the chart association. */
 export interface ObservationDialogProps {
@@ -8,6 +9,16 @@ export interface ObservationDialogProps {
   readonly series: readonly PharoChartSeries[];
 }
 
-/** Static semantic presentation for raw data explanation and per-instrument windows. */
+/** Instruments whose recorded range, count and performance base can be described once. */
+export interface ObservationWindowGroup {
+  /** First instrument ID provides a stable rendering key. */
+  readonly id: string;
+  /** Selected instrument labels covered by this metadata. */
+  readonly labels: readonly string[];
+  /** Missing records stay separate from available datasets. */
+  readonly window?: SeriesWindow;
+}
+
+/** Static semantic presentation for raw data explanation and recorded windows. */
 export type ObservationDialogStylePart =
   'trigger' | 'content' | 'description' | 'windows' | 'window' | 'table';
