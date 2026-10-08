@@ -37,10 +37,9 @@ it('places enlarged labels within scaled gutters and preserves their full descri
   );
   const svg = screen.getByRole('img', { name: 'Enlarged axes' });
   expect(svg.firstElementChild).toHaveAttribute('font-size', '24');
-  expect(within(svg).getByLabelText('UTC time axis').querySelector('text')).toHaveAttribute(
-    'y',
-    '264',
-  );
+  expect(
+    within(svg).getByRole('group', { name: 'UTC time axis' }).querySelector('text'),
+  ).toHaveAttribute('y', '264');
   const labels = [...svg.querySelectorAll('text')];
   const yTitle = labels.find(
     (element) => element.querySelector('title')?.textContent === 'Temperature in degrees',
@@ -82,11 +81,13 @@ it('renders prepared UTC coordinates and keeps complete numerical titles without
     </svg>,
   );
   const svg = screen.getByRole('img', { name: 'Axes' });
-  const x = within(svg).getByLabelText('UTC time axis');
+  const x = within(svg).getByRole('group', { name: 'UTC time axis' });
   expect([...x.querySelectorAll('text')].map((node) => node.getAttribute('x'))).toEqual([
     '56',
     '304',
   ]);
-  expect(within(svg).getByLabelText('Value axis')).toHaveTextContent('Complete recorded value 10');
+  expect(within(svg).getByRole('group', { name: 'Value axis' })).toHaveTextContent(
+    'Complete recorded value 10',
+  );
   expect(svg.querySelector('[textLength]')).toBeNull();
 });

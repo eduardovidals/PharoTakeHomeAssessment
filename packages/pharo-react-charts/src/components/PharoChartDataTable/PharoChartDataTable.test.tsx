@@ -108,9 +108,14 @@ describe('PharoChartDataTable', () => {
         formatYTable={(y) => y.toFixed(2)}
       />,
     );
-    expect(screen.getByRole('rowheader', { name: 'Tuesday, June 23, 2026' })).toHaveTextContent(
-      'Jun 23, 2026',
-    );
+    const header = screen.getByRole('rowheader', { name: 'Tuesday, June 23, 2026' });
+    expect(header).toHaveTextContent('Jun 23, 2026');
+    expect(header).toHaveAttribute('scope', 'row');
+    expect(header).toHaveAttribute('aria-label', 'Tuesday, June 23, 2026');
+    const time = within(header).getByText('Jun 23, 2026');
+    expect(time.tagName).toBe('TIME');
+    expect(time).toHaveAttribute('datetime', '2026-06-23T00:00:00.000Z');
+    expect(time).not.toHaveAttribute('aria-label');
     expect(screen.getByText('1.23', { exact: true })).toBeVisible();
     expect(screen.getByText('Unavailable', { exact: true })).toBeVisible();
     expect(series[0]?.points[1]?.y).toBe(1.23456789);

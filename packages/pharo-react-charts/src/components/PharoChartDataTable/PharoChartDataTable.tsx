@@ -59,13 +59,12 @@ export function PharoChartDataTable(props: Props) {
         <tbody>
           {timeline.map((timestamp) => (
             <tr key={timestamp}>
-              <th scope="row" className={styles.date}>
-                <time
-                  dateTime={new Date(timestamp).toISOString()}
-                  aria-label={formatXAccessible?.(timestamp) || undefined}
-                >
-                  {formatXTable(timestamp)}
-                </time>
+              <th
+                scope="row"
+                className={styles.date}
+                aria-label={formatXAccessible?.(timestamp) || undefined}
+              >
+                <time dateTime={new Date(timestamp).toISOString()}>{formatXTable(timestamp)}</time>
               </th>
               {inspectTimestamp(records.series, timestamp).map((row) => (
                 <td key={row.id} className={styles.cell}>

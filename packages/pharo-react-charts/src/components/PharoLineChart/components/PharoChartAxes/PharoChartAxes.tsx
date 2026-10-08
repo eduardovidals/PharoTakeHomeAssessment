@@ -19,7 +19,7 @@ export function PharoChartAxes(props: Props) {
         strokeWidth={1}
         d={`M${geometry.plot.left},${geometry.plot.top}V${geometry.plot.bottom}H${geometry.plot.right}`}
       />
-      <g className={styles.axis} aria-label="UTC time axis">
+      <g className={styles.axis} role="group" aria-label="UTC time axis">
         {xLabels.map((tick) => (
           <text
             key={tick.value}
@@ -32,7 +32,7 @@ export function PharoChartAxes(props: Props) {
           </text>
         ))}
       </g>
-      <g className={styles.axis} aria-label="Value axis">
+      <g className={styles.axis} role="group" aria-label="Value axis">
         {geometry.yTicks.map((tick) => {
           const label = formatYAxis(tick.value);
           return (
