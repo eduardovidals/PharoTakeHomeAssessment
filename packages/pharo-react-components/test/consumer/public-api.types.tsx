@@ -2,11 +2,16 @@ import { createRef } from 'react';
 import {
   PharoButton,
   PharoComboBox,
+  PharoDialog,
+  PharoSegmentedControl,
   PharoSpinner,
   PharoTextField,
   type PharoButtonProps,
   type PharoComboBoxInputProps,
   type PharoTextFieldInputProps,
+  type PharoDialogProps,
+  type PharoSegmentedControlProps,
+  type PharoSegmentedOption,
 } from '@pharo/react-components';
 
 const inputRef = createRef<HTMLInputElement>();
@@ -19,6 +24,25 @@ const hints: PharoTextFieldInputProps = {
 const comboHints: PharoComboBoxInputProps = { autoComplete: 'off', spellCheck: false };
 const buttonProps: PharoButtonProps = { variant: 'quiet', size: 'sm', onPress: () => undefined };
 const items = [{ code: 1, label: 'One' }];
+type Layout = 'list' | 'grid';
+const layouts: readonly PharoSegmentedOption<Layout>[] = [
+  { value: 'list', label: 'List' },
+  { value: 'grid', label: 'Grid' },
+];
+const layoutProps: PharoSegmentedControlProps<Layout> = {
+  label: 'Layout',
+  options: layouts,
+  value: 'list',
+  onChange: () => undefined,
+};
+const details: PharoDialogProps = {
+  triggerId: 'public-details',
+  triggerLabel: 'View details',
+  title: 'Details',
+  isOpen: false,
+  onOpenChange: () => undefined,
+  children: <p>Consumer content</p>,
+};
 
 export function PublicConsumer() {
   return (
@@ -45,6 +69,8 @@ export function PublicConsumer() {
         label="Updating"
         className={({ isIndeterminate }) => (isIndeterminate ? 'busy' : '')}
       />
+      <PharoDialog {...details} />
+      <PharoSegmentedControl {...layoutProps} />
     </>
   );
 }
@@ -85,3 +111,11 @@ export const invalidId = (
 export const invalidProgress = <PharoSpinner value={50} />;
 // @ts-expect-error Supported button appearances are deliberately finite.
 export const invalidAppearance = <PharoButton variant="danger">Remove</PharoButton>;
+// @ts-expect-error Exclusive values must belong to the declared domain.
+export const invalidLayout: PharoSegmentedControlProps<Layout> = { ...layoutProps, value: 'map' };
+// @ts-expect-error Generic choices do not own application chart modes.
+export const invalidChartMode = <PharoSegmentedControl {...layoutProps} performance />;
+// @ts-expect-error The trigger association must be an actual stable string ID.
+export const invalidDialogTrigger = <PharoDialog {...details} triggerId={42} />;
+// @ts-expect-error The consumer owns open state; there is no second default-open store.
+export const invalidDefaultOpen = <PharoDialog {...details} defaultOpen />;

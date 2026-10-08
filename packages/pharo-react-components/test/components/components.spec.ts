@@ -342,6 +342,95 @@ test.describe('Use the built Pharo components without application providers', ()
     await expect(ring).toBeVisible();
   });
 
+  test('the dialog contains keyboard focus and restores its trigger and background scroll', async ({
+    page,
+  }, testInfo) => {
+    const trigger = page.getByRole('button', { name: 'View collection details' });
+    await trigger.scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => ({
+      scroll: window.scrollY,
+      height: document.documentElement.scrollHeight,
+    }));
+    await trigger.click();
+    const dialog = page.getByRole('dialog', { name: 'Collection details' });
+    const close = dialog.getByRole('button', { name: 'Close' });
+    await expect(dialog).toBeVisible();
+    await expect(close).toBeFocused();
+    const bounds = await dialog.boundingBox();
+    if (!bounds) throw new Error('Dialog has no layout bounds.');
+    expect(bounds.width).toBe(896);
+    await page.mouse.move(4, 4);
+    await page.mouse.wheel(0, -600);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(before.scroll);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(before.height);
+    await page.screenshot({ path: testInfo.outputPath('components-dialog-desktop.png') });
+    await page.keyboard.press('Shift+Tab');
+    await expect(dialog.getByRole('button', { name: 'Last content action' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(before.scroll);
+  });
+
+  test('the short mobile dialog scrolls its content while Close remains visible', async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 320, height: 400 });
+    const trigger = page.getByRole('button', { name: 'View collection details' });
+    await trigger.scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => window.scrollY);
+    await trigger.click();
+    const dialog = page.getByRole('dialog', { name: 'Collection details' });
+    const close = dialog.getByRole('button', { name: 'Close' });
+    await expect(close).toBeVisible();
+    // e2e-locator: The dialog's final direct child owns content scrolling, below its fixed header.
+    const content = dialog.locator(':scope > div').last();
+    expect(await content.evaluate((element) => element.scrollHeight)).toBeGreaterThan(
+      await content.evaluate((element) => element.clientHeight),
+    );
+    await dialog.getByRole('button', { name: 'Last content action' }).scrollIntoViewIfNeeded();
+    expect(await content.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    const closeBounds = await close.boundingBox();
+    if (!closeBounds) throw new Error('Dialog close action has no layout bounds.');
+    expect(closeBounds.y).toBeGreaterThanOrEqual(0);
+    expect(closeBounds.y + closeBounds.height).toBeLessThanOrEqual(400);
+    expect(closeBounds.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+    await page.screenshot({ path: testInfo.outputPath('components-dialog-mobile.png') });
+    await close.click();
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(before);
+  });
+
+  test('exclusive choices follow arrow keys, skip disabled options and retain visible focus', async ({
+    page,
+  }, testInfo) => {
+    const group = page.getByRole('radiogroup', { name: 'Collection layout' });
+    const list = group.getByRole('radio', { name: 'List', exact: true });
+    const grid = group.getByRole('radio', { name: 'Grid', exact: true });
+    await group.scrollIntoViewIfNeeded();
+    await list.focus();
+    await list.press('ArrowRight');
+    await expect(grid).toBeChecked();
+    await expect(grid).toBeFocused();
+    await expect(list).not.toBeChecked();
+    await expect(group.getByRole('radio', { name: 'Map', exact: true })).toBeDisabled();
+    await expect(page.getByText('Current layout: grid', { exact: true })).toBeVisible();
+    // e2e-locator: React Aria's wrapping label owns the visible target and focus treatment.
+    const visibleChoice = grid.locator('..').locator('..');
+    await expect(visibleChoice).toHaveCSS('min-height', '44px');
+    await expect(visibleChoice).toHaveCSS('outline-width', '3px');
+    await page.emulateMedia({ forcedColors: 'active' });
+    await expect(visibleChoice).toHaveCSS('forced-color-adjust', 'none');
+    await page.screenshot({ path: testInfo.outputPath('components-segmented-focus.png') });
+    await grid.press('ArrowLeft');
+    await expect(list).toBeChecked();
+    await expect(grid).not.toBeChecked();
+  });
+
   test('the built consumer does not expose private fixture bytes', async ({ request }) => {
     if (!fixture) throw new Error('Component fixture is unavailable.');
     const absolute = fixture.split(path.sep).map(encodeURIComponent).join('/');

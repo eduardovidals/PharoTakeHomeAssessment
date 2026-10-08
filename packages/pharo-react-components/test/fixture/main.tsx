@@ -1,7 +1,14 @@
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Key } from 'react-aria-components';
-import { PharoButton, PharoComboBox, PharoSpinner, PharoTextField } from '@pharo/react-components';
+import {
+  PharoButton,
+  PharoComboBox,
+  PharoDialog,
+  PharoSegmentedControl,
+  PharoSpinner,
+  PharoTextField,
+} from '@pharo/react-components';
 import './styles.css';
 
 const plants = [
@@ -19,6 +26,8 @@ function Consumer() {
   const [selected, setSelected] = useState<Key | null>(null);
   const [emptySelected, setEmptySelected] = useState<Key | null>(null);
   const [retiredChanges, setRetiredChanges] = useState(0);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [layout, setLayout] = useState<'list' | 'grid' | 'map'>('list');
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <main className="mx-auto max-w-3xl space-y-pharo-8 p-pharo-6 font-pharo-body text-pharo-base text-pharo-foreground">
@@ -116,6 +125,40 @@ function Consumer() {
         </h2>
         <PharoSpinner label="Updating preferences" />
         <PharoSpinner size="sm" label="Loading preview" />
+      </section>
+      <section
+        aria-labelledby="choices-heading"
+        className="space-y-pharo-4 rounded-pharo-card bg-pharo-surface p-pharo-4 pharo-shadow-card"
+      >
+        <h2 id="choices-heading" className="text-pharo-lg font-semibold">
+          Overlays and choices
+        </h2>
+        <PharoSegmentedControl
+          label="Collection layout"
+          value={layout}
+          onChange={setLayout}
+          options={[
+            { value: 'list', label: 'List' },
+            { value: 'map', label: 'Map', isDisabled: true },
+            { value: 'grid', label: 'Grid' },
+          ]}
+        />
+        <p>Current layout: {layout}</p>
+        <PharoDialog
+          triggerId="collection-details"
+          triggerLabel="View collection details"
+          title="Collection details"
+          isOpen={isDetailsOpen}
+          onOpenChange={setIsDetailsOpen}
+        >
+          <div className="space-y-pharo-4">
+            <p>All recorded collection details are available below.</p>
+            {Array.from({ length: 60 }, (_, index) => (
+              <p key={index}>Detail row {index + 1}: consumer content remains inside the dialog.</p>
+            ))}
+            <PharoButton variant="secondary">Last content action</PharoButton>
+          </div>
+        </PharoDialog>
       </section>
     </main>
   );
