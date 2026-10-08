@@ -104,17 +104,22 @@ describe('PharoMultiComboBox', () => {
     render(<Harness initialKeys={[7]} maxSelected={1} />);
     const input = screen.getByRole('combobox');
     await user.click(input);
-    expect(await screen.findByRole('option', { name: 'Maple' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
+    const disabledOption = await screen.findByRole('option', { name: 'Maple' });
+    expect(disabledOption).toHaveAttribute('aria-disabled', 'true');
+    expect(disabledOption).toHaveTextContent('Limit reached');
+    expect(screen.getByRole('option', { name: 'Fern' })).not.toHaveAttribute('aria-disabled');
+    await user.click(disabledOption);
+    expect(screen.queryByRole('button', { name: 'Remove Maple' })).not.toBeInTheDocument();
     expect(input).not.toBeDisabled();
     expect(input).toHaveAccessibleDescription(/1\/1.*Selection limit/);
     await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Remove Fern' }));
     await waitFor(() => expect(input).toHaveFocus());
     expect(screen.queryByRole('button', { name: 'Remove Fern' })).not.toBeInTheDocument();
-    await user.click(await screen.findByRole('option', { name: 'Maple' }));
+    const availableOption = await screen.findByRole('option', { name: 'Maple' });
+    expect(availableOption).not.toHaveAttribute('aria-disabled');
+    expect(availableOption).not.toHaveTextContent('Limit reached');
+    await user.click(availableOption);
     await user.keyboard('{Escape}');
     expect(await screen.findByRole('button', { name: 'Remove Maple' })).toBeVisible();
   });

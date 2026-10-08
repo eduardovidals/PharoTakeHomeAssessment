@@ -677,6 +677,15 @@ describe('PharoLineChart recorded observation access', () => {
       'aria-valuetext',
       '2024-03-13; Sensor A: 8; Sensor B: Unavailable',
     );
+    const inspection = view.container.querySelector('[data-chart-inspection]');
+    expect(inspection).toHaveAttribute('aria-hidden', 'true');
+    expect(inspection).toHaveAttribute('transform', 'translate(656 0)');
+    expect(inspection?.querySelectorAll('circle')).toHaveLength(1);
+    expect(inspection?.querySelector('[data-inspection-series-id="a"]')).toHaveAttribute(
+      'transform',
+      `translate(0 ${272 - (6 / 28) * 256})`,
+    );
+    expect(inspection?.querySelector('[data-inspection-series-id="b"]')).toBeNull();
     // A DOM change proves the React handler; Playwright owns native range-key defaults.
     fireEvent.change(slider, { target: { value: '1' } });
     const details = screen.getByRole('region', { name: 'Details for Unequal dates' });
@@ -688,6 +697,13 @@ describe('PharoLineChart recorded observation access', () => {
     expect(slider).toHaveAttribute(
       'aria-valuetext',
       '2024-03-11; Sensor A: Unavailable; Sensor B: 20',
+    );
+    expect(inspection).toHaveAttribute('transform', 'translate(256 0)');
+    expect(inspection?.querySelectorAll('circle')).toHaveLength(1);
+    expect(inspection?.querySelector('[data-inspection-series-id="a"]')).toBeNull();
+    expect(inspection?.querySelector('[data-inspection-series-id="b"]')).toHaveAttribute(
+      'transform',
+      `translate(0 ${272 - (18 / 28) * 256})`,
     );
     expect(view.container.querySelector('[aria-live]:not([aria-live="off"])')).toBeNull();
     expect(screen.queryByRole('application')).not.toBeInTheDocument();

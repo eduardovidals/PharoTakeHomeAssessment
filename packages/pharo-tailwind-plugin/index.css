@@ -169,3 +169,13 @@
     transition-duration: 0ms;
   }
 }
+
+@utility pharo-transition-transform {
+  transition-property: transform;
+  transition-duration: var(--pharo-transition-duration);
+  transition-timing-function: ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 0ms;
+  }
+}

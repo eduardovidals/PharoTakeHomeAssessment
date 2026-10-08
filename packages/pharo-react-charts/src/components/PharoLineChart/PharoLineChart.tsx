@@ -24,6 +24,9 @@ import {
   dashPatterns,
   disclosureStyles,
   figureStyles,
+  inspectionMarkerStyles,
+  inspectionMotionStyles,
+  inspectionOverlayStyles,
   labelStyles,
   legendItemStyles,
   legendSampleStyles,
@@ -330,16 +333,44 @@ export function PharoLineChart(props: Props) {
               })}
             </g>
             {crosshairX !== undefined && Number.isFinite(crosshairX) ? (
-              <g aria-hidden="true">
+              <g
+                aria-hidden="true"
+                data-chart-inspection=""
+                transform={`translate(${crosshairX} 0)`}
+                className={inspectionOverlayStyles}
+              >
                 <line
-                  x1={crosshairX}
-                  x2={crosshairX}
+                  x1={0}
+                  x2={0}
                   y1={geometry.plot.top}
                   y2={geometry.plot.bottom}
                   className={crosshairStyles}
                   strokeWidth={1}
                   strokeDasharray={dashPatterns.tertiary}
                 />
+                {details.map((row) => {
+                  const appearance = identities.active.get(row.id);
+                  if (row.kind !== 'available' || !appearance) return null;
+                  const y =
+                    geometry.plot.bottom -
+                    ((row.value - geometry.yDomain[0]) /
+                      (geometry.yDomain[1] - geometry.yDomain[0])) *
+                      (geometry.plot.bottom - geometry.plot.top);
+                  return (
+                    <g
+                      key={row.id}
+                      data-inspection-series-id={row.id}
+                      transform={`translate(0 ${y})`}
+                      className={inspectionMotionStyles}
+                    >
+                      <circle
+                        r={5}
+                        strokeWidth={2}
+                        className={mergeClasses(markerStyles[appearance], inspectionMarkerStyles)}
+                      />
+                    </g>
+                  );
+                })}
               </g>
             ) : null}
           </svg>

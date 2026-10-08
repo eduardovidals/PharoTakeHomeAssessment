@@ -126,12 +126,14 @@ export function PharoMultiComboBox<Item extends object>(props: Props<Item>) {
           >
             {(item) => (
               <ListBoxItem id={itemKey(item)} textValue={itemText(item)} className={styles.option}>
-                {({ isSelected }) => (
+                {({ isSelected, isDisabled: isOptionDisabled }) => (
                   <span className={styles.content}>
                     <span className={styles.text}>
                       {renderItem ? renderItem(item) : itemText(item)}
                     </span>
-                    <span aria-hidden="true">{isSelected ? '✓' : null}</span>
+                    <span aria-hidden="true" className={styles.state}>
+                      {isOptionDisabled ? 'Limit reached' : isSelected ? '✓' : null}
+                    </span>
                   </span>
                 )}
               </ListBoxItem>

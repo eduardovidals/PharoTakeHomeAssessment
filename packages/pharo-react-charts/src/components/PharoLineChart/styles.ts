@@ -13,6 +13,9 @@ export const labelStyles = 'min-w-0 break-words';
 export const disclosureStyles =
   'mt-pharo-3 inline-flex min-h-pharo-control items-center justify-center rounded-pharo-control border border-pharo-control-border bg-pharo-surface px-pharo-4 py-pharo-2 text-pharo-sm font-medium text-pharo-action hover:bg-pharo-selected focus-visible:pharo-focus-ring';
 export const crosshairStyles = 'stroke-pharo-control-border';
+export const inspectionOverlayStyles = 'pointer-events-none pharo-transition-transform';
+export const inspectionMotionStyles = 'pharo-transition-transform';
+export const inspectionMarkerStyles = 'stroke-pharo-surface';
 export const baselineStyles = 'stroke-pharo-chart-baseline';
 
 export const lineStyles: Record<PharoChartAppearance, string> = {

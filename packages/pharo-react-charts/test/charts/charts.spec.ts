@@ -1052,6 +1052,10 @@ test.describe('independent built charts', () => {
   }) => {
     const chart = page.getByRole('img', { name: 'Unequal calendar measurements', exact: true });
     const details = page.getByRole('region', { name: 'Details for Unequal calendar measurements' });
+    // e2e-locator: Inspection geometry marks only the exact available recorded series.
+    const inspection = chart.locator('[data-chart-inspection]');
+    const dots = inspection.locator('[data-inspection-series-id]');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     for (const width of [1280, 320]) {
       await page.setViewportSize({ width, height: 800 });
       await chart.scrollIntoViewIfNeeded();
@@ -1067,19 +1071,92 @@ test.describe('independent built charts', () => {
       await page.mouse.move(left - 4, y);
       await expect(details).toContainText('2024-03-10');
       await expect(details.getByText('2', { exact: true })).toBeVisible();
+      await expect(dots).toHaveCount(1);
+      await expect(dots).toHaveAttribute('data-inspection-series-id', 'unequal-north');
       await page.mouse.move(left + span / 3, y);
       await expect(details).toContainText('2024-03-11');
       await expect(details.getByText('20', { exact: true })).toBeVisible();
       await expect(details.getByText('Unavailable', { exact: true })).toBeVisible();
-      await page.mouse.move(left + (2 * span) / 3, y);
+      await expect(dots).toHaveCount(1);
+      await expect(dots).toHaveAttribute('data-inspection-series-id', 'unequal-south');
+      await expect(dots.locator('circle')).toBeVisible();
+      await expect(inspection).toHaveCSS('transition-duration', '0.12s');
+      await expect(dots).toHaveCSS('transition-duration', '0.12s');
+      await inspection.evaluate(async (element) => {
+        await Promise.all(
+          element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+        );
+      });
+      const [motion] = await Promise.all([
+        inspection.evaluate((element) => {
+          const dot = element.querySelector('[data-inspection-series-id="unequal-south"]');
+          if (!dot) throw new Error('The exact southern observation marker is missing.');
+          const position = () => ({
+            x: new DOMMatrix(getComputedStyle(element).transform).e,
+            y: new DOMMatrix(getComputedStyle(dot).transform).f,
+          });
+          const start = position();
+          const originalTransform = element.getAttribute('transform');
+          return new Promise<{
+            start: typeof start;
+            halfway: typeof start;
+            end: typeof start;
+            animations: number;
+          }>((resolve, reject) => {
+            const observer = new MutationObserver(() => {
+              if (element.getAttribute('transform') === originalTransform) return;
+              observer.disconnect();
+              try {
+                // Flush the real SVG style change, then seek its native transitions to avoid clock races.
+                position();
+                const animations = [...element.getAnimations(), ...dot.getAnimations()];
+                for (const animation of animations) {
+                  animation.pause();
+                  animation.currentTime = Number(animation.effect?.getTiming().duration) / 2;
+                }
+                const halfway = position();
+                for (const animation of animations) animation.finish();
+                resolve({ start, halfway, end: position(), animations: animations.length });
+              } catch (error) {
+                reject(error);
+              }
+            });
+            observer.observe(element, { attributes: true, attributeFilter: ['transform'] });
+          });
+        }),
+        page.mouse.move(left + (2 * span) / 3, y),
+      ]);
+      expect(motion.animations).toBe(2);
+      expect(motion.halfway.x).toBeGreaterThan(motion.start.x);
+      expect(motion.halfway.x).toBeLessThan(motion.end.x);
+      expect(motion.halfway.y).toBeLessThan(motion.start.y);
+      expect(motion.halfway.y).toBeGreaterThan(motion.end.y);
+      expect(motion.end.x).toBeCloseTo(56 + (2 * (viewWidth - 72)) / 3, 3);
+      expect(motion.end.y).toBeCloseTo(16, 3);
+      await expect(dots).toHaveCount(1);
+      await expect(dots).toHaveAttribute('data-inspection-series-id', 'unequal-south');
       await expect(details).toContainText('2024-03-12');
       await expect(details.getByText('30', { exact: true })).toBeVisible();
       await expect(details.getByText('Unavailable', { exact: true })).toBeVisible();
       await page.mouse.move(left + span + 4, y);
       await expect(details).toContainText('2024-03-13');
       await expect(details.getByText('8', { exact: true })).toBeVisible();
+      await expect(dots).toHaveCount(1);
+      await expect(dots).toHaveAttribute('data-inspection-series-id', 'unequal-north');
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await expect(inspection).toHaveCSS('transition-duration', '0s');
+      await expect(dots).toHaveCSS('transition-duration', '0s');
+      await page.mouse.move(left, y);
+      await expect(details).toContainText('2024-03-10');
+      const reduced = await inspection.evaluate((element) => ({
+        x: new DOMMatrix(getComputedStyle(element).transform).e,
+        animations: element.getAnimations({ subtree: true }).length,
+      }));
+      expect(reduced.x).toBeCloseTo(56, 3);
+      expect(reduced.animations).toBe(0);
       await page.mouse.move(0, 0);
-      await expect(details).toContainText('2024-03-13');
+      await expect(details).toContainText('2024-03-10');
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
     }
   });
 
