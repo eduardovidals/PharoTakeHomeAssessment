@@ -173,15 +173,59 @@ const fileRoute = `
   export const Route = createFileRoute('/')({ component: Dashboard });
 `;
 
-test('TanStack file routes may export Route without disabling refresh checks', async () => {
-  const result = await lint(fileRoute, 'apps/pharo-dashboard-ui/src/routes/index.tsx');
-  assert.deepEqual(result.messages, []);
-});
+for (const route of [
+  'index.tsx',
+  '(dashboard)/index.tsx',
+  '(dashboard)/reports/$reportId.tsx',
+  'accounts/$accountId/settings.tsx',
+]) {
+  test(`TanStack file route ${route} may export Route without disabling refresh checks`, async () => {
+    const result = await lint(fileRoute, `apps/pharo-dashboard-ui/src/routes/${route}`);
+    assert.deepEqual(result.messages, []);
+  });
+}
+
+const privateRouteFiles = [
+  '(dashboard)/-components/Dashboard/Dashboard.tsx',
+  '(dashboard)/-components/Dashboard/components/Panel/Panel.tsx',
+  '(dashboard)/-hooks/useDashboardActions/Fixture.tsx',
+  '(dashboard)/-state/Fixture.tsx',
+  '(dashboard)/nested/-support/Fixture.tsx',
+  '(dashboard)/-fixture.tsx',
+  '(dashboard)/nested/mocks/Fixture.tsx',
+];
+for (const file of privateRouteFiles) {
+  test(`private route-owned source ${file} retains ordinary refresh export rules`, async () => {
+    const result = await lint(fileRoute, `apps/pharo-dashboard-ui/src/routes/${file}`);
+    assert(
+      result.messages.some((message) => message.ruleId === 'react-refresh/only-export-components'),
+      JSON.stringify(result.messages),
+    );
+  });
+}
+
+for (const file of [
+  ...privateRouteFiles,
+  '(dashboard)/index.test.tsx',
+  '(dashboard)/index.spec.tsx',
+  '(dashboard)/index.stories.tsx',
+  '(dashboard)/test/Fixture.tsx',
+  '(dashboard)/__tests__/Fixture.tsx',
+  '(dashboard)/testing/Fixture.tsx',
+]) {
+  test(`non-route lane ${file} never receives the Route export allowance`, async () => {
+    const config = await eslint.calculateConfigForFile(
+      `apps/pharo-dashboard-ui/src/routes/${file}`,
+    );
+    const options = config.rules['react-refresh/only-export-components']?.[1];
+    assert(!options?.allowExportNames?.includes('Route'));
+  });
+}
 
 test('a route still rejects an unrelated function export', async () => {
   const result = await lint(
     fileRoute + 'export function loadPrices() { return fetch("/api/instruments"); }',
-    'apps/pharo-dashboard-ui/src/routes/index.tsx',
+    'apps/pharo-dashboard-ui/src/routes/(dashboard)/reports/$reportId.tsx',
   );
   assert(
     result.messages.some((message) => message.ruleId === 'react-refresh/only-export-components'),
@@ -190,7 +234,7 @@ test('a route still rejects an unrelated function export', async () => {
 });
 
 test('Route allowance is limited to the application file-route directory', async () => {
-  const result = await lint(fileRoute, 'apps/pharo-dashboard-ui/src/features/Dashboard.tsx');
+  const result = await lint(fileRoute, 'apps/pharo-dashboard-ui/src/components/Dashboard.tsx');
   assert(
     result.messages.some((message) => message.ruleId === 'react-refresh/only-export-components'),
     JSON.stringify(result.messages),

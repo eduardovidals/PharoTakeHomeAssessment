@@ -124,7 +124,13 @@ export function createPharoEslintConfig(options) {
     },
     {
       name: 'pharo/tanstack-file-routes',
-      files: ['apps/pharo-dashboard-ui/src/routes/*.tsx'],
+      files: ['apps/pharo-dashboard-ui/src/routes/**/*.tsx'],
+      ignores: [
+        'apps/pharo-dashboard-ui/src/routes/**/-*/**',
+        'apps/pharo-dashboard-ui/src/routes/**/-*.tsx',
+        'apps/pharo-dashboard-ui/src/routes/**/*.{test,spec,stories}.tsx',
+        'apps/pharo-dashboard-ui/src/routes/**/{test,__tests__,mocks,testing}/**',
+      ],
       rules: {
         'react-refresh/only-export-components': [
           'error',

@@ -74,8 +74,15 @@ async function addRoute(directory, file, routePath) {
   );
 }
 
-test('fresh generation is reproducible and matches the committed route tree', async () => {
+test('fresh grouped-dashboard generation is reproducible and preserves the public root URL', async () => {
   await checkGeneratedRoutes(appDirectory);
+  const generated = await readFile(
+    path.join(appDirectory, routerConfig.generatedRouteTree),
+    'utf8',
+  );
+  assert.match(generated, /from ['"]\.\/routes\/\(dashboard\)\/index['"]/);
+  assert.match(generated, /fullPaths: ['"]\/['"]/);
+  assert.doesNotMatch(generated, /['"]\/dashboard\/?['"]/);
 });
 
 test('the generation check rejects deliberately stale committed bytes', async () => {
@@ -99,6 +106,15 @@ test('stories, tests, mocks, and ignored support files are excluded by the share
       'testing/fixture.tsx',
       '-fixture.tsx',
       'nested/mocks/fixture.tsx',
+      '(dashboard)/-components/Fixture/Fixture.tsx',
+      '(dashboard)/-components/Fixture/components/Child/Child.tsx',
+      '(dashboard)/-components/Fixture/contexts/FixtureContext/FixtureContext.tsx',
+      '(dashboard)/-hooks/useFixture/Fixture.tsx',
+      '(dashboard)/-state/fixture.tsx',
+      '(dashboard)/nested/fixture.test.tsx',
+      '(dashboard)/nested/fixture.spec.tsx',
+      '(dashboard)/nested/fixture.stories.tsx',
+      '(dashboard)/nested/mocks/fixture.tsx',
     ];
     for (const [index, file] of ignoredFiles.entries()) {
       await addRoute(directory, file, `/ignored-fixture-${index}`);
@@ -107,10 +123,10 @@ test('stories, tests, mocks, and ignored support files are excluded by the share
   });
 });
 
-test('a new ordinary route makes the unchanged committed tree stale', async () => {
+test('a new nested ordinary route makes the unchanged committed tree stale', async () => {
   await withFixture(async (directory) => {
     await copyAppRoutes(directory);
-    await addRoute(directory, 'generated-probe.tsx', '/generated-probe');
+    await addRoute(directory, 'nested/generated-probe.tsx', '/nested/generated-probe');
     await assert.rejects(checkGeneratedRoutes(directory), /routeTree\.gen\.ts is stale/);
   });
 });

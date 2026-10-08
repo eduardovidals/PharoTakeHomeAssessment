@@ -5,7 +5,7 @@ import { createBrowserHistory } from '@tanstack/react-router';
 import type { RouterHistory } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
 import { createApiClient } from '../api/client';
-import { AppProviders } from './providers/AppProviders';
+import { AppProviders } from './AppProviders';
 import { createAppQueryClient } from './queryClient';
 import { createAppRouter } from './router';
 import type { AppBootstrapOptions, AppInstance } from './types';

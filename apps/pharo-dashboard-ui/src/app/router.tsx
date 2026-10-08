@@ -1,7 +1,10 @@
 import { createRouter } from '@tanstack/react-router';
 import type { RouterHistory } from '@tanstack/react-router';
 import { routeTree } from '../routeTree.gen';
-import { parseDashboardSearch, stringifyDashboardSearch } from './search';
+import {
+  parseDashboardSearch,
+  stringifyDashboardSearch,
+} from '../routes/(dashboard)/-state/search';
 import type { AppRouterContext } from './types';
 
 /** Compose file routes with the cache owned by this application instance. */
