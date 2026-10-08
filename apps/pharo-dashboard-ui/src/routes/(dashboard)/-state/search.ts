@@ -10,6 +10,7 @@ import type {
 
 const noticeMessages = {
   invalid: "The link's instrument selection is invalid.",
+  ignored: 'Invalid instrument identifiers in this link were ignored.',
   limit: 'Only the first three instruments in this link are selected.',
   normalized: "The link's instrument selection was normalized.",
 } as const;
@@ -29,9 +30,11 @@ function normalizeSelection(input: unknown): {
   }
 
   const unique = new Set<string>();
+  let hasInvalid = false;
   for (const token of raw.split(',')) {
     const ticker = normalizeTicker(token);
     if (ticker !== undefined) unique.add(ticker);
+    else hasInvalid = true;
   }
 
   const tickers = [...unique];
@@ -40,6 +43,16 @@ function normalizeSelection(input: unknown): {
   }
 
   const canonical = tickers.slice(0, 3).join(',');
+  if (hasInvalid) {
+    return {
+      search: { tickers: canonical },
+      notice: {
+        kind: 'invalid',
+        message: noticeMessages.ignored + (tickers.length > 3 ? ` ${noticeMessages.limit}` : ''),
+      },
+    };
+  }
+
   const kind = tickers.length > 3 ? 'limit' : raw !== canonical ? 'normalized' : undefined;
 
   return {

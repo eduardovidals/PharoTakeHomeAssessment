@@ -1,4 +1,4 @@
-import { QueryClientProvider, useQueries } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { RenderResult } from '@testing-library/react';
@@ -7,7 +7,7 @@ import { HttpResponse, http } from 'msw';
 import { describe, expect, test } from 'vitest';
 import { createApiClient } from '../../../../../../api/client';
 import type { ApiClient } from '../../../../../../api/types';
-import { pricesKey, pricesQueryOptions } from '../../../../../../api/prices';
+import { PricesApi, pricesKey } from '../../../../../../api/prices';
 import { createAppQueryClient } from '../../../../../../app/queryClient';
 import { server } from '../../../../../../test/mocks/server';
 import { PriceHistory } from './PriceHistory';
@@ -71,9 +71,8 @@ interface HarnessProps {
 }
 
 function Harness(props: HarnessProps) {
-  const queries = useQueries({
-    queries: props.tickers.map((ticker) => pricesQueryOptions(props.client, ticker)),
-  });
+  const queries = PricesApi.useGetPrices(props.client, props.tickers);
+
   const resources = props.tickers.flatMap((ticker, index) => {
     const query = queries[index];
     return query ? [{ ticker, query }] : [];

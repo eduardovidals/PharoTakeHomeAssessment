@@ -21,7 +21,7 @@ describe('the comma-separated selection contract', () => {
     ['?unrelated=AAA', [], undefined],
     ['?tickers=AAA', ['AAA'], undefined],
     ['?tickers=%20aaa%20,BBB,aaa', ['AAA', 'BBB'], 'normalized'],
-    ['?tickers=AAA,,bad%2Fvalue,BBB', ['AAA', 'BBB'], 'normalized'],
+    ['?tickers=AAA,,bad%2Fvalue,BBB', ['AAA', 'BBB'], 'invalid'],
     ['?tickers=AAA,BBB,CCC,DDD,AAA', ['AAA', 'BBB', 'CCC'], 'limit'],
     ['?tickers=UNKNOWN', ['UNKNOWN'], undefined],
     ['?tickers=123', ['123'], undefined],
@@ -104,6 +104,33 @@ describe('the comma-separated selection contract', () => {
       message: "The link's instrument selection is invalid.",
     });
   });
+
+  test.each([
+    ['aaa,,BBB', 'AAA,BBB', ''],
+    ['AAA,%3Cscript%3Eprivate,BBB', 'AAA,BBB', ''],
+    [
+      'AAA,bad%2Fvalue,BBB,CCC,DDD',
+      'AAA,BBB,CCC',
+      ' Only the first three instruments in this link are selected.',
+    ],
+  ])(
+    'explains ignored invalid identifiers while retaining valid selection from %s',
+    (raw, tickers, limit) => {
+      const search = `?tickers=${raw}&view=price`;
+
+      expect(validateDashboardSearch(parseDashboardSearch(search))).toEqual({
+        tickers,
+        view: 'price',
+      });
+      expect(getSelectionNotice(search)).toEqual({
+        kind: 'invalid',
+        message: `Invalid instrument identifiers in this link were ignored.${limit}`,
+      });
+      expect(
+        getSelectionNotice(stringifyDashboardSearch(parseDashboardSearch(search))),
+      ).toBeUndefined();
+    },
+  );
 });
 
 describe('independent explicit chart view and route intentions', () => {

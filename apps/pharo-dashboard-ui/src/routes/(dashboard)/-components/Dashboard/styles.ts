@@ -18,6 +18,8 @@ export const dashboardStyles: Record<DashboardStylePart, string> = {
     'flex min-w-0 items-center gap-pharo-2 break-words text-pharo-lg font-semibold text-pharo-foreground',
   notice:
     'rounded-pharo-control border border-pharo-control-border bg-pharo-surface-quiet px-pharo-3 py-pharo-2 text-pharo-sm text-pharo-foreground',
+  errorNotice:
+    'break-words rounded-pharo-control border border-pharo-error bg-pharo-error-surface px-pharo-3 py-pharo-2 text-pharo-sm text-pharo-error',
   empty:
     'flex flex-col gap-pharo-2 rounded-pharo-card border border-pharo-border bg-pharo-surface p-pharo-4 text-pharo-sm text-pharo-muted',
 };

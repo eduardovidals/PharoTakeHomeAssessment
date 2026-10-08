@@ -1,8 +1,7 @@
 import { useImperativeHandle, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { PharoButton, PharoMultiComboBox } from '@pharo/react-components';
 import type { PharoSelectionAction } from '@pharo/react-components';
-import { instrumentsQueryOptions } from '../../../../../../../../api/instruments';
+import { InstrumentsApi } from '../../../../../../../../api/instruments';
 import { useInstrumentShortcut } from './hooks/useInstrumentShortcut';
 import { appearanceStyles, pickerStyles } from './styles';
 import { rankInstruments, toDashboardAction } from './utils';
@@ -19,7 +18,7 @@ import type { InstrumentPickerProps as Props } from './types';
 export function InstrumentPicker(props: Props) {
   const { apiClient, selectedTickers, appearances, onAction, inputRef: externalInputRef } = props;
 
-  const instruments = useQuery(instrumentsQueryOptions(apiClient));
+  const instruments = InstrumentsApi.useGetInstruments(apiClient);
 
   const [query, setQuery] = useState('');
   const [navigationFailed, setNavigationFailed] = useState(false);

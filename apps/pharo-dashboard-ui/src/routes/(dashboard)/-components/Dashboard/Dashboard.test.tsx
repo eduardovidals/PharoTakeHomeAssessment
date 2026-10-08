@@ -463,7 +463,9 @@ describe('Dashboard URL selection and independently owned resources', () => {
 
     const app = await renderApp({ initialEntries: ['/?tickers=AAA&tickers=BBB'] });
 
-    expect(await app.view.findByText("The link's instrument selection is invalid.")).toBeVisible();
+    expect(await app.view.findByRole('alert')).toHaveTextContent(
+      "The link's instrument selection is invalid.",
+    );
     expect(app.view.queryByRole('table', { name: 'Comparison' })).not.toBeInTheDocument();
 
     await chooseInstrument(app, user, 'CCC');
@@ -475,6 +477,41 @@ describe('Dashboard URL selection and independently owned resources', () => {
     ).not.toBeInTheDocument();
 
     await app.dispose();
+  });
+
+  test('announces missing URL tickers above the workspace and clears errors as they are removed', async () => {
+    const requests = installMarketHandlers();
+    const user = userEvent.setup();
+    const app = await renderApp({ initialEntries: ['/?tickers=AAA,UNKNOWN,MISSING'] });
+
+    try {
+      await waitFor(() =>
+        expect(app.view.getByRole('alert')).toHaveTextContent(
+          'Not in this dataset: UNKNOWN, MISSING.',
+        ),
+      );
+      await waitFor(() =>
+        expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45'),
+      );
+
+      await user.click(app.view.getByRole('button', { name: 'Remove UNKNOWN' }));
+
+      expect(app.view.getByRole('alert')).toHaveTextContent('Not in this dataset: MISSING.');
+      expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'MISSING']);
+
+      await user.click(app.view.getByRole('button', { name: 'Remove MISSING' }));
+
+      expect(app.view.queryByRole('alert')).not.toBeInTheDocument();
+      expect(matrixHeaders(app)).toEqual(['Metric', 'AAA']);
+      expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA');
+      expect(requests.get('instruments')).toBe(1);
+      for (const ticker of ['AAA', 'UNKNOWN', 'MISSING']) {
+        expect(requests.get(`${ticker} prices`)).toBe(1);
+        expect(requests.get(`${ticker} statistics`)).toBe(1);
+      }
+    } finally {
+      await app.dispose();
+    }
   });
 
   test('starts all resources concurrently and settles each without hiding still-pending siblings', async () => {

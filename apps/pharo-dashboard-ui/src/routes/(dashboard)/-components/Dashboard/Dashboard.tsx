@@ -1,6 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { useQueries } from '@tanstack/react-query';
-import { pricesQueryOptions, priceStatsQueryOptions } from '../../../../api/prices';
+import { PricesApi } from '../../../../api/prices';
 import { getSeriesWindows, toChartSeries } from './adapters/priceSeries';
 import { DashboardToolbar } from './components/DashboardToolbar';
 import { ComparisonMatrix } from './components/ComparisonMatrix';
@@ -33,12 +32,14 @@ export function Dashboard(props: Props) {
   const appearances = useSeriesAppearances(selectedTickers);
 
   // Start both resource families together, independent of instrument-list availability.
-  const prices = useQueries({
-    queries: selectedTickers.map((ticker) => pricesQueryOptions(apiClient, ticker)),
-  });
-  const statistics = useQueries({
-    queries: selectedTickers.map((ticker) => priceStatsQueryOptions(apiClient, ticker)),
-  });
+  const prices = PricesApi.useGetPrices(apiClient, selectedTickers);
+
+  const statistics = PricesApi.useGetPriceStats(apiClient, selectedTickers);
+
+  const missingTickers = selectedTickers.filter(
+    (_, index) =>
+      prices[index]?.error?.kind === 'not-found' || statistics[index]?.error?.kind === 'not-found',
+  );
 
   const priceResources = selectedTickers.flatMap((ticker, index) => {
     const query = prices[index];
@@ -84,8 +85,21 @@ export function Dashboard(props: Props) {
       </header>
 
       {selectionNotice && (
-        <p role="status" className={dashboardStyles.notice}>
+        <p
+          role={selectionNotice.kind === 'invalid' ? 'alert' : 'status'}
+          className={
+            selectionNotice.kind === 'invalid'
+              ? dashboardStyles.errorNotice
+              : dashboardStyles.notice
+          }
+        >
           {selectionNotice.message}
+        </p>
+      )}
+      {missingTickers.length > 0 && (
+        <p role="alert" className={dashboardStyles.errorNotice}>
+          Not in this dataset: {missingTickers.join(', ')}. Remove unavailable instruments from your
+          selection.
         </p>
       )}
 

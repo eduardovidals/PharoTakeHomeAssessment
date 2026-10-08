@@ -72,9 +72,8 @@ test.describe('Mobile comparison navigation', () => {
     if (labelLeft === undefined) throw new Error('Metric label is missing.');
     await area.focus();
 
-    const seen = new Set<string>();
-    for (let step = 0; step < 14; step++) {
-      const visible = await area.evaluate((element) => {
+    const visibleTickers = () =>
+      area.evaluate((element) => {
         const right = element.getBoundingClientRect().right;
         const labelRight = element.querySelector('th')?.getBoundingClientRect().right ?? 0;
         return [...element.querySelectorAll('thead th')]
@@ -84,11 +83,17 @@ test.describe('Mobile comparison navigation', () => {
           })
           .map((cell) => cell.textContent?.trim() ?? '');
       });
-      visible.forEach((ticker) => seen.add(ticker));
-      await area.press('ArrowRight');
+
+    for (const ticker of ['TICK0001', 'TICK0002', 'TICK0003']) {
+      await expect
+        .poll(async () => {
+          const visible = await visibleTickers();
+          if (!visible.includes(ticker)) await area.press('ArrowRight');
+          return visible;
+        })
+        .toContain(ticker);
     }
 
-    expect([...seen].sort()).toEqual(['TICK0001', 'TICK0002', 'TICK0003']);
     expect((await metric.boundingBox())?.x).toBeCloseTo(labelLeft, 1);
 
     await area.evaluate((element) => {
@@ -97,18 +102,32 @@ test.describe('Mobile comparison navigation', () => {
     const box = await area.boundingBox();
     if (!box) throw new Error('Scroll area is missing.');
     const session = await page.context().newCDPSession(page);
-    await session.send('Input.synthesizeScrollGesture', {
-      x: box.x + box.width - 20,
-      y: box.y + box.height / 2,
-      xDistance: -180,
-      yDistance: 0,
-      gestureSourceType: 'touch',
-    });
+    const x = box.x + box.width - 20;
+    const y = box.y + box.height / 2;
 
-    await expect.poll(() => area.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
-    expect((await metric.boundingBox())?.x).toBeCloseTo(labelLeft, 1);
+    try {
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x, y }],
+      });
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: x - 60, y }],
+      });
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: x - 180, y }],
+      });
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      });
 
-    await session.detach();
+      await expect.poll(() => area.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      expect((await metric.boundingBox())?.x).toBeCloseTo(labelLeft, 1);
+    } finally {
+      await session.detach();
+    }
   });
 });
 
@@ -294,6 +313,36 @@ test.describe('Share a real historical-data selection', () => {
     });
   }
 
+  test('warns about malformed identifiers in mixed links while retaining valid instruments', async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    const priceRequests = new Set<string>();
+    page.on('request', (request) => {
+      const path = new URL(request.url()).pathname;
+      if (path.startsWith('/api/prices/')) priceRequests.add(path);
+    });
+
+    await page.goto('/?tickers=TICK0001,bad%2Fvalue&view=price');
+
+    const alert = page.getByRole('alert');
+
+    await expect(alert).toHaveText('Invalid instrument identifiers in this link were ignored.');
+    await expect(alert).toBeInViewport();
+    await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
+    await expect
+      .poll(() => priceRequests)
+      .toEqual(new Set(['/api/prices/TICK0001', '/api/prices/TICK0001/stats']));
+    expect(new URL(page.url()).searchParams.get('tickers')).toBe('TICK0001,bad/value');
+    expect(new URL(page.url()).searchParams.get('view')).toBe('price');
+
+    await page.screenshot({ path: testInfo.outputPath('mixed-invalid-link-mobile.png') });
+    await addTicker(page, 'TICK0002');
+
+    await expectSelection(page, ['TICK0001', 'TICK0002']);
+    await expect(alert).toHaveCount(0);
+  });
+
   test('keeps numeric and TRUE-like identifiers selected with actual independent 404 feedback', async ({
     page,
   }, testInfo) => {
@@ -355,10 +404,24 @@ test.describe('Share a real historical-data selection', () => {
     });
   });
 
-  test('returns focus to the actual picker when removing the last missing column', async ({
+  test('warns prominently about unknown URL tickers and restores picker focus after removal', async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.goto('/?tickers=UNKNOWN');
+
+    const alert = page.getByRole('alert');
+
+    await expect(alert).toHaveText(
+      'Not in this dataset: UNKNOWN. Remove unavailable instruments from your selection.',
+    );
+    for (const viewport of [
+      { width: 1366, height: 768 },
+      { width: 320, height: 800 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect(alert).toBeInViewport();
+      await page.screenshot({ path: testInfo.outputPath(`unknown-link-${viewport.width}.png`) });
+    }
 
     const resources = page.getByRole('group', { name: 'UNKNOWN resources', exact: true });
 
@@ -369,6 +432,7 @@ test.describe('Share a real historical-data selection', () => {
       .press('Enter');
 
     await expect.poll(() => new URL(page.url()).searchParams.get('tickers')).toBeNull();
+    await expect(alert).toHaveCount(0);
 
     const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
 
