@@ -7,7 +7,7 @@ import { HttpResponse, http } from 'msw';
 import { describe, expect, test } from 'vitest';
 import { createApiClient } from '../../../../api/client';
 import type { ApiClient } from '../../../../api/types';
-import { pricesQueryOptions } from '../../../../api/prices';
+import { pricesKey, pricesQueryOptions } from '../../../../api/prices';
 import { createAppQueryClient } from '../../../../app/queryClient';
 import { server } from '../../../../test/mocks/server';
 import { PriceHistory } from './PriceHistory';
@@ -58,7 +58,12 @@ class LocalResizeObserver implements ResizeObserver {
   }
 }
 
-function Harness(props: { readonly client: ApiClient; readonly tickers: readonly string[] }) {
+interface HarnessProps {
+  readonly client: ApiClient;
+  readonly tickers: readonly string[];
+}
+
+function Harness(props: HarnessProps) {
   const queries = useQueries({
     queries: props.tickers.map((ticker) => pricesQueryOptions(props.client, ticker)),
   });
@@ -152,7 +157,7 @@ function definition(region: HTMLElement, label: string) {
 }
 
 describe('PriceHistory', () => {
-  test('derives count, UTC range and exact latest close from actual prices and renders the public chart', async () => {
+  test('formats count, UTC range and latest close while preserving exact prices and renders the public chart', async () => {
     let requests = 0;
     server.use(
       http.get(base + '/prices/A', () => {
@@ -163,14 +168,14 @@ describe('PriceHistory', () => {
         ]);
       }),
     );
-    await withHistory(['A'], async ({ view }) => {
+    await withHistory(['A'], async ({ view, cache }) => {
       const region = screen.getByRole('region', { name: 'A prices' });
-      await within(region).findByText('20.123456789', { exact: true });
+      await within(region).findByText('20.12', { exact: true });
       expect(definition(region, 'Observations')).toHaveTextContent(/^2$/);
-      expect(definition(region, 'First date (UTC)')).toHaveTextContent(/^2024-02-29$/);
-      expect(definition(region, 'Latest date (UTC)')).toHaveTextContent(/^2024-03-10$/);
-      expect(definition(region, 'Latest close')).toHaveTextContent(/^20.123456789$/);
-      expect(within(region).getByText('2024-02-29')).toHaveAttribute('datetime', '2024-02-29');
+      expect(definition(region, 'First date (UTC)')).toHaveTextContent(/^Feb 29, 2024$/);
+      expect(definition(region, 'Latest date (UTC)')).toHaveTextContent(/^Mar 10, 2024$/);
+      expect(definition(region, 'Latest close')).toHaveTextContent(/^20\.12$/);
+      expect(within(region).getByText('Feb 29, 2024')).toHaveAttribute('datetime', '2024-02-29');
       measure(view);
       const chart = screen.getByRole('img', { name: 'Historical closing prices' });
       expect(chart).toHaveAttribute('height', '320');
@@ -184,7 +189,12 @@ describe('PriceHistory', () => {
       );
       const table = screen.getByRole('table', { name: 'Data for Historical closing prices' });
       expect(within(table).getAllByRole('rowheader')).toHaveLength(2);
-      expect(within(table).getByRole('cell', { name: '20.123456789' })).toBeVisible();
+      expect(within(table).getByRole('cell', { name: '20.12' })).toBeVisible();
+      expect(cache.getQueryData(pricesKey('A'))).toEqual([
+        { date: '2024-02-29', price: 11.125 },
+        { date: '2024-03-10', price: 20.123456789 },
+      ]);
+      expect(screen.getByText('Feb 29 – Mar 10, 2024 (UTC)', { exact: true })).toBeVisible();
       expect(requests).toBe(1);
     });
   });
@@ -318,7 +328,7 @@ describe('PriceHistory', () => {
       const b = screen.getByRole('region', { name: 'B prices' });
       expect(within(a).getByRole('alert')).toHaveTextContent('Instrument not found.');
       expect(screen.queryByText(/RAW_PRICE_FAILURE_MARKER/)).not.toBeInTheDocument();
-      expect(definition(b, 'Latest close')).toHaveTextContent(/^22$/);
+      expect(definition(b, 'Latest close')).toHaveTextContent(/^22\.00$/);
       expect(within(a).queryByText('Latest close', { exact: true })).not.toBeInTheDocument();
       measure(view);
       const chart = screen.getByRole('img', { name: 'Historical closing prices' });
@@ -326,8 +336,8 @@ describe('PriceHistory', () => {
       await userEvent.click(within(a).getByRole('button', { name: 'Retry A prices' }));
       await screen.findByText('2 of 2 selected histories available.');
       expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
-      expect(definition(a, 'Latest close')).toHaveTextContent(/^11$/);
-      expect(definition(b, 'Latest close')).toHaveTextContent(/^22$/);
+      expect(definition(a, 'Latest close')).toHaveTextContent(/^11\.00$/);
+      expect(definition(b, 'Latest close')).toHaveTextContent(/^22\.00$/);
       expect(requests).toEqual({ A: 2, B: 1 });
     });
   });
@@ -347,7 +357,7 @@ describe('PriceHistory', () => {
     );
     await withHistory(['A'], async ({ cache, view }) => {
       const region = screen.getByRole('region', { name: 'A prices' });
-      await within(region).findByText('22', { exact: true });
+      await within(region).findByText('22.00', { exact: true });
       measure(view);
       const chart = screen.getByRole('img', { name: 'Historical closing prices' });
       const inspector = screen.getByRole('slider', { name: 'Inspect Historical closing prices' });
@@ -360,7 +370,7 @@ describe('PriceHistory', () => {
       await within(region).findByRole('alert');
       expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
       expect(inspector).toHaveValue('1');
-      expect(definition(region, 'Latest close')).toHaveTextContent(/^22$/);
+      expect(definition(region, 'Latest close')).toHaveTextContent(/^22\.00$/);
       expect(screen.queryByText(/REFETCH_PRIVATE_BODY/)).not.toBeInTheDocument();
       await userEvent.click(within(region).getByRole('button', { name: 'Retry A prices' }));
       await waitFor(() => expect(within(region).queryByRole('alert')).not.toBeInTheDocument());
@@ -405,12 +415,12 @@ describe('PriceHistory', () => {
         await started.promise;
         show(['B']);
         const b = screen.getByRole('region', { name: 'B prices' });
-        await within(b).findByText('222', { exact: true });
+        await within(b).findByText('222.00', { exact: true });
         measure(view);
         const chart = screen.getByRole('img', { name: 'Historical closing prices' });
         release.resolve();
         await done.promise;
-        await waitFor(() => expect(definition(b, 'Latest close')).toHaveTextContent(/^222$/));
+        await waitFor(() => expect(definition(b, 'Latest close')).toHaveTextContent(/^222\.00$/));
         expect(screen.queryByRole('region', { name: 'A prices' })).not.toBeInTheDocument();
         expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
         expect(chart.querySelector('[data-series-id="A"]')).not.toBeInTheDocument();

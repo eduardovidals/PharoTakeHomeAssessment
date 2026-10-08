@@ -8,6 +8,12 @@ const march10 = Date.UTC(2024, 2, 10);
 const march11 = Date.UTC(2024, 2, 11);
 const march12 = Date.UTC(2024, 2, 12);
 const march13 = Date.UTC(2024, 2, 13);
+const recordedDates = [10, 11, 13, 14, 18, 19, 21, 25].map((date) => Date.UTC(2024, 2, date));
+const shortDate = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
 const unequalSeries: readonly PharoChartSeries[] = [
   {
     id: 'unequal-north',
@@ -138,6 +144,27 @@ function App() {
           />
         </section>
       </div>
+      <section aria-label="Recorded candidate example" className="min-w-0">
+        <h2 className="mb-pharo-3 text-pharo-lg font-semibold">
+          Recorded dates · Mar 10–25, 2024 (UTC)
+        </h2>
+        <PharoLineChart
+          label="Recorded candidate measurements"
+          series={[
+            {
+              id: 'recorded',
+              label: 'Recorded sensor',
+              points: recordedDates.map((x, index) => ({
+                x,
+                y: index === 2 ? null : 10 + index * 2,
+              })),
+            },
+          ]}
+          xTickValues={recordedDates}
+          formatXAxis={(value) => shortDate.format(value)}
+          yAxisLabel="Recorded level"
+        />
+      </section>
       <section aria-label="Missing measurement example">
         <h2 className="text-pharo-lg font-semibold">Missing observations split the line</h2>
         <PharoLineChart

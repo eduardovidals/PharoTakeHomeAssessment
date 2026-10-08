@@ -17,6 +17,75 @@ function ready(input: readonly PharoChartSeries[], width = 672, height = 320) {
 }
 
 describe('prepareChartGeometry', () => {
+  it('projects sorted recorded candidates through UTC spacing, retaining null records and source data', () => {
+    const input = Object.freeze([
+      series(
+        Object.freeze([
+          { x: 0, y: 10 },
+          { x: day, y: null },
+          { x: 4 * day, y: 20 },
+        ]),
+      ),
+    ]);
+    const candidates = Object.freeze([4 * day, day, 0, -day, 5 * day]);
+    const result = prepareChartGeometry(input, 672, 320, candidates);
+    expect(result.kind).toBe('ready');
+    if (result.kind !== 'ready') throw new Error('Expected candidate geometry.');
+    expect(result.xTicks).toEqual([
+      { value: 0, position: 56 },
+      { value: day, position: 206 },
+      { value: 4 * day, position: 656 },
+    ]);
+    expect(result.series[0]?.path).toBe('M56,272ZM656,16Z');
+    expect(candidates).toEqual([4 * day, day, 0, -day, 5 * day]);
+    expect(input[0]?.points[1]).toEqual({ x: day, y: null });
+  });
+
+  it('distinguishes omitted, empty, singleton and wholly out-of-domain candidates', () => {
+    const input = [
+      series([
+        { x: 0, y: 10 },
+        { x: 4 * day, y: 20 },
+      ]),
+    ];
+    for (const candidates of [[], [-day, 5 * day]]) {
+      expect(prepareChartGeometry(input, 672, 320, candidates)).toMatchObject({
+        kind: 'ready',
+        xTicks: [],
+      });
+    }
+    expect(prepareChartGeometry(input, 672, 320, [day])).toMatchObject({
+      kind: 'ready',
+      xTicks: [{ value: day, position: 206 }],
+    });
+    expect(ready(input).xTicks.length).toBeGreaterThan(0);
+    expect(prepareChartGeometry([series([{ x: day, y: 5 }])], 672, 320, [day])).toMatchObject({
+      kind: 'ready',
+      xTicks: [{ value: day, position: 356 }],
+    });
+  });
+
+  it.each([[0, 0], [NaN], [Infinity], [-Infinity], [0.5], [dateLimit + 1], [-dateLimit - 1]])(
+    'rejects malformed candidate values %j before empty or measured rendering',
+    (...candidates) => {
+      for (const input of [[], [series([{ x: 0, y: 1 }])]]) {
+        expect(prepareChartGeometry(input, 672, 320, candidates)).toMatchObject({
+          kind: 'invalid',
+          reason: 'PHARO-CHART-DATA',
+        });
+      }
+    },
+  );
+
+  it('rejects untyped candidate containers and missing sparse entries safely', () => {
+    const input = [series([{ x: 0, y: 1 }])];
+    // @ts-expect-error Runtime callers may violate the readonly-array contract.
+    expect(prepareChartGeometry(input, 672, 320, '0')).toMatchObject({ kind: 'invalid' });
+    expect(prepareChartGeometry(input, 672, 320, Array<number>(1))).toMatchObject({
+      kind: 'invalid',
+    });
+  });
+
   it('projects literal shared domain endpoints and midpoint with straight segments', () => {
     const result = ready([
       series([

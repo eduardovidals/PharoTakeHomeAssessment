@@ -226,6 +226,36 @@ describe('PharoLineChart', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
+  it('uses short candidate-axis labels without changing detailed dates, data values or native inspection', () => {
+    renderChart({
+      series: unequalObservations,
+      label: 'Recorded candidates',
+      xTickValues: [firstDate, firstDate + 3 * day],
+      formatXAxis: (timestamp) => `Mar ${new Date(timestamp).getUTCDate()}`,
+      formatX: (timestamp) => `Full date ${new Date(timestamp).toISOString().slice(0, 10)}`,
+    });
+    const chart = screen.getByRole('img', { name: 'Recorded candidates' });
+    const axis = within(chart).getByLabelText('UTC time axis');
+    expect([...axis.querySelectorAll('title')].map((title) => title.textContent)).toEqual([
+      'Mar 10',
+      'Mar 13',
+    ]);
+    expect(axis.querySelector('[textLength]')).toBeNull();
+    const slider = screen.getByRole('slider', { name: 'Inspect Recorded candidates' });
+    expect(slider).toHaveAttribute('max', '3');
+    fireEvent.change(slider, { target: { value: '1' } });
+    const details = screen.getByRole('region', { name: 'Details for Recorded candidates' });
+    expect(details).toHaveTextContent('Full date 2024-03-11');
+    expect(details).toHaveTextContent('Unavailable');
+    expect(details).toHaveTextContent('20');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show data table for Recorded candidates' }),
+    );
+    const table = screen.getByRole('table', { name: 'Data for Recorded candidates' });
+    expect(within(table).getAllByRole('rowheader')).toHaveLength(4);
+    expect(within(table).getByRole('rowheader', { name: 'Full date 2024-03-12' })).toBeVisible();
+  });
+
   it('keeps both endpoint dates readable at 256 pixels and restores the middle date when widened', () => {
     const view = renderChart({ series: observations, label: 'Narrow date labels' });
     const chart = screen.getByRole('img', { name: 'Narrow date labels' });

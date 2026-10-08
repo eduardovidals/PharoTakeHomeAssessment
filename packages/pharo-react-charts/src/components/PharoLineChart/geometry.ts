@@ -17,6 +17,7 @@ export function prepareChartGeometry(
   series: readonly PharoChartSeries[],
   width: number,
   height: number,
+  xTickValues?: readonly number[],
 ): ChartGeometry {
   const invalidData: ChartGeometry = {
     kind: 'invalid',
@@ -29,6 +30,13 @@ export function prepareChartGeometry(
     message: 'Chart values cannot be represented safely.',
   };
   if (!Array.isArray(series) || series.length > 3) return invalidData;
+  if (
+    xTickValues !== undefined &&
+    (!Array.isArray(xTickValues) ||
+      [...xTickValues].some((value) => !Number.isInteger(value) || Math.abs(value) > dateLimit) ||
+      new Set(xTickValues).size !== xTickValues.length)
+  )
+    return invalidData;
   const ids = new Set<string>();
   const explicitAppearances = new Set<string>();
   let minX = Infinity;
@@ -124,9 +132,17 @@ export function prepareChartGeometry(
     // projection and recorded observations remain unchanged.
     const calendarSafe =
       new Date(minX).getUTCFullYear() >= 0 && new Date(maxX).getUTCFullYear() <= 9999;
-    xTicks = calendarSafe
-      ? xScale.ticks(xTickCount).map((date) => ({ value: date.getTime(), position: xScale(date) }))
-      : xDomain.map((value) => ({ value, position: xScale(value) }));
+    xTicks =
+      xTickValues !== undefined
+        ? [...xTickValues]
+            .filter((value) => value >= minX && value <= maxX)
+            .sort((a, b) => a - b)
+            .map((value) => ({ value, position: xScale(value) }))
+        : calendarSafe
+          ? xScale
+              .ticks(xTickCount)
+              .map((date) => ({ value: date.getTime(), position: xScale(date) }))
+          : xDomain.map((value) => ({ value, position: xScale(value) }));
     yTicks = yScale.ticks(yTickCount).map((value) => ({ value, position: yScale(value) }));
   } catch (error) {
     if (error instanceof RangeError) return invalidDomain;

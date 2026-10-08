@@ -37,4 +37,8 @@ describe('price history chart adapter', () => {
       points: [{ x: 1710028800000, y: 1.000000001 }],
     });
   });
+
+  test('rejects an impossible date if a caller violates the validated API contract', () => {
+    expect(() => toChartSeries('INVALID', [{ date: '2026-02-29', price: 10 }])).toThrow(RangeError);
+  });
 });

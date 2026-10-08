@@ -76,6 +76,10 @@ Each mounted instance owns its observer, selection and appearance history. Obser
 
 `label` is the required accessible SVG name; `description` supplies optional descriptive text. Optional `xAxisLabel` and `yAxisLabel` describe units. `formatX(timestamp)` and `formatY(value)` return display strings. Defaults use UTC dates and full plain-number values, with no currency or data rounding.
 
+Optional `xTickValues` supplies readonly UTC epoch-millisecond candidates. Values must be unique finite integers within JavaScript's Date range. The chart sorts a copy, drops candidates outside its display domain and positions the remaining values through the UTC scale. An empty array intentionally omits x ticks; omission retains automatic generic UTC ticks. Pass the recorded timestamp union when every displayed date must correspond to an observation, including explicit null records. Tick choices do not change the data, inspection timeline or table.
+
+`formatXAxis(timestamp)` can provide a short axis label while `formatX` continues to provide complete detail and table text. It falls back to `formatX` when omitted. The measured plot width and formatted label budget select a readable subset: first/last candidates remain when both fit, with fewer labels at narrow widths. X-axis text is never compressed with SVG `textLength`; full strings remain in titles when long labels need ellipsis.
+
 Axes compact long labels and omit overlapping ticks; identical formatted x labels retain their first coordinate. SVG titles preserve complete axis strings. Details and the table use complete formatter output and recorded values. Formatter exceptions propagate, so callbacks should handle the valid domain they receive.
 
 ## Inspect recorded data

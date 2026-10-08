@@ -93,7 +93,10 @@ describe('Dashboard URL selection and independently owned resources', () => {
     const firstPrices = within(app.view.getByRole('region', { name: 'AAA prices' }));
     expect(await firstPrices.findByText('123.45', { exact: true })).toBeVisible();
     expect(firstPrices.getByText('2', { exact: true })).toBeVisible();
-    expect(firstPrices.getByText('2024-03-11', { exact: true })).toBeVisible();
+    expect(firstPrices.getByText('Mar 11, 2024', { exact: true })).toHaveAttribute(
+      'datetime',
+      '2024-03-11',
+    );
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA');
 
     // Row removal toggles its action without losing focus; adding again uses cached data.

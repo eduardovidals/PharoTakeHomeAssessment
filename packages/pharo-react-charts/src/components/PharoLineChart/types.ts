@@ -35,6 +35,10 @@ export interface PharoLineChartProps {
   readonly yAxisLabel?: string;
   /** Formats UTC timestamps; identical tick labels retain their first coordinate. */
   readonly formatX?: (timestamp: number) => string;
+  /** Optional short axis formatter; details and table retain formatX during migration. */
+  readonly formatXAxis?: (timestamp: number) => string;
+  /** Unique integer UTC candidates; sorted copies in the data domain retain real time spacing. */
+  readonly xTickValues?: readonly number[];
   /** Formats numeric values; defaults to plain numbers without currency. */
   readonly formatY?: (value: number) => string;
   /** Layout overrides apply to the actual measured container. */
@@ -58,6 +62,8 @@ export interface ChartAxisLabel extends ChartTick {
   readonly label: string;
   /** Compact visible string; observations and the complete label stay unchanged. */
   readonly text: string;
+  /** SVG alignment chosen to keep endpoint labels within the measured plot. */
+  readonly anchor: 'start' | 'middle' | 'end';
   /** Conservative pixel width used to prevent adjacent x-axis label overlap. */
   readonly width: number;
 }
@@ -109,7 +115,7 @@ export interface ReadyChartGeometry {
   readonly xDomain: readonly [number, number];
   /** Shared increasing numerical domain, padded when all values are equal. */
   readonly yDomain: readonly [number, number];
-  /** Finite UTC ticks; extended-year ranges use validated domain endpoints. */
+  /** Validated caller UTC candidates, or automatic ticks when candidates are omitted. */
   readonly xTicks: readonly ChartTick[];
   /** Finite numerical ticks with a bounded requested count. */
   readonly yTicks: readonly ChartTick[];

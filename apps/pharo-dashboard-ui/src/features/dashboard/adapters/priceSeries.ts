@@ -1,5 +1,6 @@
 import type { PharoChartSeries } from '@pharo/react-charts';
 import type { PriceSeries } from '../../../api/prices';
+import { toUtcTimestamp } from '../../../utils/date';
 
 /**
  * Map validated DateOnly closes to UTC observations without changing their prices.
@@ -13,7 +14,7 @@ export function toChartSeries(ticker: string, points: PriceSeries): PharoChartSe
     id: ticker,
     label: ticker,
     points: points.map((point) => ({
-      x: Date.parse(point.date + 'T00:00:00.000Z'),
+      x: toUtcTimestamp(point.date),
       y: point.price,
     })),
   };

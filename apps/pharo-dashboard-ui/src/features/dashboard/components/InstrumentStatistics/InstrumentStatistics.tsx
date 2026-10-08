@@ -1,16 +1,7 @@
 import { PharoButton, PharoSpinner } from '@pharo/react-components';
 import { statisticsStyles } from './styles';
 import type { InstrumentStatisticsProps as Props } from './types';
-
-const percentage = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-const signedPercentage = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-  signDisplay: 'exceptZero',
-});
+import { formatPercentage, formatSignedPercentage } from '../../../../utils/number';
 
 /**
  * Present supplied percentage-point statistics without changing cached values.
@@ -50,7 +41,7 @@ export function InstrumentStatistics(props: Props) {
           <div className={statisticsStyles.metric}>
             <dt className={statisticsStyles.label}>Total return</dt>
             <dd className={statisticsStyles.value}>
-              {signedPercentage.format(query.data.totalReturnPercent)}%
+              {formatSignedPercentage(query.data.totalReturnPercent)}
               <p className={statisticsStyles.explanation}>First to last observation</p>
             </dd>
           </div>
@@ -59,14 +50,14 @@ export function InstrumentStatistics(props: Props) {
             <dd className={statisticsStyles.value}>
               {query.data.dailyVolatilityPercent === null
                 ? 'Not enough observations'
-                : `${percentage.format(query.data.dailyVolatilityPercent)}%`}
+                : formatPercentage(query.data.dailyVolatilityPercent)}
               <p className={statisticsStyles.explanation}>Sample deviation of daily returns</p>
             </dd>
           </div>
           <div className={statisticsStyles.metric}>
             <dt className={statisticsStyles.label}>Maximum drawdown</dt>
             <dd className={statisticsStyles.value}>
-              {percentage.format(query.data.maxDrawdownPercent)}%
+              {formatPercentage(query.data.maxDrawdownPercent)}
               <p className={statisticsStyles.explanation}>Largest peak-to-trough decline</p>
             </dd>
           </div>

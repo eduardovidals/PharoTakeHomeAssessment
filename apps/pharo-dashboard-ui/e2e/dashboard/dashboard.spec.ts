@@ -2,6 +2,18 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { Page, Request } from '@playwright/test';
 
+const dateLabel = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+const priceLabel = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 async function expectContainedDocument(page: Page) {
   // e2e-locator: document dimensions distinguish local table scrolling from page overflow.
   expect(
@@ -151,7 +163,7 @@ test.describe('Browse and inspect historical instruments', () => {
       await expect(statistics.getByText(explanation, { exact: true })).toBeVisible();
     }
     const prices = page.getByRole('region', { name: 'TICK0001 prices', exact: true });
-    for (const value of ['30', '2026-06-23', '2026-08-03', '172.89']) {
+    for (const value of ['30', 'Jun 23, 2026', 'Aug 3, 2026', '172.89']) {
       await expect(prices.getByText(value, { exact: true })).toBeVisible();
     }
     const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
@@ -160,16 +172,16 @@ test.describe('Browse and inspect historical instruments', () => {
     // e2e-locator: the SVG series path proves actual line geometry for the selected identity.
     const line = chart.locator('[data-series-id="TICK0001"] path');
     await expect(line).toHaveAttribute('d', /^M.*L/);
-    await expect(line).toHaveCSS('stroke', 'rgb(0, 61, 135)');
+    await expect(line).toHaveCSS('stroke', 'rgb(37, 99, 235)');
     const inspector = page.getByRole('slider', { name: 'Inspect Historical closing prices' });
     const details = page.getByRole('region', { name: 'Details for Historical closing prices' });
     await inspector.press('Home');
-    await expect(details.getByText('2026-06-23', { exact: true })).toBeVisible();
+    await expect(details.getByText('Tue, Jun 23, 2026', { exact: true })).toBeVisible();
     await expect(details.getByText('190.34', { exact: true })).toBeVisible();
     await inspector.press('End');
     await expect(inspector).toBeFocused();
     await expect(inspector).toHaveCSS('outline', 'rgb(0, 111, 166) solid 3px');
-    await expect(details.getByText('2026-08-03', { exact: true })).toBeVisible();
+    await expect(details.getByText('Mon, Aug 3, 2026', { exact: true })).toBeVisible();
     await expect(details.getByText('172.89', { exact: true })).toBeVisible();
 
     const selector = page.getByRole('region', { name: 'Available instruments', exact: true });
@@ -186,10 +198,10 @@ test.describe('Browse and inspect historical instruments', () => {
     const table = page.getByRole('table', { name: 'Data for Historical closing prices' });
     await expect(table.getByRole('columnheader')).toHaveText(['Date (UTC)', 'TICK0001']);
     await expect(table.getByRole('rowheader')).toHaveText(
-      expectedPrices.map((point) => point.date),
+      expectedPrices.map((point) => dateLabel.format(new Date(`${point.date}T00:00:00.000Z`))),
     );
     await expect(table.getByRole('cell')).toHaveText(
-      expectedPrices.map((point) => String(point.price)),
+      expectedPrices.map((point) => priceLabel.format(point.price)),
     );
 
     await page.setViewportSize({ width: 768, height: 1024 });
@@ -239,7 +251,7 @@ test.describe('Inspect prices on a narrow touch screen', () => {
     expect(box.width).toBeGreaterThan(200);
     await chart.tap({ position: { x: box.width - 20, y: 160 } });
     const details = page.getByRole('region', { name: 'Details for Historical closing prices' });
-    await expect(details.getByText('2026-08-03', { exact: true })).toBeVisible();
+    await expect(details.getByText('Mon, Aug 3, 2026', { exact: true })).toBeVisible();
     await expect(details.getByText('172.89', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Show data table for Historical closing prices' }).tap();
     const tableRegion = page.getByRole('region', {

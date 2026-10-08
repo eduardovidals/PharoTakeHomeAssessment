@@ -2,6 +2,18 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { Page, Request, Route } from '@playwright/test';
 
+const dateLabel = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+const priceLabel = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 interface Observation {
   date: string;
   price: number;
@@ -105,7 +117,7 @@ test.describe('Compare independently cached historical instruments', () => {
         ).toBeVisible();
       }
       const appearances = ['primary', 'secondary', 'tertiary'];
-      const strokes = ['rgb(0, 61, 135)', 'rgb(0, 122, 155)', 'rgb(153, 98, 0)'];
+      const strokes = ['rgb(37, 99, 235)', 'rgb(124, 58, 237)', 'rgb(180, 83, 9)'];
       const patterns = ['none', '8px, 4px', '2px, 4px'];
       for (const [index, ticker] of tickers.entries()) {
         // e2e-locator: stable public SVG identities associate actual paths and appearances with each ticker.
@@ -124,12 +136,14 @@ test.describe('Compare independently cached historical instruments', () => {
       await expect(table.getByRole('columnheader')).toHaveText(['Date (UTC)', ...tickers]);
       const dates = expected[0]?.map((point) => point.date) ?? [];
       expect(dates).toHaveLength(30);
-      await expect(table.getByRole('rowheader')).toHaveText(dates);
+      await expect(table.getByRole('rowheader')).toHaveText(
+        dates.map((date) => dateLabel.format(new Date(`${date}T00:00:00.000Z`))),
+      );
       const cells = dates.flatMap((date) =>
         expected.map((points) => {
           const point = points.find((candidate) => candidate.date === date);
           if (!point) throw new Error('Expected a recorded CSV value for each comparison date.');
-          return String(point.price);
+          return priceLabel.format(point.price);
         }),
       );
       await expect(table.getByRole('cell')).toHaveText(cells);
@@ -275,13 +289,17 @@ test.describe('Compare independently cached historical instruments', () => {
       await page.getByRole('button', { name: 'Remove selected TICK0001', exact: true }).click();
       await page.getByRole('button', { name: 'Add TICK0002', exact: true }).click();
       const second = page.getByRole('region', { name: 'TICK0002 prices', exact: true });
-      await expect(second.getByText(String(latest.price), { exact: true })).toBeVisible();
+      await expect(
+        second.getByText(priceLabel.format(latest.price), { exact: true }),
+      ).toBeVisible();
       await expect
         .poll(() => heldRequest !== undefined && cancelled.includes(heldRequest))
         .toBe(true);
       gate.release();
       await Promise.all(work);
-      await expect(second.getByText(String(latest.price), { exact: true })).toBeVisible();
+      await expect(
+        second.getByText(priceLabel.format(latest.price), { exact: true }),
+      ).toBeVisible();
       await expect(page.getByRole('region', { name: 'TICK0001 prices', exact: true })).toHaveCount(
         0,
       );
@@ -387,7 +405,7 @@ test.describe('Compare independently cached historical instruments', () => {
         throw new AggregateError(failures.splice(0), 'Fault retirement failed.');
       await prices.getByRole('button', { name: 'Retry TICK0001 prices', exact: true }).click();
       await expect(prices.getByText('172.89', { exact: true })).toBeVisible();
-      await expect(prices.getByText('2026-08-03', { exact: true })).toBeVisible();
+      await expect(prices.getByText('Aug 3, 2026', { exact: true })).toBeVisible();
       await expect(
         page.getByRole('img', { name: 'Historical closing prices', exact: true }),
       ).toBeVisible();

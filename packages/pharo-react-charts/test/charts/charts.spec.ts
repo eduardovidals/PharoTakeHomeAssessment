@@ -682,6 +682,129 @@ test.describe('independent built charts', () => {
     await expect(invalid.getByRole('status')).not.toBeEmpty();
   });
 
+  test('recorded candidates keep readable real-date spacing at narrow widths in different timezones', async ({
+    browser,
+  }, testInfo) => {
+    const allowed = [
+      'Mar 10',
+      'Mar 11',
+      'Mar 13',
+      'Mar 14',
+      'Mar 18',
+      'Mar 19',
+      'Mar 21',
+      'Mar 25',
+    ];
+    const observations: Record<string, readonly string[]> = {};
+    for (const timezoneId of ['America/New_York', 'Asia/Tokyo']) {
+      const context = await browser.newContext({ timezoneId });
+      const errors: string[] = [];
+      try {
+        const page = await context.newPage();
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.goto(origin);
+        const example = page.getByRole('region', { name: 'Recorded candidate example' });
+        const chart = example.getByRole('img', { name: 'Recorded candidate measurements' });
+        await expect(chart).toBeVisible();
+        for (const width of [320, 390, 1440]) {
+          await page.setViewportSize({ width, height: 1000 });
+          // e2e-locator: Actual rendered SVG bounds prove label spacing without a DOM simulation.
+          const labels = chart.locator('g[aria-label="UTC time axis"] text');
+          await expect
+            .poll(async () => {
+              const bounds = await chart.boundingBox();
+              const expectedWidth = await example.evaluate((element) => element.clientWidth);
+              return (
+                bounds &&
+                bounds.x + bounds.width <= width &&
+                Number(await chart.getAttribute('width')) === expectedWidth
+              );
+            })
+            .toBe(true);
+          await expect
+            .poll(() =>
+              labels.evaluateAll((elements) =>
+                elements.every((element, index) => {
+                  const previous = elements[index - 1]?.getBoundingClientRect();
+                  return !previous || element.getBoundingClientRect().left >= previous.right + 4;
+                }),
+              ),
+            )
+            .toBe(true);
+          const rendered = await labels.evaluateAll((elements) =>
+            elements.map((element) => ({
+              text: [...element.childNodes]
+                .filter((node) => node.nodeType === Node.TEXT_NODE)
+                .map((node) => node.textContent)
+                .join(''),
+              left: element.getBoundingClientRect().left,
+              right: element.getBoundingClientRect().right,
+              position: Number(element.getAttribute('x')),
+              compressed: element.hasAttribute('textLength'),
+            })),
+          );
+          expect(rendered.length).toBeGreaterThan(1);
+          expect(rendered[0]?.text).toBe('Mar 10');
+          expect(rendered.at(-1)?.text).toBe('Mar 25');
+          expect(rendered.every((item) => allowed.includes(item.text) && !item.compressed)).toBe(
+            true,
+          );
+          const bounds = await chart.boundingBox();
+          if (!bounds) throw new Error('Recorded chart is not visible.');
+          expect(
+            rendered.every(
+              (item) => item.left >= bounds.x && item.right <= bounds.x + bounds.width,
+            ),
+          ).toBe(true);
+          expect(await chart.evaluate((element) => element.outerHTML)).not.toMatch(/NaN|Infinity/);
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          ).toBe(true);
+          observations[`${timezoneId}-${width}`] = rendered.map((item) => item.text);
+          if (width === 1440) {
+            const plotWidth = Number(await chart.getAttribute('width')) - 72;
+            for (const item of rendered) {
+              const daysAfterFirst = Number(item.text.slice(4)) - 10;
+              expect(item.position).toBeCloseTo(56 + (daysAfterFirst / 15) * plotWidth, 5);
+            }
+          }
+          if (timezoneId === 'America/New_York') {
+            await example.screenshot({
+              path: testInfo.outputPath(`recorded-candidates-${width}.png`),
+            });
+          }
+        }
+        const slider = page.getByRole('slider', {
+          name: 'Inspect Recorded candidate measurements',
+        });
+        await slider.press('Home');
+        await slider.press('ArrowRight');
+        await slider.press('ArrowRight');
+        const details = page.getByRole('region', {
+          name: 'Details for Recorded candidate measurements',
+        });
+        await expect(details).toContainText('2024-03-13');
+        await expect(details).toContainText('Unavailable');
+        await expect(details.getByText('2024-03-13', { exact: true })).toHaveAttribute(
+          'datetime',
+          '2024-03-13T00:00:00.000Z',
+        );
+        expect(errors).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    }
+    for (const width of [320, 390, 1440]) {
+      expect(observations[`America/New_York-${width}`]).toEqual(
+        observations[`Asia/Tokyo-${width}`],
+      );
+    }
+    const narrow = observations['America/New_York-320'];
+    const wide = observations['America/New_York-1440'];
+    if (!narrow || !wide) throw new Error('Missing measured candidate labels for comparison.');
+    expect(narrow.length).toBeLessThan(wide.length);
+  });
+
   test('UTC tick dates agree in New York and Tokyo across daylight saving time', async ({
     browser,
   }) => {

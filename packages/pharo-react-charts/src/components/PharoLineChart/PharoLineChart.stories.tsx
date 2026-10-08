@@ -45,6 +45,8 @@ const meta = {
     xAxisLabel: { control: 'text' },
     yAxisLabel: { control: 'text' },
     formatX: { control: false },
+    formatXAxis: { control: false },
+    xTickValues: { control: 'object' },
     formatY: { control: false },
   },
   play: async ({ canvasElement, args }) => {
@@ -59,6 +61,43 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   parameters: {
     docs: { description: { story: 'One series includes negative, zero and positive readings.' } },
+  },
+};
+
+const candidateDates = [10, 11, 13, 18, 21, 25].map((date) => Date.UTC(2024, 2, date));
+const shortDate = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+export const RecordedCandidates: Story = {
+  args: {
+    label: 'Recorded candidate dates',
+    description: 'March 10–25, 2024 (UTC). Only actual recording dates are axis candidates.',
+    series: [
+      {
+        id: 'sensor',
+        label: 'Sensor',
+        points: candidateDates.map((x, index) => ({ x, y: index === 2 ? null : index * 2 })),
+      },
+    ],
+    xTickValues: candidateDates,
+    formatXAxis: (timestamp) => shortDate.format(timestamp),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const chart = await canvas.findByRole('img', { name: args.label });
+    const axis = within(chart).getByLabelText('UTC time axis');
+    const labels = [...axis.querySelectorAll('title')].map((title) => title.textContent);
+    await expect(labels[0]).toBe('Mar 10');
+    await expect(labels.at(-1)).toBe('Mar 25');
+    await expect(axis.querySelector('[textLength]')).toBeNull();
+    await userEvent.click(
+      canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
+    );
+    const table = canvas.getByRole('table', { name: `Data for ${args.label}` });
+    await expect(within(table).getByRole('rowheader', { name: '2024-03-13' })).toBeVisible();
+    await expect(within(table).getAllByRole('rowheader')).toHaveLength(candidateDates.length);
   },
 };
 

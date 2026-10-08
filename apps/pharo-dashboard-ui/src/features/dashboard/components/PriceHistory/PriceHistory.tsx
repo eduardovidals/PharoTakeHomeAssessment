@@ -1,6 +1,16 @@
 import { PharoButton, PharoSpinner } from '@pharo/react-components';
 import { PharoLineChart } from '@pharo/react-charts';
 import { toChartSeries } from '../../adapters/priceSeries';
+import { recordedDateTicks } from '../../adapters/recordedDateTicks';
+import {
+  datesSpanYears,
+  formatDateAxis,
+  formatDateDetail,
+  formatDateRange,
+  formatDateTable,
+  toUtcTimestamp,
+} from '../../../../utils/date';
+import { formatPrice } from '../../../../utils/number';
 import { historyStyles } from './styles';
 import type { PriceHistoryProps as Props } from './types';
 
@@ -18,6 +28,9 @@ export function PriceHistory(props: Props) {
   const series = resources.map((resource) =>
     toChartSeries(resource.ticker, resource.query.data ?? []),
   );
+  const ticks = recordedDateTicks(series);
+  const includeYear = datesSpanYears(ticks.at(0), ticks.at(-1));
+  const formatAxis = (timestamp: number) => formatDateAxis(timestamp, includeYear);
   return (
     <section aria-label="Historical closing prices" className={historyStyles.panel}>
       <h2 className={historyStyles.heading}>Historical closing prices</h2>
@@ -29,12 +42,17 @@ export function PriceHistory(props: Props) {
           <p className={historyStyles.notice}>
             {available} of {resources.length} selected histories available.
           </p>
+          <p className={historyStyles.notice}>{formatDateRange(ticks.at(0), ticks.at(-1))} (UTC)</p>
           <PharoLineChart
             label="Historical closing prices"
             description="Compare actual recorded closing prices; unavailable histories have no observations."
             series={series}
             xAxisLabel="Date (UTC)"
             yAxisLabel="Price"
+            xTickValues={ticks}
+            formatXAxis={formatAxis}
+            formatX={formatDateDetail}
+            formatY={formatPrice}
           />
         </>
       ) : (
@@ -88,18 +106,22 @@ export function PriceHistory(props: Props) {
                     <div>
                       <dt className={historyStyles.label}>First date (UTC)</dt>
                       <dd className={historyStyles.value}>
-                        <time dateTime={first.date}>{first.date}</time>
+                        <time dateTime={first.date}>
+                          {formatDateTable(toUtcTimestamp(first.date))}
+                        </time>
                       </dd>
                     </div>
                     <div>
                       <dt className={historyStyles.label}>Latest date (UTC)</dt>
                       <dd className={historyStyles.value}>
-                        <time dateTime={latest.date}>{latest.date}</time>
+                        <time dateTime={latest.date}>
+                          {formatDateTable(toUtcTimestamp(latest.date))}
+                        </time>
                       </dd>
                     </div>
                     <div>
                       <dt className={historyStyles.label}>Latest close</dt>
-                      <dd className={historyStyles.value}>{latest.price.toString()}</dd>
+                      <dd className={historyStyles.value}>{formatPrice(latest.price)}</dd>
                     </div>
                   </dl>
                 ) : (

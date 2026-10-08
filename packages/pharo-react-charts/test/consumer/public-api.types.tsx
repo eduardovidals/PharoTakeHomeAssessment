@@ -24,6 +24,8 @@ export function TypedConsumer() {
     xAxisLabel: 'UTC date',
     yAxisLabel: 'Degrees',
     formatX: (timestamp) => new Date(timestamp).toISOString().slice(0, 10),
+    formatXAxis: (timestamp) => new Date(timestamp).toISOString().slice(5, 10),
+    xTickValues: Object.freeze([point.x]),
     formatY: (value) => value.toFixed(1),
     className: 'max-w-4xl',
   };
@@ -68,6 +70,18 @@ export function RejectedConsumerContracts() {
         series={series}
         // @ts-expect-error A formatter returns presentation text.
         formatY={(value) => value}
+      />
+      <PharoLineChart
+        label="Invalid candidate dates"
+        series={series}
+        // @ts-expect-error Tick candidates use UTC epoch milliseconds, not Date objects.
+        xTickValues={[new Date()]}
+      />
+      <PharoLineChart
+        label="Invalid short formatter"
+        series={series}
+        // @ts-expect-error Axis formatters return presentation text independently from detail formatting.
+        formatXAxis={(value) => value}
       />
       <PharoLineChart
         label="No application state dependency"

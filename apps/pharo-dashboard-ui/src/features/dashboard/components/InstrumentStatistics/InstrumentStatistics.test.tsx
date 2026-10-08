@@ -24,7 +24,12 @@ function deferred() {
   return { promise, resolve };
 }
 
-function Harness(props: { readonly client: ApiClient; readonly ticker: string }) {
+interface HarnessProps {
+  readonly client: ApiClient;
+  readonly ticker: string;
+}
+
+function Harness(props: HarnessProps) {
   const query = useQuery(priceStatsQueryOptions(props.client, props.ticker));
   return <InstrumentStatistics ticker={props.ticker} query={query} />;
 }
@@ -79,6 +84,7 @@ describe('InstrumentStatistics', () => {
     { returned: 12.3456, expected: '+12.35%' },
     { returned: -12.3456, expected: '-12.35%' },
     { returned: 0, expected: '0.00%' },
+    { returned: -0.0001, expected: '0.00%' },
   ])(
     'shows signed percentage points for return $returned without changing the cache',
     async ({ returned, expected }) => {
