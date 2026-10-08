@@ -1,6 +1,6 @@
 # Pharo Take Home Assessment
 
-A local full-stack dashboard for exploring the supplied synthetic historical prices, built with React and ASP.NET Core. Search all 200 tickers, select up to three, and compare closing prices, price performance, and financial statistics. Compare statistics over the full supplied 30-day window and inspect the underlying observations in an accessible dialog.
+A local full-stack dashboard for exploring the supplied synthetic historical prices, built with React and ASP.NET Core. Search all 200 tickers, select up to three, and compare closing prices, price performance, and financial statistics. Statistics cover all 30 supplied observations per ticker; individual chart points and raw observations remain available for inspection.
 
 ## Tech Stack
 
@@ -134,7 +134,7 @@ Both catalogs work independently of the API:
 
 1. **Find and select instruments.** The **Compare instruments** picker filters the cached list, ranking exact matches before prefixes and other matches. All tickers remain reachable in its scrollable popup. Arrow keys and Enter select a result; Escape closes the popup. Choose up to three, with removable tags and an explanation when the limit is reached.
 2. **Choose Price or Performance.** Price shows recorded closing prices. Performance shows `100 × (price / firstObservedPrice − 1)` for each instrument, using its own first price. This is rebased price change, without corporate-action adjustments. Shared colors and dash patterns connect tags, lines and matrix columns.
-3. **Compare full-period statistics.** The matrix shows each instrument's latest recorded close and total return, daily volatility, and maximum drawdown from the existing statistics endpoint over the supplied 30-day window.
+3. **Compare full-period statistics.** The matrix shows each instrument's latest recorded close and total return, daily volatility, and maximum drawdown from `/api/prices/{ticker}/stats` over all 30 supplied observations.
 4. **Inspect chart observations.** Hover, click/tap, or use the chart's keyboard control to read individual recorded dates and values. Inspection stays within the chart and does not change comparison statistics or request new data.
 5. **Inspect raw observations.** **View data** opens every selected column and recorded row, including in Performance mode. Shared range/count information appears once when histories agree. The dialog scrolls locally, closes with Close or Escape, and restores focus to its trigger.
 
@@ -144,7 +144,7 @@ Selection and an explicitly chosen chart view are shareable:
 /?tickers=TICK0001,TICK0002&view=performance
 ```
 
-Without `view`, zero or one selected ticker defaults to **Price**, and two or three default to **Performance**. An explicit choice survives subsequent selection changes, reload and browser Back/Forward. The date pin is local state: it survives chart-mode changes but resets after clearing all instruments or reloading.
+Without `view`, zero or one selected ticker defaults to **Price**, and two or three default to **Performance**. An explicit choice survives subsequent selection changes, reload and browser Back/Forward. Chart inspection is local to the chart; changing the inspected point or Price/Performance view leaves comparison statistics unchanged.
 
 **Clear search** only resets the draft text. **Clear selection** appears when instruments are selected and removes both the selection and explicit chart view. The Price/Performance control remains available when selection is empty. Press `/` outside editable or modal contexts to focus the picker.
 
@@ -183,10 +183,12 @@ Statistics use **percentage points**: `5` displays as `5.00%`, not `500%`. Volat
 
 - **Backend:** xUnit tests for CSV ingestion, immutable store, startup, HTTP contracts and statistics, including an independent oracle for all supplied tickers.
 - **Frontend:** Vitest, React Testing Library and MSW exercise API validation, Query cancellation/cache/retry behavior, selection, full-period comparison and error states.
-- **Browser:** Playwright runs the compiled dashboard against the real API and checks selection, dates, keyboard/touch/focus, URL navigation, raw data and responsive layouts.
+- **Browser:** Playwright runs the compiled dashboard against the real API and checks instrument selection, chart inspection, keyboard/touch/focus, URL navigation, raw data and responsive layouts. Inspection must leave the latest closes and full-period API statistics unchanged.
 - **Shared packages:** unit tests, executable Storybook scenarios and isolated browser consumers exercise reusable controls and charts.
 
 Run `pnpm validate` for workspace/route-generation checks, lint, types, C# formatting, tests, builds, infrastructure and browser suites through one Nx graph. These are reproducible commands, not a claim that every environment or physical device has been tested.
+
+The full local `pnpm validate` run passed on 2026-10-08 at source commit `c7af484` with exit code 0: all 25 Nx tasks completed successfully with the cache disabled. This records that checkout's local result, not remote CI status.
 
 ## Scope and AI Assistance
 
