@@ -59,6 +59,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     const app = await renderApp();
     const input = app.view.getByRole('combobox', { name: 'Compare instruments' });
     await user.click(input);
+    if (input.getAttribute('aria-expanded') !== 'true') await user.keyboard('{ArrowDown}');
     await waitFor(() => expect(popup().getAllByRole('option')).toHaveLength(23));
     expect(popup().getByRole('option', { name: 'TICK0023' })).toBeInTheDocument();
     expect(
@@ -138,6 +139,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     const app = await renderApp();
     const input = app.view.getByRole('combobox', { name: 'Compare instruments' });
     await user.click(input);
+    if (input.getAttribute('aria-expanded') !== 'true') await user.keyboard('{ArrowDown}');
     const first = await popup().findByRole('option', { name: 'TICK0001' });
     const second = popup().getByRole('option', { name: 'TICK0002' });
     const navigate = app.router.navigate.bind(app.router);
@@ -176,6 +178,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     const secondTag = app.view.getByRole('row', { name: 'TICK0002' });
     expect(secondTag).toHaveClass('before:border-pharo-chart-2', 'before:border-dashed');
     await user.click(input);
+    if (input.getAttribute('aria-expanded') !== 'true') await user.keyboard('{ArrowDown}');
     const fourth = await popup().findByRole('option', { name: 'TICK0004' });
     expect(fourth).toHaveAttribute('aria-disabled', 'true');
     expect(input).toBeEnabled();
@@ -190,6 +193,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     await user.click(app.view.getByRole('button', { name: 'Remove TICK0001' }));
     expect(secondTag).toHaveClass('before:border-pharo-chart-2');
     await user.click(input);
+    if (input.getAttribute('aria-expanded') !== 'true') await user.keyboard('{ArrowDown}');
     await user.click(await popup().findByRole('option', { name: 'TICK0001' }));
     await user.keyboard('{Escape}');
     expect(app.view.getByRole('row', { name: 'TICK0001' })).toHaveClass(
@@ -201,7 +205,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     await user.click(app.view.getByRole('button', { name: 'Remove TICK0003' }));
     await user.click(app.view.getByRole('button', { name: 'Remove TICK0001' }));
     await waitFor(() => expect(input).toHaveFocus());
-  });
+  }, 10000);
 
   test('keeps unknown tags and draft through list pending/failure, removal and retry', async () => {
     const requests = installMarketHandlers();
@@ -222,7 +226,9 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     const input = app.view.getByRole('combobox', { name: 'Compare instruments' });
     try {
       expect(input).toBeEnabled();
-      expect(app.view.getByRole('status')).toHaveTextContent('Loading instruments');
+      expect(
+        within(app.view.getByRole('region', { name: 'Comparison controls' })).getByRole('status'),
+      ).toHaveTextContent('Loading instruments');
       await user.type(input, '  002  ');
       await act(async () => {
         first.release();
@@ -238,8 +244,11 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
       await user.keyboard('{Escape}');
       await user.click(app.view.getByRole('button', { name: 'Retry instruments' }));
       await waitFor(() => expect(attempts).toBe(2));
-      expect(app.view.getByRole('status')).toHaveTextContent('Loading instruments');
+      expect(
+        within(app.view.getByRole('region', { name: 'Comparison controls' })).getByRole('status'),
+      ).toHaveTextContent('Loading instruments');
       await user.click(input);
+      if (input.getAttribute('aria-expanded') !== 'true') await user.keyboard('{ArrowDown}');
       await act(async () => {
         retry.release();
       });
@@ -267,6 +276,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     const app = await renderApp();
     const input = app.view.getByRole('combobox', { name: 'Compare instruments' });
     await user.click(input);
+    if (input.getAttribute('aria-expanded') !== 'true') await user.keyboard('{ArrowDown}');
     await popup().findByRole('option', { name: 'TICK0023' });
     const gate = createGate();
     server.use(

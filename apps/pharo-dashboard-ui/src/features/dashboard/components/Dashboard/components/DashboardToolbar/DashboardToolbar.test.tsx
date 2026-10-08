@@ -1,3 +1,4 @@
+import { createRef } from 'react';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -88,4 +89,19 @@ test('does not reuse the first range or count when available windows differ', ()
   expect(screen.getByText('Recorded windows differ.')).toBeVisible();
   expect(screen.queryByText('2 observations')).not.toBeInTheDocument();
   expect(screen.queryByText('Mar 10 – Mar 11, 2024 (UTC)')).not.toBeInTheDocument();
+});
+
+test('qualifies an available window without implying missing selections share its data', () => {
+  renderToolbar({ selectedTickers: ['AAA', 'UNKNOWN', 'BBB'], windows: [firstWindow] });
+  expect(screen.getByText('Available histories: 1 of 3.')).toBeVisible();
+  expect(screen.getAllByText('Mar 10 – Mar 11, 2024 (UTC)')).toHaveLength(1);
+  expect(screen.getAllByText('2 observations')).toHaveLength(1);
+});
+
+test('exposes the actual editable input through the toolbar and picker ref seam', () => {
+  const pickerInputRef = createRef<HTMLInputElement>();
+  renderToolbar({ pickerInputRef });
+  expect(pickerInputRef.current).toBe(
+    screen.getByRole('combobox', { name: 'Compare instruments' }),
+  );
 });

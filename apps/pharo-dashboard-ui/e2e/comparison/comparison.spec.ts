@@ -32,6 +32,19 @@ declare function __pharoRecordXhrTimeout(value: {
   elapsedMs: number;
 }): Promise<void>;
 
+async function matrixCell(page: Page, ticker: string, metric: string) {
+  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
+  const headers = await table.getByRole('columnheader').allTextContents();
+  const index = headers.findIndex((header) => header.trim() === ticker) - 1;
+  if (index < 0) throw new Error(`Expected a comparison column for ${ticker}.`);
+  const row = table.getByRole('row').filter({
+    has: page.getByRole('rowheader', { name: metric, exact: true }),
+  });
+  // e2e-ordinal: The native column headers establish this URL-selected ticker's value position.
+  return row.getByRole('cell').nth(index);
+}
+
 async function chooseInstrument(page: Page, ticker: string) {
   const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
   await input.fill(ticker);
@@ -117,16 +130,10 @@ test.describe('Compare independently cached historical instruments', () => {
       await page.goto('/?tickers=TICK0001,TICK0002,TICK0003&view=price');
       const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
       await expect(chart).toBeVisible();
+      await ready(page, tickers);
       await expect(
-        page.getByText('3 of 3 selected histories available.', { exact: true }),
-      ).toBeVisible();
-      for (const ticker of tickers) {
-        await expect(
-          page
-            .getByRole('region', { name: `${ticker} statistics`, exact: true })
-            .getByText('Total return', { exact: true }),
-        ).toBeVisible();
-      }
+        page.getByRole('table', { name: 'Comparison', exact: true }).getByRole('columnheader'),
+      ).toHaveText(['Metric', ...tickers]);
       const appearances = ['primary', 'secondary', 'tertiary'];
       const strokes = ['rgb(37, 99, 235)', 'rgb(124, 58, 237)', 'rgb(180, 83, 9)'];
       const patterns = ['none', '8px, 4px', '2px, 4px'];
@@ -164,7 +171,9 @@ test.describe('Compare independently cached historical instruments', () => {
 
       await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click();
       await page.getByRole('button', { name: 'Remove TICK0003', exact: true }).click();
-      await expect(page.getByRole('article')).toHaveCount(1);
+      await expect(
+        page.getByRole('table', { name: 'Comparison', exact: true }).getByRole('columnheader'),
+      ).toHaveText(['Metric', 'TICK0002']);
       // e2e-locator: B is continuously active, so removing its neighbors must not recolor it.
       await expect(chart.locator('[data-series-id="TICK0002"]')).toHaveAttribute(
         'data-appearance',
@@ -172,9 +181,7 @@ test.describe('Compare independently cached historical instruments', () => {
       );
       await chooseInstrument(page, 'TICK0001');
       await chooseInstrument(page, 'TICK0003');
-      await expect(
-        page.getByText('3 of 3 selected histories available.', { exact: true }),
-      ).toBeVisible();
+      await ready(page, tickers);
       await expect(table.getByRole('columnheader')).toHaveText([
         'Date (UTC)',
         'TICK0002',
@@ -198,20 +205,16 @@ test.describe('Compare independently cached historical instruments', () => {
     }
   });
 
-  test('retains successful histories beside a real missing instrument and retries only that resource', async ({
+  test('retains successful histories and cached resources while removing a real missing instrument', async ({
     page,
   }) => {
     const requests = recordRequests(page);
     try {
       await page.goto('/?tickers=TICK0001,UNKNOWN,TICK0002&view=price');
-      await expect(
-        page.getByText('2 of 3 selected histories available.', { exact: true }),
-      ).toBeVisible();
-      const missing = page.getByRole('region', { name: 'UNKNOWN prices', exact: true });
-      await expect(missing.getByRole('alert')).toHaveText('Instrument not found.');
-      await expect(
-        page.getByRole('region', { name: 'UNKNOWN statistics', exact: true }).getByRole('alert'),
-      ).toHaveText('Instrument not found.');
+      await expect(page.getByText('Available histories: 2 of 3.', { exact: true })).toBeVisible();
+      const missing = page.getByRole('group', { name: 'UNKNOWN resources', exact: true });
+      await expect(missing.getByText('Not in this dataset', { exact: true })).toHaveCount(1);
+      await expect(missing.getByRole('button', { name: /Retry/ })).toHaveCount(0);
       const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
       for (const ticker of ['TICK0001', 'TICK0002']) {
         // e2e-locator: a partial comparison retains each successful series' actual path.
@@ -219,11 +222,7 @@ test.describe('Compare independently cached historical instruments', () => {
           'd',
           /^M.*L/,
         );
-        await expect(
-          page
-            .getByRole('region', { name: `${ticker} statistics`, exact: true })
-            .getByText('Total return', { exact: true }),
-        ).toBeVisible();
+        await expect(await matrixCell(page, ticker, 'Total return')).toHaveText(/^-\d+\.\d{2}%$/);
       }
       const legend = page.getByRole('list', { name: 'Legend for Historical closing prices' });
       await expect(legend.getByText('UNKNOWN', { exact: true })).toBeVisible();
@@ -243,16 +242,21 @@ test.describe('Compare independently cached historical instruments', () => {
       ]);
       await expect(table.getByRole('cell', { name: 'Unavailable', exact: true })).toHaveCount(30);
       const loaded = [...requests.paths];
-      await missing.getByRole('button', { name: 'Retry UNKNOWN prices', exact: true }).click();
+      const chartInstance = await chart.elementHandle();
+      if (!chartInstance) throw new Error('Expected the healthy chart instance.');
+      await missing
+        .getByRole('button', { name: 'Remove UNKNOWN from comparison', exact: true })
+        .click();
       await expect
-        .poll(() => requests.paths.filter((path) => path === '/api/prices/UNKNOWN').length)
-        .toBe(2);
-      await expect(missing.getByRole('alert')).toHaveText('Instrument not found.');
-      expect(requests.paths).toEqual([...loaded, '/api/prices/UNKNOWN']);
-      await expect(
-        page.getByText('2 of 3 selected histories available.', { exact: true }),
-      ).toBeVisible();
-      expect(new URL(page.url()).searchParams.get('tickers')).toBe('TICK0001,UNKNOWN,TICK0002');
+        .poll(() => new URL(page.url()).searchParams.get('tickers'))
+        .toBe('TICK0001,TICK0002');
+      const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+      await expect(input).toBeFocused();
+      await input.press('Escape');
+      await expect(missing).toHaveCount(0);
+      await ready(page, ['TICK0001', 'TICK0002']);
+      expect(await chartInstance.evaluate((element) => element.isConnected)).toBe(true);
+      expect(requests.paths).toEqual(loaded);
     } finally {
       requests.stop();
     }
@@ -295,25 +299,28 @@ test.describe('Compare independently cached historical instruments', () => {
       await expect.poll(() => backendReady).toBe(true);
       expect(heldRequest?.resourceType()).toBe('xhr');
       await expect(
-        page.getByRole('progressbar', { name: 'Loading TICK0001 prices' }),
+        page
+          .getByRole('group', { name: 'TICK0001 resources', exact: true })
+          .getByText('Loading prices…', { exact: true }),
       ).toBeVisible();
       await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click();
       await chooseInstrument(page, 'TICK0002');
-      const second = page.getByRole('region', { name: 'TICK0002 prices', exact: true });
-      await expect(
-        second.getByText(priceLabel.format(latest.price), { exact: true }),
-      ).toBeVisible();
+      await expect(await matrixCell(page, 'TICK0002', 'Latest close')).toHaveText(
+        priceLabel.format(latest.price),
+      );
       await expect
         .poll(() => heldRequest !== undefined && cancelled.includes(heldRequest))
         .toBe(true);
       gate.release();
       await Promise.all(work);
-      await expect(
-        second.getByText(priceLabel.format(latest.price), { exact: true }),
-      ).toBeVisible();
-      await expect(page.getByRole('region', { name: 'TICK0001 prices', exact: true })).toHaveCount(
-        0,
+      await expect(await matrixCell(page, 'TICK0002', 'Latest close')).toHaveText(
+        priceLabel.format(latest.price),
       );
+      await expect(
+        page
+          .getByRole('table', { name: 'Comparison', exact: true })
+          .getByRole('columnheader', { name: 'TICK0001', exact: true }),
+      ).toHaveCount(0);
       await expect(page.getByText('Request cancelled.', { exact: true })).toHaveCount(0);
       expect(new URL(page.url()).searchParams.get('tickers')).toBe('TICK0002');
       const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
@@ -390,13 +397,14 @@ test.describe('Compare independently cached historical instruments', () => {
       );
     try {
       await page.goto('/?tickers=TICK0001');
-      const statistics = page.getByRole('region', { name: 'TICK0001 statistics', exact: true });
-      await expect(statistics.getByRole('definition').filter({ hasText: '-9.17%' })).toBeVisible();
+      await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
       const failed = await failedRequest;
       if (failed.error !== undefined) throw failed.error;
       expect(failed.request).toBe(faultRequests[2]);
-      const prices = page.getByRole('region', { name: 'TICK0001 prices', exact: true });
-      await expect(prices.getByRole('alert')).toHaveText('The request timed out.');
+      const prices = page.getByRole('group', { name: 'TICK0001 resources', exact: true });
+      await expect(
+        prices.getByText('Prices: The request timed out.', { exact: true }),
+      ).toBeVisible();
       expect(faultRequests.map((request) => request.resourceType())).toEqual(['xhr', 'xhr', 'xhr']);
       await expect.poll(() => timeouts.length).toBe(1);
       expect(timeouts).toEqual([{ configuredTimeout: 10000, elapsedMs: expect.any(Number) }]);
@@ -414,13 +422,16 @@ test.describe('Compare independently cached historical instruments', () => {
       faultRetired = true;
       if (failures.length > 0)
         throw new AggregateError(failures.splice(0), 'Fault retirement failed.');
-      await prices.getByRole('button', { name: 'Retry TICK0001 prices', exact: true }).click();
-      await expect(prices.getByText('172.89', { exact: true })).toBeVisible();
-      await expect(prices.getByText('Aug 3, 2026', { exact: true })).toBeVisible();
+      await prices
+        .getByRole('button', { name: 'Retry TICK0001 prices', exact: true })
+        .press('Enter');
+      await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
+      await expect(page.getByText('Jun 23 – Aug 3, 2026 (UTC)', { exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Comparison', exact: true })).toBeFocused();
       await expect(
         page.getByRole('img', { name: 'Historical closing prices', exact: true }),
       ).toBeVisible();
-      await expect(statistics.getByRole('definition').filter({ hasText: '-9.17%' })).toBeVisible();
+      await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
       expect(requests.paths.filter((path) => path === '/api/prices/TICK0001')).toHaveLength(4);
       expect(requests.paths.filter((path) => path === '/api/prices/TICK0001/stats')).toHaveLength(
         1,
@@ -437,20 +448,82 @@ test.describe('Compare independently cached historical instruments', () => {
     if (failures.length > 0)
       throw new AggregateError(failures, 'Native XHR timeout scenario failed.');
   });
+
+  test('retains keyboard retry focus while statistics recover without replacing healthy prices', async ({
+    page,
+  }, testInfo) => {
+    const target = '**/api/prices/TICK0001/stats';
+    const gate = createGate();
+    const work: Promise<void>[] = [];
+    const failures: unknown[] = [];
+    const requests = recordRequests(page);
+    let fail = true;
+    let recoveryReady = false;
+    const handler = (route: Route) => {
+      const pending = (async () => {
+        if (fail) {
+          await route.fulfill({ status: 500, json: { title: 'Deliberate statistics fault' } });
+          return;
+        }
+        const response = await route.fetch();
+        try {
+          expect(response.status()).toBe(200);
+          recoveryReady = true;
+          await gate.promise;
+          await route.fulfill({ response });
+        } finally {
+          await response.dispose();
+        }
+      })();
+      work.push(pending);
+      return pending;
+    };
+    await page.route(target, handler);
+    try {
+      await page.goto('/?tickers=TICK0001');
+      await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
+      const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
+      const instance = await chart.elementHandle();
+      if (!instance) throw new Error('Expected the healthy chart instance.');
+      const retry = page.getByRole('button', { name: 'Retry TICK0001 statistics', exact: true });
+      await expect(retry).toBeVisible();
+      const loaded = [...requests.paths];
+      expect(loaded.filter((path) => path === '/api/prices/TICK0001/stats')).toHaveLength(3);
+      fail = false;
+      await retry.press('Enter');
+      const pending = page.getByRole('button', {
+        name: 'Retrying TICK0001 statistics',
+        exact: true,
+      });
+      await expect.poll(() => recoveryReady).toBe(true);
+      await expect(pending).toBeFocused();
+      await expect(pending).toHaveAttribute('aria-disabled', 'true');
+      await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
+      expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath('statistics-retry-retains-focus.png'),
+        fullPage: true,
+      });
+      gate.release();
+      await ready(page, ['TICK0001']);
+      await expect(page.getByRole('heading', { name: 'Comparison', exact: true })).toBeFocused();
+      expect(requests.paths).toEqual([...loaded, '/api/prices/TICK0001/stats']);
+      expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      requests.stop();
+      await retireFault(page, target, handler, gate, work, failures);
+    }
+    if (failures.length > 0)
+      throw new AggregateError(failures, 'Statistics retry focus scenario failed.');
+  });
 });
 
 async function ready(page: Page, tickers: readonly string[]) {
   for (const ticker of tickers) {
-    await expect(
-      page
-        .getByRole('region', { name: `${ticker} prices`, exact: true })
-        .getByText('Latest close', { exact: true }),
-    ).toBeVisible();
-    await expect(
-      page
-        .getByRole('region', { name: `${ticker} statistics`, exact: true })
-        .getByText('Total return', { exact: true }),
-    ).toBeVisible();
+    await expect(await matrixCell(page, ticker, 'Latest close')).toHaveText(/^[\d,]+\.\d{2}$/);
+    await expect(await matrixCell(page, ticker, 'Total return')).toHaveText(/^[+−-]?\d+\.\d{2}%$/);
   }
 }
 
@@ -465,7 +538,9 @@ async function expectIdentity(
   const chip = page
     .getByRole('grid', { name: 'Selected items', exact: true })
     .getByRole('row', { name: ticker, exact: true });
-  const heading = page.getByRole('heading', { name: ticker, exact: true });
+  const heading = page
+    .getByRole('table', { name: 'Comparison', exact: true })
+    .getByRole('columnheader', { name: ticker, exact: true });
   // e2e-locator: The tag's decorative pseudo-element uses the same token color and a non-color line pattern.
   const mark = await chip.evaluate((element) => {
     const style = element.ownerDocument.defaultView?.getComputedStyle(element, '::before');
@@ -480,8 +555,7 @@ async function expectIdentity(
     pattern: appearance === 'primary' ? 'solid' : appearance === 'secondary' ? 'dashed' : 'dotted',
     width: '2px',
   });
-  await expect(heading).toHaveAttribute('data-appearance', appearance);
-  // e2e-locator: Explicit series identity links actual plotted paths to the matching named chip and heading.
+  // e2e-locator: Explicit series identity links actual plotted paths to the matching named chip and matrix column.
   const plotted = page
     .getByRole('img', { name: label, exact: true })
     .locator(`[data-series-id="${ticker}"]`);
@@ -527,6 +601,10 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     await ready(page, ['TICK0001', 'TICK0002', 'TICK0003']);
     const loaded = [...requests];
     expect(loaded).toHaveLength(7);
+    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+    const fullWindowValues = await matrix.getByRole('cell').allTextContents();
+    await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
+    await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText(returnLabel);
     await expectIdentity(
       page,
       'Rebased price change',
@@ -565,6 +643,7 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
       page.getByRole('slider', { name: 'Inspect Rebased price change', exact: true }),
     ).toHaveValue('1');
     expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
+    await expect(matrix.getByRole('cell')).toHaveText(fullWindowValues);
     await page
       .getByRole('button', { name: 'Show data table for Rebased price change', exact: true })
       .click();
@@ -644,8 +723,10 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     await expect(choice.getByRole('radio', { name: 'Performance', exact: true })).toBeChecked();
     await expect(page.getByRole('button', { name: 'Remove UNKNOWN', exact: true })).toBeVisible();
     await expect(
-      page.getByRole('region', { name: 'UNKNOWN prices', exact: true }).getByRole('alert'),
-    ).toHaveText('Instrument not found.');
+      page
+        .getByRole('group', { name: 'UNKNOWN resources', exact: true })
+        .getByText('Not in this dataset', { exact: true }),
+    ).toBeVisible();
     const chart = page.getByRole('img', { name: 'Rebased price change', exact: true });
     // e2e-locator: An unavailable selected identity must not gain a fabricated zero-valued line.
     await expect(chart.locator('[data-series-id="UNKNOWN"] path')).toHaveCount(0);

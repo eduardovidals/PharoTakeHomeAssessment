@@ -29,11 +29,8 @@ export type DashboardStylePart =
   | 'descriptor'
   | 'heading'
   | 'subheading'
-  | 'ticker'
   | 'analysis'
   | 'selectionHeading'
-  | 'selection'
-  | 'article'
   | 'notice'
-  | 'error'
+  | 'workspace'
   | 'empty';

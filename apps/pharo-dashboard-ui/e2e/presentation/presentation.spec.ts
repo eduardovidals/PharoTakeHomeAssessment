@@ -1,11 +1,25 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const shortDate = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
   timeZone: 'UTC',
 });
+
+async function matrixCell(page: Page, ticker: string, metric: string) {
+  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
+  const headers = await table.getByRole('columnheader').allTextContents();
+  const index = headers.findIndex((header) => header.trim() === ticker) - 1;
+  if (index < 0) throw new Error(`Expected a comparison column for ${ticker}.`);
+  const row = table.getByRole('row').filter({
+    has: page.getByRole('rowheader', { name: metric, exact: true }),
+  });
+  // e2e-ordinal: The native column headers establish this URL-selected ticker's value position.
+  return row.getByRole('cell').nth(index);
+}
 
 async function recordedPrices() {
   const csv = await readFile(
@@ -50,22 +64,8 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
         );
         await page.goto('/?tickers=TICK0001');
         expect(await (await response).json()).toEqual(expected);
-        const prices = page.getByRole('region', { name: 'TICK0001 prices', exact: true });
-        await expect(prices.getByText('Jun 23, 2026', { exact: true })).toHaveAttribute(
-          'datetime',
-          '2026-06-23',
-        );
-        await expect(prices.getByText('Aug 3, 2026', { exact: true })).toHaveAttribute(
-          'datetime',
-          '2026-08-03',
-        );
         await expect(page.getByText('Jun 23 – Aug 3, 2026 (UTC)', { exact: true })).toBeVisible();
-        await expect(
-          page
-            .getByRole('region', { name: 'TICK0001 statistics', exact: true })
-            .getByRole('definition')
-            .filter({ hasText: '-9.17%' }),
-        ).toBeVisible();
+        await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
         const before = [...requests];
         const inspector = page.getByRole('slider', { name: 'Inspect Historical closing prices' });
         const details = page.getByRole('region', { name: 'Details for Historical closing prices' });
@@ -106,6 +106,10 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
         await expect(
           table.getByRole('row', { name: 'Tuesday, June 23, 2026 190.34', exact: true }),
         ).toBeVisible();
+        await expect(table.getByText('Aug 3, 2026', { exact: true })).toHaveAttribute(
+          'datetime',
+          '2026-08-03T00:00:00.000Z',
+        );
         expect(requests).toEqual(before);
         expect(failures).toEqual([]);
       } finally {

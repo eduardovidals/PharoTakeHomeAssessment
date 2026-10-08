@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import type { PharoChartAppearance } from '@pharo/react-charts';
 import type { ApiClient } from '../../../../../../api/types';
 import type {
@@ -19,6 +20,8 @@ export interface DashboardToolbarProps {
   readonly appearances: ReadonlyMap<string, PharoChartAppearance>;
   /** Available recorded histories; missing resources do not fabricate window context. */
   readonly windows: readonly SeriesWindow[];
+  /** The actual editable input exposed to Dashboard for action focus restoration. */
+  readonly pickerInputRef?: Ref<HTMLInputElement>;
   /** Route-owned intention queue shared by picker and chart view. */
   readonly onAction: (action: DashboardAction) => Promise<DashboardActionOutcome>;
 }

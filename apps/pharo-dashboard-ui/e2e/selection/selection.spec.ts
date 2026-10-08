@@ -1,6 +1,19 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
+async function matrixCell(page: Page, ticker: string, metric: string) {
+  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
+  const headers = await table.getByRole('columnheader').allTextContents();
+  const index = headers.findIndex((header) => header.trim() === ticker) - 1;
+  if (index < 0) throw new Error(`Expected a comparison column for ${ticker}.`);
+  const row = table.getByRole('row').filter({
+    has: page.getByRole('rowheader', { name: metric, exact: true }),
+  });
+  // e2e-ordinal: The native column headers establish this URL-selected ticker's value position.
+  return row.getByRole('cell').nth(index);
+}
+
 async function addTicker(page: Page, ticker: string) {
   const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
   await input.fill(ticker);
@@ -19,13 +32,9 @@ async function expectSelection(page: Page, tickers: readonly string[]) {
   await expect
     .poll(() => new URL(page.url()).searchParams.get('tickers') ?? '')
     .toBe(tickers.join(','));
-  const selected = page.getByRole('region', { name: 'Selected instruments', exact: true });
-  await expect(selected.getByRole('article')).toHaveCount(tickers.length);
-  for (const ticker of tickers) {
-    await expect(
-      selected.getByRole('article', { name: `${ticker} market data`, exact: true }),
-    ).toBeVisible();
-  }
+  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  if (tickers.length === 0) await expect(table).toHaveCount(0);
+  else await expect(table.getByRole('columnheader')).toHaveText(['Metric', ...tickers]);
 }
 
 // This lane uses the compiled application and the actual owned C# process/CSV.
@@ -54,27 +63,14 @@ test.describe('Share a real historical-data selection', () => {
     ).toBeVisible();
     await addTicker(page, 'TICK0001');
     await expectSelection(page, ['TICK0001']);
-    const firstPrices = page.getByRole('region', { name: 'TICK0001 prices', exact: true });
-    await expect(firstPrices.getByText('30', { exact: true })).toBeVisible();
-    await expect(firstPrices.getByText('Aug 3, 2026', { exact: true })).toBeVisible();
-    await expect(firstPrices.getByText('172.89', { exact: true })).toBeVisible();
-    await expect(
-      page
-        .getByRole('region', { name: 'TICK0001 statistics' })
-        .getByText('Total return', { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText('30 observations', { exact: true })).toBeVisible();
+    await expect(page.getByText('Jun 23 – Aug 3, 2026 (UTC)', { exact: true })).toBeVisible();
+    await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
+    await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
     await addTicker(page, 'TICK0002');
     await expectSelection(page, ['TICK0001', 'TICK0002']);
-    await expect(
-      page
-        .getByRole('region', { name: 'TICK0002 prices', exact: true })
-        .getByText('30', { exact: true }),
-    ).toBeVisible();
-    await expect(
-      page
-        .getByRole('region', { name: 'TICK0002 statistics', exact: true })
-        .getByText('Total return', { exact: true }),
-    ).toBeVisible();
+    await expect(await matrixCell(page, 'TICK0002', 'Latest close')).toHaveText('412.88');
+    await expect(await matrixCell(page, 'TICK0002', 'Total return')).toHaveText('-10.49%');
     const loadedRequests = [...priceRequests];
     await page.screenshot({ path: testInfo.outputPath('selection-desktop.png'), fullPage: true });
     await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click();
@@ -89,7 +85,7 @@ test.describe('Share a real historical-data selection', () => {
     await expect(input).toHaveValue('TICK0001');
     await input.press('Escape');
     await expectSelection(page, ['TICK0001', 'TICK0002']);
-    await expect(firstPrices.getByText('172.89', { exact: true })).toBeVisible();
+    await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
     expect(priceRequests).toEqual(loadedRequests);
     await page.goBack();
     await expectSelection(page, ['TICK0001']);
@@ -98,7 +94,7 @@ test.describe('Share a real historical-data selection', () => {
     expect(priceRequests).toEqual(loadedRequests);
     await page.reload();
     await expectSelection(page, ['TICK0001', 'TICK0002']);
-    await expect(firstPrices.getByText('172.89', { exact: true })).toBeVisible();
+    await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
     await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
     await page.getByRole('combobox', { name: 'Compare instruments' }).press('Escape');
     await expectSelection(page, []);
@@ -117,13 +113,9 @@ test.describe('Share a real historical-data selection', () => {
       }),
     ).toBeVisible();
     expect(new URL(page.url()).search).toBe(raw);
-    const selected = page.getByRole('region', { name: 'Selected instruments', exact: true });
-    await expect(selected.getByRole('article')).toHaveCount(3);
-    for (const ticker of ['TICK0001', 'TICK0002', 'TICK0003']) {
-      await expect(
-        selected.getByRole('article', { name: `${ticker} market data`, exact: true }),
-      ).toBeVisible();
-    }
+    await expect(
+      page.getByRole('table', { name: 'Comparison', exact: true }).getByRole('columnheader'),
+    ).toHaveText(['Metric', 'TICK0001', 'TICK0002', 'TICK0003']);
     const input = page.getByRole('combobox', { name: 'Compare instruments' });
     await input.fill('TICK0004');
     await expect(page.getByRole('option', { name: 'TICK0004', exact: true })).toHaveAttribute(
@@ -152,21 +144,13 @@ test.describe('Share a real historical-data selection', () => {
         await expect(
           page.getByText("The link's instrument selection is invalid.", { exact: true }),
         ).toBeVisible();
-        await expect(
-          page
-            .getByRole('region', { name: 'Selected instruments', exact: true })
-            .getByRole('article'),
-        ).toHaveCount(0);
+        await expect(page.getByRole('table', { name: 'Comparison', exact: true })).toHaveCount(0);
         await addTicker(page, 'TICK0001');
         await expectSelection(page, ['TICK0001']);
         await expect(
           page.getByText("The link's instrument selection is invalid.", { exact: true }),
         ).toHaveCount(0);
-        await expect(
-          page
-            .getByRole('region', { name: 'TICK0001 prices', exact: true })
-            .getByText('172.89', { exact: true }),
-        ).toBeVisible();
+        await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
       });
     });
   }
@@ -182,39 +166,34 @@ test.describe('Share a real historical-data selection', () => {
     await page.goto('/?tickers=123,TRUE,NULL');
     await expectSelection(page, ['123', 'TRUE', 'NULL']);
     for (const ticker of ['123', 'TRUE', 'NULL']) {
-      await expect(
-        page.getByRole('region', { name: `${ticker} prices`, exact: true }).getByRole('alert'),
-      ).toHaveText('Instrument not found.');
-      await expect(
-        page.getByRole('region', { name: `${ticker} statistics`, exact: true }).getByRole('alert'),
-      ).toHaveText('Instrument not found.');
+      const resources = page.getByRole('group', { name: `${ticker} resources`, exact: true });
+      await expect(resources.getByText('Not in this dataset', { exact: true })).toHaveCount(1);
+      await expect(resources.getByRole('button', { name: /Retry/ })).toHaveCount(0);
     }
-    expect(new Set(missing)).toEqual(
-      new Set([
-        '/api/prices/123',
-        '/api/prices/123/stats',
-        '/api/prices/TRUE',
-        '/api/prices/TRUE/stats',
-        '/api/prices/NULL',
-        '/api/prices/NULL/stats',
-      ]),
-    );
+    await expect
+      .poll(() => new Set(missing))
+      .toEqual(
+        new Set([
+          '/api/prices/123',
+          '/api/prices/123/stats',
+          '/api/prices/TRUE',
+          '/api/prices/TRUE/stats',
+          '/api/prices/NULL',
+          '/api/prices/NULL/stats',
+        ]),
+      );
     await page.getByRole('button', { name: 'Remove TRUE', exact: true }).click();
     await addTicker(page, 'TICK0001');
     await expectSelection(page, ['123', 'NULL', 'TICK0001']);
-    await expect(
-      page
-        .getByRole('region', { name: 'TICK0001 prices', exact: true })
-        .getByText('172.89', { exact: true }),
-    ).toBeVisible();
+    await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
     await page.setViewportSize({ width: 320, height: 800 });
-    // Traverse away and back with native Tab so the actual retry receives keyboard focus.
-    const retry = page.getByRole('button', { name: 'Retry 123 prices', exact: true });
-    await retry.press('Tab');
+    // Traverse away and back with native Tab so the actual missing-instrument action receives keyboard focus.
+    const remove = page.getByRole('button', { name: 'Remove 123 from comparison', exact: true });
+    await remove.press('Tab');
     await page.keyboard.press('Shift+Tab');
-    await expect(retry).toBeFocused();
-    await expect(retry).toHaveCSS('outline', 'rgb(0, 111, 166) solid 3px');
-    // e2e-locator: document dimensions establish that narrow resource cards do not overflow the viewport.
+    await expect(remove).toBeFocused();
+    await expect(remove).toHaveCSS('outline', 'rgb(0, 111, 166) solid 3px');
+    // e2e-locator: document dimensions establish that narrow comparison columns do not overflow the viewport.
     expect(
       await page
         .locator('html')
@@ -227,5 +206,21 @@ test.describe('Share a real historical-data selection', () => {
       path: testInfo.outputPath('selection-narrow-partial.png'),
       fullPage: true,
     });
+  });
+
+  test('returns focus to the actual picker when removing the last missing column', async ({
+    page,
+  }) => {
+    await page.goto('/?tickers=UNKNOWN');
+    const resources = page.getByRole('group', { name: 'UNKNOWN resources', exact: true });
+    await expect(resources.getByText('Not in this dataset', { exact: true })).toBeVisible();
+    await resources
+      .getByRole('button', { name: 'Remove UNKNOWN from comparison', exact: true })
+      .press('Enter');
+    await expect.poll(() => new URL(page.url()).searchParams.get('tickers')).toBeNull();
+    const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+    await expect(input).toBeFocused();
+    await input.press('Escape');
+    await expectSelection(page, []);
   });
 });

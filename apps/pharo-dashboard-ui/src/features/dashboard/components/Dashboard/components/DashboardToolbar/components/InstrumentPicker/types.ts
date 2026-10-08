@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import type { PharoChartAppearance } from '@pharo/react-charts';
 import type { ApiClient } from '../../../../../../../../api/types';
 import type { DashboardAction, DashboardActionOutcome } from '../../../../../../../../app/types';
@@ -16,6 +17,8 @@ export interface InstrumentPickerProps {
   readonly selectedTickers: readonly string[];
   /** Dashboard-owned line identities retained across pending and filtered states. */
   readonly appearances: ReadonlyMap<string, PharoChartAppearance>;
+  /** Ref to the native editable picker input, for parent-owned focus restoration. */
+  readonly inputRef?: Ref<HTMLInputElement>;
   /** Commit an intention through the route's existing serialized action queue. */
   readonly onAction: (action: DashboardAction) => Promise<DashboardActionOutcome>;
 }

@@ -16,7 +16,8 @@ import type { DashboardToolbarProps as Props } from './types';
  * ```
  */
 export function DashboardToolbar(props: Props) {
-  const { apiClient, selectedTickers, mode, appearances, windows, onAction } = props;
+  const { apiClient, selectedTickers, mode, appearances, windows, onAction, pickerInputRef } =
+    props;
   const [viewChangeFailed, setViewChangeFailed] = useState(false);
   const firstWindow = windows.at(0);
   const mismatched = haveMismatchedWindows(windows);
@@ -36,6 +37,7 @@ export function DashboardToolbar(props: Props) {
         selectedTickers={selectedTickers}
         appearances={appearances}
         onAction={onAction}
+        inputRef={pickerInputRef}
       />
       <div className={toolbarStyles.controls}>
         <PharoSegmentedControl
@@ -49,6 +51,11 @@ export function DashboardToolbar(props: Props) {
         />
         {firstWindow && (
           <p className={toolbarStyles.range}>
+            {windows.length < selectedTickers.length && (
+              <span>
+                Available histories: {windows.length} of {selectedTickers.length}.
+              </span>
+            )}
             {mismatched ? (
               'Recorded windows differ.'
             ) : (

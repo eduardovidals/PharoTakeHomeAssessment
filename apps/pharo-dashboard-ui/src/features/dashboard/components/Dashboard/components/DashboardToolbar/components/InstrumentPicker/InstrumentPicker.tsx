@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useImperativeHandle, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PharoButton, PharoMultiComboBox } from '@pharo/react-components';
 import type { PharoSelectionAction } from '@pharo/react-components';
@@ -17,11 +17,15 @@ import type { InstrumentPickerProps as Props } from './types';
  * ```
  */
 export function InstrumentPicker(props: Props) {
-  const { apiClient, selectedTickers, appearances, onAction } = props;
+  const { apiClient, selectedTickers, appearances, onAction, inputRef: externalInputRef } = props;
   const instruments = useQuery(instrumentsQueryOptions(apiClient));
   const [query, setQuery] = useState('');
   const [navigationFailed, setNavigationFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  useImperativeHandle<HTMLInputElement | null, HTMLInputElement | null>(
+    externalInputRef,
+    () => inputRef.current,
+  );
   useInstrumentShortcut({ inputRef });
   const known = instruments.data ?? [];
   const items = rankInstruments(known, query);

@@ -1,4 +1,3 @@
-import { PharoButton, PharoSpinner } from '@pharo/react-components';
 import { PharoLineChart } from '@pharo/react-charts';
 import {
   getSeriesWindows,
@@ -14,14 +13,13 @@ import {
   formatDateDetail,
   formatDateRange,
   formatDateTable,
-  toUtcTimestamp,
 } from '../../../../utils/date';
 import { formatPrice, formatPriceAxis, formatSignedPercentage } from '../../../../utils/number';
 import { historyStyles } from './styles';
 import type { PriceHistoryProps as Props } from './types';
 
 /**
- * Compare available raw histories while retaining every selected resource identity.
+ * Render available histories while the comparison matrix owns resource status and actions.
  * @example
  * ```tsx
  * <PriceHistory resources={selectedPriceResources} />
@@ -52,16 +50,9 @@ export function PriceHistory(props: Props) {
       <p className={historyStyles.description}>{description}</p>
       {available > 0 ? (
         <>
-          <p className={historyStyles.notice}>
-            {available} of {resources.length} selected histories available.
-          </p>
           {mismatched ? (
             <div className={historyStyles.notice}>
-              <p>
-                Recorded windows differ.
-                {mode === 'performance' && ' Each instrument uses its own first recorded price.'}
-              </p>
-              <ul>
+              <ul aria-label="Recorded windows by instrument">
                 {windows.map((window) => (
                   <li key={window.id}>
                     {window.label}: {formatDateRange(window.firstTimestamp, window.lastTimestamp)}{' '}
@@ -91,7 +82,7 @@ export function PriceHistory(props: Props) {
           />
         </>
       ) : (
-        <p className={historyStyles.notice}>
+        <p className={historyStyles.placeholder}>
           {resources.length === 0
             ? 'Select an instrument to view its historical closing prices.'
             : pending
@@ -99,82 +90,14 @@ export function PriceHistory(props: Props) {
               : 'No selected price history is currently available.'}
         </p>
       )}
-      <div className={historyStyles.summaries}>
-        {resources.map(({ ticker, query }, index) => {
-          const first = query.data?.at(0);
-          const latest = query.data?.at(-1);
-          const failed = query.isError && query.error.kind !== 'cancelled';
-          const performance = transformed?.[index];
-          return (
-            <section
-              key={ticker}
-              aria-label={`${ticker} prices`}
-              className={historyStyles.resource}
-            >
-              <h3 className={historyStyles.resourceHeading}>{ticker} prices</h3>
-              {performance?.kind === 'unavailable' && performance.reason !== 'no-observations' && (
-                <p className={historyStyles.notice}>
-                  Rebased price change is unavailable for this history. Raw prices remain available
-                  in Price view.
-                </p>
-              )}
-              {query.isPending && (
-                <div className={historyStyles.loading}>
-                  <PharoSpinner label={`Loading ${ticker} prices`} size="sm" />
-                  <p>Loading prices…</p>
-                </div>
-              )}
-              {failed && (
-                <div>
-                  <p role="alert" className={historyStyles.error}>
-                    {query.error.message}
-                  </p>
-                  <PharoButton
-                    className={historyStyles.retry}
-                    variant="secondary"
-                    onPress={() => void query.refetch()}
-                  >
-                    Retry {ticker} prices
-                  </PharoButton>
-                </div>
-              )}
-              {query.data &&
-                (first && latest ? (
-                  <dl className={historyStyles.values}>
-                    <div>
-                      <dt className={historyStyles.label}>Observations</dt>
-                      <dd className={historyStyles.value}>{query.data.length}</dd>
-                    </div>
-                    <div>
-                      <dt className={historyStyles.label}>First date (UTC)</dt>
-                      <dd className={historyStyles.value}>
-                        <time dateTime={first.date}>
-                          {formatDateTable(toUtcTimestamp(first.date))}
-                        </time>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className={historyStyles.label}>Latest date (UTC)</dt>
-                      <dd className={historyStyles.value}>
-                        <time dateTime={latest.date}>
-                          {formatDateTable(toUtcTimestamp(latest.date))}
-                        </time>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className={historyStyles.label}>Latest close</dt>
-                      <dd className={historyStyles.value}>{formatPrice(latest.price)}</dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <p className={historyStyles.notice}>
-                    No recorded prices are available for {ticker}.
-                  </p>
-                ))}
-            </section>
-          );
-        })}
-      </div>
+      {transformed?.map((result) =>
+        result.kind === 'unavailable' && result.reason !== 'no-observations' ? (
+          <p key={result.series.id} className={historyStyles.notice}>
+            Rebased price change is unavailable for {result.series.label}. Raw prices remain
+            available in Price view.
+          </p>
+        ) : null,
+      )}
     </section>
   );
 }

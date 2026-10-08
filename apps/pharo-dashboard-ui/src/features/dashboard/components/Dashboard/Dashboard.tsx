@@ -1,11 +1,11 @@
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { pricesQueryOptions, priceStatsQueryOptions } from '../../../../api/prices';
 import { getSeriesWindows, toChartSeries } from '../../adapters/priceSeries';
 import { DashboardToolbar } from './components/DashboardToolbar';
-import { InstrumentStatistics } from '../InstrumentStatistics';
+import { ComparisonMatrix } from './components/ComparisonMatrix';
 import { PriceHistory } from '../PriceHistory';
-import { appearanceStyles, dashboardStyles } from './styles';
+import { dashboardStyles } from './styles';
 import { useSeriesAppearances } from './hooks/useSeriesAppearances';
 import type { DashboardProps as Props } from './types';
 
@@ -20,6 +20,7 @@ import type { DashboardProps as Props } from './types';
 export function Dashboard(props: Props) {
   const { apiClient, selectedTickers, selectionNotice, mode, onAction } = props;
   const selectionId = useId();
+  const pickerInputRef = useRef<HTMLInputElement>(null);
   const appearances = useSeriesAppearances(selectedTickers);
   // Start both resource families together, independent of instrument-list availability.
   const prices = useQueries({
@@ -32,6 +33,25 @@ export function Dashboard(props: Props) {
     const query = prices[index];
     return query ? [{ ticker, query, appearance: appearances.get(ticker) }] : [];
   });
+
+  const columns = selectedTickers.flatMap((ticker, index) => {
+    const priceQuery = prices[index];
+    const statsQuery = statistics[index];
+    return priceQuery && statsQuery
+      ? [
+          {
+            ticker,
+            prices: priceQuery,
+            statistics: statsQuery,
+            appearance: appearances.get(ticker),
+          },
+        ]
+      : [];
+  });
+  const removeInstrument = async (ticker: string) => {
+    const outcome = await onAction({ type: 'remove', tickers: [ticker] });
+    if (outcome === 'committed') pickerInputRef.current?.focus();
+  };
 
   const windows = getSeriesWindows(
     priceResources.map(({ ticker, query }) => toChartSeries(ticker, query.data ?? [])),
@@ -60,6 +80,7 @@ export function Dashboard(props: Props) {
         appearances={appearances}
         windows={windows}
         onAction={onAction}
+        pickerInputRef={pickerInputRef}
       />
       <section aria-labelledby={selectionId} className={dashboardStyles.analysis}>
         <h2 id={selectionId} className={dashboardStyles.selectionHeading}>
@@ -71,50 +92,10 @@ export function Dashboard(props: Props) {
             <p>Select an instrument to view its prices and statistics.</p>
           </div>
         ) : (
-          <>
+          <div className={dashboardStyles.workspace}>
             <PriceHistory resources={priceResources} mode={mode} />
-            <div className={dashboardStyles.selection}>
-              {selectedTickers.map((ticker, index) => {
-                const priceQuery = prices[index];
-                const statsQuery = statistics[index];
-                const appearance = appearances.get(ticker);
-                if (!priceQuery || !statsQuery) return null;
-                const incomplete =
-                  (priceQuery.isError && priceQuery.error.kind !== 'cancelled') ||
-                  (statsQuery.isError && statsQuery.error.kind !== 'cancelled');
-                return (
-                  <article
-                    key={ticker}
-                    aria-label={`${ticker} market data`}
-                    className={dashboardStyles.article}
-                  >
-                    <h3
-                      className={dashboardStyles.subheading}
-                      data-series-id={ticker}
-                      data-appearance={appearance}
-                    >
-                      {appearance && (
-                        <svg
-                          aria-hidden="true"
-                          viewBox="0 0 24 12"
-                          className={appearanceStyles[appearance]}
-                        >
-                          <line x1="0" x2="24" y1="6" y2="6" strokeWidth="2" />
-                        </svg>
-                      )}
-                      <span className={dashboardStyles.ticker}>{ticker}</span>
-                    </h3>
-                    {incomplete && (
-                      <p className={dashboardStyles.error}>
-                        Results for {ticker} are incomplete. Available data remains visible.
-                      </p>
-                    )}
-                    <InstrumentStatistics ticker={ticker} query={statsQuery} />
-                  </article>
-                );
-              })}
-            </div>
-          </>
+            <ComparisonMatrix columns={columns} onRemove={removeInstrument} />
+          </div>
         )}
       </section>
     </main>

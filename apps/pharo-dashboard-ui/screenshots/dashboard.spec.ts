@@ -8,6 +8,19 @@ const output = process.env.PHARO_SCREENSHOT_DIR
   ? resolve(process.env.PHARO_SCREENSHOT_DIR)
   : fileURLToPath(new URL('../../../screenshots/', import.meta.url));
 
+async function matrixCell(page: Page, ticker: string, metric: string) {
+  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
+  const headers = await table.getByRole('columnheader').allTextContents();
+  const index = headers.findIndex((header) => header.trim() === ticker) - 1;
+  if (index < 0) throw new Error(`Expected a comparison column for ${ticker}.`);
+  const row = table.getByRole('row').filter({
+    has: page.getByRole('rowheader', { name: metric, exact: true }),
+  });
+  // e2e-ordinal: The native column headers establish this URL-selected ticker's value position.
+  return row.getByRole('cell').nth(index);
+}
+
 test.use({ actionTimeout: 10000 });
 
 test.describe('Review the dashboard screens and interactions', () => {
@@ -38,12 +51,10 @@ test.describe('Review the dashboard screens and interactions', () => {
     }
     async function ready(tickers: string[]) {
       for (const ticker of tickers) {
-        await expect(
-          page.getByRole('region', { name: `${ticker} prices`, exact: true }),
-        ).toContainText('Latest close');
-        await expect(
-          page.getByRole('region', { name: `${ticker} statistics`, exact: true }),
-        ).toContainText('Total return');
+        await expect(await matrixCell(page, ticker, 'Latest close')).toHaveText(/^[\d,]+\.\d{2}$/);
+        await expect(await matrixCell(page, ticker, 'Total return')).toHaveText(
+          /^[+−-]?\d+\.\d{2}%$/,
+        );
       }
     }
 
@@ -157,11 +168,19 @@ test.describe('Review the dashboard screens and interactions', () => {
     await expect(page.getByText("The link's instrument selection is invalid.")).toBeVisible();
     await capture('invalid-shared-link');
     await page.goto('/?tickers=UNKNOWN');
-    await expect(page.getByRole('alert')).toHaveCount(2);
+    await expect(
+      page
+        .getByRole('group', { name: 'UNKNOWN resources', exact: true })
+        .getByText('Not in this dataset', { exact: true }),
+    ).toBeVisible();
     await capture('unknown-instrument-not-found');
     await page.goto('/?tickers=TICK0001,UNKNOWN,TICK0002');
     await ready(['TICK0001', 'TICK0002']);
-    await expect(page.getByRole('alert')).toHaveCount(2);
+    await expect(
+      page
+        .getByRole('group', { name: 'UNKNOWN resources', exact: true })
+        .getByText('Not in this dataset', { exact: true }),
+    ).toBeVisible();
     await capture('partial-comparison-with-unavailable-instrument');
 
     // Deliberately held/faulted browser responses expose otherwise transient states.
@@ -179,12 +198,9 @@ test.describe('Review the dashboard screens and interactions', () => {
       await expect(
         page.getByRole('status').filter({ hasText: 'Loading instruments…' }),
       ).toBeVisible();
-      await expect(
-        page.getByRole('progressbar', { name: 'Loading TICK0001 prices', exact: true }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole('progressbar', { name: 'Loading TICK0001 statistics', exact: true }),
-      ).toBeVisible();
+      const resources = page.getByRole('group', { name: 'TICK0001 resources', exact: true });
+      await expect(resources.getByText('Loading prices…', { exact: true })).toBeVisible();
+      await expect(resources.getByText('Loading statistics…', { exact: true })).toBeVisible();
       await capture('simulated-loading-list-prices-and-statistics');
     } finally {
       release();
@@ -198,7 +214,10 @@ test.describe('Review the dashboard screens and interactions', () => {
       ['statistics', '**/api/prices/TICK0001/stats', 'Retry TICK0001 statistics'],
     ] as const) {
       await page.route(route, (request) =>
-        request.fulfill({ status: 400, json: { title: 'Screenshot scenario' } }),
+        request.fulfill({
+          status: resource === 'instrument-list' ? 400 : 500,
+          json: { title: 'Screenshot scenario' },
+        }),
       );
       await page.goto('/?tickers=TICK0001');
       await expect(button(retry)).toBeVisible();
@@ -207,9 +226,7 @@ test.describe('Review the dashboard screens and interactions', () => {
           page.getByRole('img', { name: 'Historical closing prices', exact: true }),
         ).toBeVisible();
       if (resource !== 'statistics')
-        await expect(
-          page.getByRole('region', { name: 'TICK0001 statistics', exact: true }),
-        ).toContainText('Total return');
+        await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
       await capture(`simulated-${resource}-error-retry-button`);
       await page.unrouteAll({ behavior: 'wait' });
       await button(retry).click();
@@ -230,10 +247,12 @@ test.describe('Review the dashboard screens and interactions', () => {
     await page.unrouteAll({ behavior: 'wait' });
     await page.route('**/api/prices/TICK0001', (route) => route.fulfill({ json: [] }));
     await page.goto('/?tickers=TICK0001');
-    await expect(page.getByText('No recorded prices are available for TICK0001.')).toBeVisible();
     await expect(
-      page.getByRole('region', { name: 'TICK0001 statistics', exact: true }),
-    ).toContainText('Total return');
+      page
+        .getByRole('group', { name: 'TICK0001 resources', exact: true })
+        .getByText('No recorded prices.', { exact: true }),
+    ).toBeVisible();
+    await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
     await capture('simulated-empty-price-history');
     await page.unrouteAll({ behavior: 'wait' });
 

@@ -122,14 +122,32 @@ async function expectLimit(app: AppTest, user: ReturnType<typeof userEvent.setup
   expect(app.view.getByText(/Up to 3 instruments\. Remove one to add another\./)).toBeVisible();
 }
 
+/** Read a metric through its semantic row and selected column, not card layout. */
+function matrixCell(app: AppTest, ticker: string, metric: string) {
+  const table = within(app.view.getByRole('table', { name: 'Comparison' }));
+  const column = table
+    .getAllByRole('columnheader')
+    .findIndex((header) => header.textContent?.trim() === ticker);
+  const row = table.getByRole('row', { name: new RegExp(`^${metric}(?:\\s|$)`) });
+  const cell = within(row).getAllByRole('cell')[column - 1];
+  if (!cell) throw new Error(`Missing ${metric} cell for ${ticker}`);
+  return cell;
+}
+
+function matrixHeaders(app: AppTest) {
+  return within(app.view.getByRole('table', { name: 'Comparison' }))
+    .getAllByRole('columnheader')
+    .map((header) => header.textContent?.trim());
+}
+
 describe('Dashboard URL selection and independently owned resources', () => {
   test('uses URL mode for the control and preserves fetched resources through explicit view changes', async () => {
     const requests = installMarketHandlers();
     const user = userEvent.setup();
     const app = await renderApp({ initialEntries: ['/?tickers=AAA,BBB'] });
-    await within(app.view.getByRole('region', { name: 'BBB statistics' })).findByText('+23.45%', {
-      exact: true,
-    });
+    await waitFor(() =>
+      expect(matrixCell(app, 'BBB', 'Total return')).toHaveTextContent('+23.45%'),
+    );
     expect(app.view.getByRole('radio', { name: 'Performance' })).toBeChecked();
     const loaded = [...requests];
     await user.click(app.view.getByRole('radio', { name: 'Price' }));
@@ -143,9 +161,11 @@ describe('Dashboard URL selection and independently owned resources', () => {
     );
     await act(async () => app.history.back());
     await waitFor(() => expect(app.view.getByRole('radio', { name: 'Price' })).toBeChecked());
+    expect(matrixCell(app, 'BBB', 'Latest close')).toHaveTextContent('123.45');
+    expect(matrixCell(app, 'BBB', 'Total return')).toHaveTextContent('+23.45%');
     expect([...requests]).toEqual(loaded);
     await clearSelection(app, user);
-    await waitFor(() => expect(app.history.location.search).toBe(''));
+    expect(app.history.location.search).toBe('');
     expect(app.view.getByRole('radio', { name: 'Price' })).toBeChecked();
   });
 
@@ -188,52 +208,40 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(requests.size).toBe(1);
 
     await chooseInstrument(app, user, 'AAA');
-    expect(await app.view.findByRole('article', { name: 'AAA market data' })).toBeVisible();
-    const firstPrices = within(app.view.getByRole('region', { name: 'AAA prices' }));
-    expect(await firstPrices.findByText('123.45', { exact: true })).toBeVisible();
-    expect(firstPrices.getByText('2', { exact: true })).toBeVisible();
-    expect(firstPrices.getByText('Mar 11, 2024', { exact: true })).toHaveAttribute(
-      'datetime',
-      '2024-03-11',
-    );
+    expect(matrixHeaders(app)).toEqual(['Metric', 'AAA']);
+    await waitFor(() => expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45'));
+    expect(app.view.getByText('2 observations', { exact: true })).toBeVisible();
+    expect(app.view.getByText('Mar 10 – Mar 11, 2024 (UTC)', { exact: true })).toBeVisible();
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA');
+    expect(matrixCell(app, 'AAA', 'Total return')).toHaveTextContent('+23.45%');
 
     // Final-tag removal returns focus to the input; adding again uses cached data.
-    const firstStats = within(app.view.getByRole('region', { name: 'AAA statistics' }));
-    expect(await firstStats.findByText('+23.45%', { exact: true })).toBeVisible();
     await user.click(app.view.getByRole('button', { name: 'Remove AAA' }));
-    await waitFor(() => expect(app.view.queryByRole('article')).not.toBeInTheDocument());
+    await waitFor(() => expect(app.history.location.search).toBe(''));
     expect(app.view.getByRole('combobox', { name: 'Compare instruments' })).toHaveFocus();
     await user.keyboard('{Escape}');
+    expect(app.view.queryByRole('table', { name: 'Comparison' })).not.toBeInTheDocument();
     await chooseInstrument(app, user, 'AAA');
-    expect(await app.view.findByRole('article', { name: 'AAA market data' })).toBeVisible();
+    expect(matrixHeaders(app)).toEqual(['Metric', 'AAA']);
     await chooseInstrument(app, user, 'BBB');
-    expect(await app.view.findByRole('article', { name: 'BBB market data' })).toBeVisible();
+    expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB']);
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,BBB');
     await user.click(app.view.getByRole('button', { name: 'Remove AAA' }));
-    await waitFor(() => {
-      expect(app.view.queryByRole('article', { name: 'AAA market data' })).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(matrixHeaders(app)).toEqual(['Metric', 'BBB']));
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('BBB');
 
     await act(async () => app.history.back());
-    expect(await app.view.findByRole('article', { name: 'AAA market data' })).toBeVisible();
-    expect(
-      within(app.view.getByRole('region', { name: 'AAA prices' })).getByText('123.45', {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitFor(() => expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB']));
+    expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45');
     await act(async () => app.history.forward());
-    await waitFor(() => {
-      expect(app.view.queryByRole('article', { name: 'AAA market data' })).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(matrixHeaders(app)).toEqual(['Metric', 'BBB']));
     await clearSelection(app, user);
     expect(
       await app.view.findByText('Select an instrument to view its prices and statistics.'),
     ).toBeVisible();
     expect(app.history.location.search).toBe('');
     await act(async () => app.history.back());
-    expect(await app.view.findByRole('article', { name: 'BBB market data' })).toBeVisible();
+    await waitFor(() => expect(matrixHeaders(app)).toEqual(['Metric', 'BBB']));
     expect(requests.get('AAA prices')).toBe(1);
     expect(requests.get('AAA statistics')).toBe(1);
     expect(requests.get('BBB prices')).toBe(1);
@@ -248,11 +256,9 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(
       await app.view.findByText('Only the first three instruments in this link are selected.'),
     ).toBeVisible();
-    expect(
-      app.view.getAllByRole('article').map((element) => element.getAttribute('aria-label')),
-    ).toEqual(['AAA market data', 'BBB market data', 'CCC market data']);
+    expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB', 'CCC']);
     await expectLimit(app, user);
-    expect(app.view.getAllByRole('article')).toHaveLength(3);
+    expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB', 'CCC']);
     expect(requests.has('DDD prices')).toBe(false);
     expect(requests.has('DDD statistics')).toBe(false);
     expect(app.history.location.search).toBe('?tickers=aaa,AAA,BBB,CCC,DDD');
@@ -264,7 +270,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
       ).not.toBeInTheDocument();
     });
     await chooseInstrument(app, user, 'DDD');
-    expect(await app.view.findByRole('article', { name: 'DDD market data' })).toBeVisible();
+    expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'CCC', 'DDD']);
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,CCC,DDD');
     await app.dispose();
   });
@@ -278,16 +284,16 @@ describe('Dashboard URL selection and independently owned resources', () => {
     const notice = /Up to 3 instruments\. Remove one to add another\./;
     await expectLimit(app, user);
     await act(async () => app.history.back());
-    await waitFor(() => expect(app.view.getAllByRole('article')).toHaveLength(2));
+    await waitFor(() => expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB']));
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,BBB');
     expect(app.view.queryByText(notice)).not.toBeInTheDocument();
     await act(async () => app.history.forward());
-    await waitFor(() => expect(app.view.getAllByRole('article')).toHaveLength(3));
+    await waitFor(() => expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB', 'CCC']));
     expect(app.view.getByText(notice)).toBeVisible();
     await act(async () => app.history.back());
-    await waitFor(() => expect(app.view.getAllByRole('article')).toHaveLength(2));
+    await waitFor(() => expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB']));
     await chooseInstrument(app, user, 'DDD');
-    expect(await app.view.findByRole('article', { name: 'DDD market data' })).toBeVisible();
+    expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB', 'DDD']);
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('AAA,BBB,DDD');
     expect(app.view.getByText(notice)).toBeVisible();
     await app.dispose();
@@ -298,9 +304,9 @@ describe('Dashboard URL selection and independently owned resources', () => {
     const user = userEvent.setup();
     const app = await renderApp({ initialEntries: ['/?tickers=AAA&tickers=BBB'] });
     expect(await app.view.findByText("The link's instrument selection is invalid.")).toBeVisible();
-    expect(app.view.queryByRole('article')).not.toBeInTheDocument();
+    expect(app.view.queryByRole('table', { name: 'Comparison' })).not.toBeInTheDocument();
     await chooseInstrument(app, user, 'CCC');
-    expect(await app.view.findByRole('article', { name: 'CCC market data' })).toBeVisible();
+    expect(matrixHeaders(app)).toEqual(['Metric', 'CCC']);
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('CCC');
     expect(
       app.view.queryByText("The link's instrument selection is invalid."),
@@ -335,19 +341,25 @@ describe('Dashboard URL selection and independently owned resources', () => {
         expect(started).toEqual(new Set(['instruments', 'prices', 'statistics'])),
       );
       expect(app.view.getByText('Loading instruments…', { exact: true })).toBeVisible();
-      expect(app.view.getByRole('progressbar', { name: 'Loading AAA prices' })).toBeVisible();
-      expect(app.view.getByRole('progressbar', { name: 'Loading AAA statistics' })).toBeVisible();
+      const resources = within(app.view.getByRole('group', { name: 'AAA resources' }));
+      expect(resources.getByText('Loading prices…', { exact: true })).toBeVisible();
+      expect(resources.getByText('Loading statistics…', { exact: true })).toBeVisible();
+      expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('Loading…');
       priceGate.release();
-      expect(
-        await within(app.view.getByRole('region', { name: 'AAA prices' })).findByText('123.45'),
-      ).toBeVisible();
-      expect(app.view.getByRole('progressbar', { name: 'Loading AAA statistics' })).toBeVisible();
+      await waitFor(() =>
+        expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45'),
+      );
+      expect(resources.getByText('Loading statistics…', { exact: true })).toBeVisible();
       expect(app.view.getByText('Loading instruments…', { exact: true })).toBeVisible();
       statsGate.release();
-      const statistics = within(app.view.getByRole('region', { name: 'AAA statistics' }));
-      expect(await statistics.findByText('Not enough observations')).toBeVisible();
-      expect(statistics.getByText('+23.45%', { exact: true })).toBeVisible();
-      expect(statistics.getByText('0.00%', { exact: true })).toBeVisible();
+      await waitFor(() =>
+        expect(matrixCell(app, 'AAA', 'Daily volatility')).toHaveTextContent(
+          'Not enough observations',
+        ),
+      );
+      expect(matrixCell(app, 'AAA', 'Total return')).toHaveTextContent('+23.45%');
+      expect(matrixCell(app, 'AAA', 'Max drawdown')).toHaveTextContent('0.00%');
+      expect(matrixHeaders(app)).toEqual(['Metric', 'AAA']);
       instrumentGate.release();
       expect(await app.view.findByRole('button', { name: 'Remove AAA' })).toBeVisible();
       await app.dispose();
@@ -359,54 +371,83 @@ describe('Dashboard URL selection and independently owned resources', () => {
     }
   });
 
-  test('preserves successful sibling resources and retries only the chosen failure in the same app', async () => {
+  test('preserves successful siblings and retries only a transient chosen failure with focus', async () => {
     const requests = installMarketHandlers();
+    const retryGate = createGate();
     let statsAttempts = 0;
     let priceAttempts = 0;
     let recovered = false;
     server.use(
-      http.get('*/api/prices/AAA/stats', () => {
+      http.get('*/api/prices/AAA/stats', async () => {
         statsAttempts += 1;
-        return recovered
-          ? HttpResponse.json({
-              totalReturnPercent: 6,
-              dailyVolatilityPercent: 1.5,
-              maxDrawdownPercent: 2,
-            })
-          : HttpResponse.json({ detail: 'private raw response' }, { status: 404 });
+        if (!recovered)
+          return HttpResponse.json({ detail: 'private raw response' }, { status: 503 });
+        await retryGate.promise;
+        return HttpResponse.json({
+          totalReturnPercent: 6,
+          dailyVolatilityPercent: 1.5,
+          maxDrawdownPercent: 2,
+        });
       }),
       http.get('*/api/prices/BBB', () => {
         priceAttempts += 1;
-        return HttpResponse.json({ detail: 'another private raw response' }, { status: 404 });
+        return HttpResponse.json({ detail: 'another private raw response' }, { status: 503 });
       }),
     );
     const user = userEvent.setup();
-    const app = await renderApp({ initialEntries: ['/?tickers=AAA,BBB'] });
-    const aaaPrices = within(app.view.getByRole('region', { name: 'AAA prices' }));
-    const aaaStats = within(app.view.getByRole('region', { name: 'AAA statistics' }));
-    const bbbPrices = within(app.view.getByRole('region', { name: 'BBB prices' }));
-    const bbbStats = within(app.view.getByRole('region', { name: 'BBB statistics' }));
-    expect(await aaaPrices.findByText('123.45', { exact: true })).toBeVisible();
-    expect(await aaaStats.findByRole('alert')).toHaveTextContent('Instrument not found.');
-    expect(await bbbPrices.findByRole('alert')).toHaveTextContent('Instrument not found.');
-    expect(await bbbStats.findByText('+23.45%', { exact: true })).toBeVisible();
-    expect(app.view.getAllByText(/Results for (AAA|BBB) are incomplete/)).toHaveLength(2);
-    expect(app.view.queryByText(/private raw response/)).not.toBeInTheDocument();
-
-    recovered = true;
-    await user.click(aaaStats.getByRole('button', { name: 'Retry AAA statistics' }));
-    expect(await aaaStats.findByText('1.50%', { exact: true })).toBeVisible();
-    expect(aaaStats.getByText('+6.00%', { exact: true })).toBeVisible();
-    expect(aaaStats.getByText('2.00%', { exact: true })).toBeVisible();
-    expect(aaaStats.queryByRole('alert')).not.toBeInTheDocument();
-    expect(bbbPrices.getByRole('alert')).toHaveTextContent('Instrument not found.');
-    expect(aaaPrices.getByText('123.45', { exact: true })).toBeVisible();
-    expect(statsAttempts).toBe(2);
-    expect(priceAttempts).toBe(1);
-    expect(requests.get('AAA prices')).toBe(1);
-    expect(requests.get('BBB statistics')).toBe(1);
-    expect(requests.get('instruments')).toBe(1);
-    await app.dispose();
+    const app = await renderApp({
+      initialEntries: ['/?tickers=AAA,BBB'],
+      configure(current) {
+        const defaults = current.queryClient.getDefaultOptions();
+        current.queryClient.setDefaultOptions({
+          ...defaults,
+          queries: { ...defaults.queries, retryDelay: 0 },
+        });
+      },
+    });
+    try {
+      await waitFor(() => expect(statsAttempts).toBe(3));
+      await waitFor(() => expect(priceAttempts).toBe(3));
+      const aaaResources = app.view.getByRole('group', { name: 'AAA resources' });
+      const bbbResources = within(app.view.getByRole('group', { name: 'BBB resources' }));
+      const retry = await within(aaaResources).findByRole('button', {
+        name: 'Retry AAA statistics',
+      });
+      expect(bbbResources.getByRole('button', { name: 'Retry BBB prices' })).toBeVisible();
+      expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45');
+      expect(matrixCell(app, 'BBB', 'Total return')).toHaveTextContent('+23.45%');
+      expect(matrixCell(app, 'AAA', 'Total return')).toHaveTextContent('Unavailable');
+      expect(matrixCell(app, 'BBB', 'Latest close')).toHaveTextContent('Unavailable');
+      expect(app.view.queryByText(/private raw response/)).not.toBeInTheDocument();
+      recovered = true;
+      await user.click(retry);
+      await waitFor(() => expect(statsAttempts).toBe(4));
+      expect(retry).toHaveFocus();
+      expect(retry).toHaveAttribute('aria-disabled', 'true');
+      expect(retry).toHaveTextContent('Retrying AAA statistics');
+      await user.click(retry);
+      expect(statsAttempts).toBe(4);
+      expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45');
+      await act(async () => retryGate.release());
+      await waitFor(() =>
+        expect(matrixCell(app, 'AAA', 'Daily volatility')).toHaveTextContent('1.50%'),
+      );
+      expect(matrixCell(app, 'AAA', 'Total return')).toHaveTextContent('+6.00%');
+      expect(matrixCell(app, 'AAA', 'Max drawdown')).toHaveTextContent('2.00%');
+      expect(app.view.getByRole('heading', { name: 'Comparison' })).toHaveFocus();
+      expect(
+        within(aaaResources).queryByRole('button', { name: 'Retry AAA statistics' }),
+      ).not.toBeInTheDocument();
+      expect(bbbResources.getByRole('button', { name: 'Retry BBB prices' })).toBeVisible();
+      expect(statsAttempts).toBe(4);
+      expect(priceAttempts).toBe(3);
+      expect(requests.get('AAA prices')).toBe(1);
+      expect(requests.get('BBB statistics')).toBe(1);
+      expect(requests.get('instruments')).toBe(1);
+      await app.dispose();
+    } finally {
+      retryGate.release();
+    }
   });
 
   test('retains unknown URL selections even when the instrument list fails, then retries the list alone', async () => {
@@ -423,31 +464,65 @@ describe('Dashboard URL selection and independently owned resources', () => {
     );
     const user = userEvent.setup();
     const app = await renderApp({ initialEntries: ['/?tickers=UNKNOWN'] });
-    expect(await app.view.findByRole('article', { name: 'UNKNOWN market data' })).toBeVisible();
+    expect(matrixHeaders(app)).toEqual(['Metric', 'UNKNOWN']);
     const instruments = within(app.view.getByRole('region', { name: 'Comparison controls' }));
     expect(await instruments.findByRole('alert')).toHaveTextContent(
       'The service could not complete the request.',
     );
-    expect(
-      await within(app.view.getByRole('region', { name: 'UNKNOWN prices' })).findByRole('alert'),
-    ).toHaveTextContent('Instrument not found.');
-    expect(
-      await within(app.view.getByRole('region', { name: 'UNKNOWN statistics' })).findByRole(
-        'alert',
-      ),
-    ).toHaveTextContent('Instrument not found.');
+    const resources = within(app.view.getByRole('group', { name: 'UNKNOWN resources' }));
+    expect(await resources.findByText('Not in this dataset', { exact: true })).toBeVisible();
+    expect(resources.getAllByText('Not in this dataset', { exact: true })).toHaveLength(1);
+    expect(resources.getByRole('button', { name: 'Remove UNKNOWN from comparison' })).toBeVisible();
+    expect(resources.queryByRole('button', { name: /^Retry / })).not.toBeInTheDocument();
+    expect(matrixCell(app, 'UNKNOWN', 'Latest close')).toHaveTextContent('Unavailable');
+    expect(matrixCell(app, 'UNKNOWN', 'Total return')).toHaveTextContent('Unavailable');
     expect(app.view.queryByText(/private\/source|do not display me/)).not.toBeInTheDocument();
     recovered = true;
     await user.click(instruments.getByRole('button', { name: 'Retry instruments' }));
     const options = await openChoices(app, user);
     expect(await options.findByRole('option', { name: 'AAA' })).toBeVisible();
     await user.keyboard('{Escape}');
-    expect(app.view.getByRole('article', { name: 'UNKNOWN market data' })).toBeVisible();
+    expect(matrixHeaders(app)).toEqual(['Metric', 'UNKNOWN']);
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('UNKNOWN');
     expect(listAttempts).toBe(2);
     expect(requests.get('UNKNOWN prices')).toBe(1);
     expect(requests.get('UNKNOWN statistics')).toBe(1);
     await app.dispose();
+  });
+
+  test('keeps rejected matrix removal safe and returns committed last-column removal to the picker', async () => {
+    const requests = installMarketHandlers();
+    const user = userEvent.setup();
+    const app = await renderApp({ initialEntries: ['/?tickers=UNKNOWN'] });
+    const remove = await app.view.findByRole('button', { name: 'Remove UNKNOWN from comparison' });
+    const navigate = vi
+      .spyOn(app.router, 'navigate')
+      .mockRejectedValueOnce(new Error('PRIVATE_REMOVE_CAUSE'));
+    try {
+      await user.click(remove);
+      await waitFor(() =>
+        expect(
+          within(app.view.getByRole('region', { name: 'Comparison' })).getByRole('status'),
+        ).toHaveTextContent('Unable to remove this instrument. Please try again.'),
+      );
+      expect(remove).not.toHaveAttribute('aria-disabled', 'true');
+      expect(matrixHeaders(app)).toEqual(['Metric', 'UNKNOWN']);
+      expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe('UNKNOWN');
+      expect(remove).toHaveFocus();
+      expect(app.view.queryByText(/PRIVATE_REMOVE_CAUSE/)).not.toBeInTheDocument();
+      await user.click(remove);
+      await waitFor(() => expect(app.history.location.search).toBe(''));
+      await waitFor(() =>
+        expect(app.view.getByRole('combobox', { name: 'Compare instruments' })).toHaveFocus(),
+      );
+      await user.keyboard('{Escape}');
+      expect(app.view.queryByRole('table', { name: 'Comparison' })).not.toBeInTheDocument();
+      expect(requests.get('UNKNOWN prices')).toBe(1);
+      expect(requests.get('UNKNOWN statistics')).toBe(1);
+      expect(requests.get('instruments')).toBe(1);
+    } finally {
+      navigate.mockRestore();
+    }
   });
 
   test('cancels removed resources and never presents their late data beneath the next ticker', async () => {
@@ -500,8 +575,9 @@ describe('Dashboard URL selection and independently owned resources', () => {
       expect([...signals.values()].every((signal) => !signal.aborted)).toBe(true);
       await user.click(app.view.getByRole('button', { name: 'Remove AAA' }));
       await chooseInstrument(app, user, 'BBB');
-      const bbbPrices = within(await app.view.findByRole('region', { name: 'BBB prices' }));
-      expect(await bbbPrices.findByText('123.45', { exact: true })).toBeVisible();
+      await waitFor(() =>
+        expect(matrixCell(app, 'BBB', 'Latest close')).toHaveTextContent('123.45'),
+      );
       await waitFor(() => {
         expect([...signals.values()].every((signal) => signal.aborted)).toBe(true);
         expect(abort).toHaveBeenCalledTimes(2);
@@ -510,11 +586,11 @@ describe('Dashboard URL selection and independently owned resources', () => {
         gate.release();
         await Promise.all(handlers);
       });
-      expect(app.view.queryByRole('article', { name: 'AAA market data' })).not.toBeInTheDocument();
+      expect(matrixHeaders(app)).toEqual(['Metric', 'BBB']);
       expect(app.view.queryByText('9,999', { exact: true })).not.toBeInTheDocument();
       expect(app.view.queryByText('8,888%', { exact: true })).not.toBeInTheDocument();
       expect(app.view.queryByText('Request cancelled.')).not.toBeInTheDocument();
-      expect(bbbPrices.getByText('123.45', { exact: true })).toBeVisible();
+      expect(matrixCell(app, 'BBB', 'Latest close')).toHaveTextContent('123.45');
       await app.dispose();
     } finally {
       stopObserving?.();

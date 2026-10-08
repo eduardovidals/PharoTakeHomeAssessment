@@ -13,6 +13,19 @@ const priceLabel = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 });
 
+async function matrixCell(page: Page, ticker: string, metric: string) {
+  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
+  const headers = await table.getByRole('columnheader').allTextContents();
+  const index = headers.findIndex((header) => header.trim() === ticker) - 1;
+  if (index < 0) throw new Error(`Expected a comparison column for ${ticker}.`);
+  const row = table.getByRole('row').filter({
+    has: page.getByRole('rowheader', { name: metric, exact: true }),
+  });
+  // e2e-ordinal: The native column headers establish this URL-selected ticker's value position.
+  return row.getByRole('cell').nth(index);
+}
+
 async function expectContainedDocument(page: Page) {
   // e2e-locator: document dimensions distinguish local table scrolling from page overflow.
   expect(
@@ -72,9 +85,7 @@ test.describe('Browse and inspect historical instruments', () => {
       await input.press('Enter');
       await expect(input).toHaveValue('');
       await input.press('Escape');
-      await expect(
-        page.getByRole('region', { name: 'TICK0001 statistics', exact: true }),
-      ).toContainText('-9.17%');
+      await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
       const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
       await expect(chart).toBeVisible();
       const fetched = [...requests];
@@ -103,7 +114,7 @@ test.describe('Browse and inspect historical instruments', () => {
       await expect(input).toBeFocused();
       await expect(input).toHaveValue('0001');
       await input.press('Escape');
-      await expect(page.getByRole('article')).toHaveCount(0);
+      await expect(page.getByRole('table', { name: 'Comparison', exact: true })).toHaveCount(0);
       expect(new URL(page.url()).search).toBe('');
       expect(requests).toEqual(fetched);
     } finally {
@@ -114,7 +125,7 @@ test.describe('Browse and inspect historical instruments', () => {
   test('keeps one compact overlay picker for empty, single and capped comparisons across widths', async ({
     page,
   }, testInfo) => {
-    for (const width of [320, 390, 768, 1440]) {
+    for (const width of [320, 390, 768, 1366, 1440]) {
       await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
       for (const [state, route] of [
         ['empty', '/'],
@@ -126,9 +137,42 @@ test.describe('Browse and inspect historical instruments', () => {
         await expect(input).toHaveCount(1);
         await expect(page.getByRole('button', { name: 'Retry instruments' })).toHaveCount(0);
         if (state !== 'empty') {
-          await expect(
-            page.getByRole('region', { name: 'TICK0001 statistics', exact: true }),
-          ).toContainText('-9.17%');
+          await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
+          if (state === 'three') {
+            await expect(await matrixCell(page, 'TICK0002', 'Total return')).toHaveText('-10.49%');
+            await expect(await matrixCell(page, 'TICK0003', 'Total return')).toHaveText('+10.94%');
+          }
+          const scroll = page.getByRole('region', {
+            name: 'Comparison table scroll area',
+            exact: true,
+          });
+          const dimensions = await scroll.evaluate((element) => ({
+            width: element.clientWidth,
+            content: element.scrollWidth,
+          }));
+          if (width >= 1366) {
+            expect(dimensions.content).toBeLessThanOrEqual(dimensions.width);
+            const chartBox = await page
+              .getByRole('region', {
+                name: state === 'three' ? 'Rebased price change' : 'Historical closing prices',
+                exact: true,
+              })
+              .boundingBox();
+            const matrixBox = await page
+              .getByRole('region', { name: 'Comparison', exact: true })
+              .boundingBox();
+            if (!chartBox || !matrixBox)
+              throw new Error('Expected both measured analytical surfaces.');
+            expect(matrixBox.x).toBeGreaterThan(chartBox.x + chartBox.width);
+            expect(matrixBox.y).toBe(chartBox.y);
+          }
+          if (width === 320 && state === 'three') {
+            expect(dimensions.content).toBeGreaterThan(dimensions.width);
+            await scroll.press('ArrowRight');
+            await expect
+              .poll(() => scroll.evaluate((element) => element.scrollLeft))
+              .toBeGreaterThan(0);
+          }
         }
         await expectContainedDocument(page);
         await page.screenshot({
@@ -136,14 +180,20 @@ test.describe('Browse and inspect historical instruments', () => {
           fullPage: true,
         });
         if (state === 'three' || state === 'empty') {
-          const before = await page
-            .getByRole('region', { name: 'Selected instruments', exact: true })
-            .boundingBox();
+          const analysis = page.getByRole('region', { name: 'Selected instruments', exact: true });
+          // Compare document positions: focusing the picker may legitimately scroll it into view.
+          const before = await analysis.evaluate(
+            (element) =>
+              element.getBoundingClientRect().top +
+              (element.ownerDocument.defaultView?.scrollY ?? 0),
+          );
           await input.click();
+          if ((await input.getAttribute('aria-expanded')) !== 'true')
+            await input.press('ArrowDown');
           const choices = page.getByRole('listbox');
           await expect(choices.getByRole('option')).toHaveCount(200);
           const popupBox = await choices.boundingBox();
-          if (!popupBox || !before) throw new Error('Expected measured overlay and analysis');
+          if (!popupBox) throw new Error('Expected measured candidate overlay');
           expect(popupBox.x).toBeGreaterThanOrEqual(0);
           expect(popupBox.x + popupBox.width).toBeLessThanOrEqual(width);
           expect(popupBox.height).toBeLessThanOrEqual(300);
@@ -157,12 +207,12 @@ test.describe('Browse and inspect historical instruments', () => {
           });
           await input.press('Escape');
           expect(
-            (
-              await page
-                .getByRole('region', { name: 'Selected instruments', exact: true })
-                .boundingBox()
-            )?.y,
-          ).toBe(before.y);
+            await analysis.evaluate(
+              (element) =>
+                element.getBoundingClientRect().top +
+                (element.ownerDocument.defaultView?.scrollY ?? 0),
+            ),
+          ).toBe(before);
         }
       }
     }
@@ -200,21 +250,29 @@ test.describe('Browse and inspect historical instruments', () => {
       dailyVolatilityPercent: expect.closeTo(1.523165384579988, 10),
       maxDrawdownPercent: expect.closeTo(13.3849387399395, 10),
     });
-    const statistics = page.getByRole('region', { name: 'TICK0001 statistics', exact: true });
-    for (const value of ['-9.17%', '1.52%', '13.38%']) {
-      await expect(statistics.getByRole('definition').filter({ hasText: value })).toBeVisible();
-    }
-    for (const explanation of [
-      'First to last observation',
-      'Sample deviation of daily returns',
-      'Largest peak-to-trough decline',
-    ]) {
-      await expect(statistics.getByText(explanation, { exact: true })).toBeVisible();
-    }
-    const prices = page.getByRole('region', { name: 'TICK0001 prices', exact: true });
-    for (const value of ['30', 'Jun 23, 2026', 'Aug 3, 2026', '172.89']) {
-      await expect(prices.getByText(value, { exact: true })).toBeVisible();
-    }
+    for (const [metric, value] of [
+      ['Latest close', '172.89'],
+      ['Total return', '-9.17%'],
+      ['Daily volatility', '1.52%'],
+      ['Max drawdown', '13.38%'],
+    ] as const)
+      await expect(await matrixCell(page, 'TICK0001', metric)).toHaveText(value);
+    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+    await expect(matrix).toHaveAccessibleDescription(
+      'Metrics cover each instrument’s full supplied window.',
+    );
+    const explanation = page.getByText('About these metrics', { exact: true });
+    await explanation.click();
+    const matrixRegion = page.getByRole('region', { name: 'Comparison', exact: true });
+    for (const description of [
+      /Total return: first to last observation/,
+      /Daily volatility: sample deviation of daily returns/,
+      /Max drawdown: largest peak-to-trough decline/,
+    ])
+      await expect(matrixRegion.getByText(description)).toBeVisible();
+    await explanation.click();
+    await expect(page.getByText('30 observations', { exact: true })).toBeVisible();
+    await expect(page.getByText('Jun 23 – Aug 3, 2026 (UTC)', { exact: true })).toBeVisible();
     const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
     await expect(chart).toBeVisible();
     expect((await chart.boundingBox())?.height).toBe(320);
@@ -274,11 +332,10 @@ test.describe('Inspect prices on a narrow touch screen', () => {
     const ticker = 'WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW';
     await page.goto('/?tickers=' + ticker);
     await expect(
-      page.getByRole('region', { name: `${ticker} prices`, exact: true }).getByRole('alert'),
-    ).toHaveText('Instrument not found.');
-    await expect(
-      page.getByRole('region', { name: `${ticker} statistics`, exact: true }).getByRole('alert'),
-    ).toHaveText('Instrument not found.');
+      page
+        .getByRole('group', { name: `${ticker} resources`, exact: true })
+        .getByText('Not in this dataset', { exact: true }),
+    ).toBeVisible();
     await expectContainedDocument(page);
   });
 
@@ -331,7 +388,7 @@ test.describe('Inspect prices on a narrow touch screen', () => {
     await expect(search).toBeFocused();
     await expect(search).toHaveValue('');
     await search.press('Escape');
-    await expect(page.getByRole('article')).toHaveCount(0);
+    await expect(page.getByRole('table', { name: 'Comparison', exact: true })).toHaveCount(0);
     expect(new URL(page.url()).search).toBe('');
   });
 });
