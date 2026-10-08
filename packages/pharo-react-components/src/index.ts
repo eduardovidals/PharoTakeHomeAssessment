@@ -4,6 +4,8 @@ export type {
   PharoButtonSize,
   PharoButtonVariant,
 } from './components/PharoButton';
+export { PharoIconButton } from './components/PharoIconButton';
+export type { PharoIconButtonProps } from './components/PharoIconButton';
 export { PharoTextField } from './components/PharoTextField';
 export type { PharoTextFieldInputProps, PharoTextFieldProps } from './components/PharoTextField';
 export { PharoComboBox } from './components/PharoComboBox';

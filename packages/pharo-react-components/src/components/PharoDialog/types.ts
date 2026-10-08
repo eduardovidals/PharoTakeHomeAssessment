@@ -16,7 +16,7 @@ export interface PharoDialogProps {
   readonly onOpenChange: (isOpen: boolean) => void;
   /** Prevent opening through the trigger. */
   readonly triggerDisabled?: boolean;
-  /** Visible close action; defaults to Close. */
+  /** Accessible name for the close icon button; defaults to Close. */
   readonly closeLabel?: string;
   /** Allow backdrop dismissal; defaults to true. Escape remains supported. */
   readonly isDismissable?: boolean;

@@ -1,5 +1,5 @@
 export const styles: Record<
-  'overlay' | 'modal' | 'dialog' | 'header' | 'title' | 'close' | 'content',
+  'overlay' | 'modal' | 'dialog' | 'header' | 'title' | 'content',
   string
 > = {
   overlay:
@@ -10,6 +10,5 @@ export const styles: Record<
   header:
     'flex shrink-0 items-start justify-between gap-pharo-4 border-b border-pharo-border p-pharo-4',
   title: 'min-w-0 self-center text-pharo-lg font-semibold wrap-break-word',
-  close: 'shrink-0',
   content: 'min-h-0 overflow-auto overscroll-contain p-pharo-4',
 };
