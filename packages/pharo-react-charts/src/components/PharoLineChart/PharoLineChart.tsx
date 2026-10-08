@@ -72,6 +72,8 @@ export function PharoLineChart(props: Props) {
     formatYDetail = formatNumber,
     formatYTable = formatNumber,
     dataTable,
+    selectedTimestamp,
+    onTimestampChange,
     className,
   } = props;
   const { ref, width, height, fontSize } = useChartSize();
@@ -127,12 +129,15 @@ export function PharoLineChart(props: Props) {
       : [];
   const {
     timestamp: inspectedTimestamp,
+    navigationTimestamp,
     onInspect,
+    onNavigationFocus,
     onPointerDown,
     onPointerMove,
     onPointerUp,
     onPointerCancel,
-  } = useChartInspection({ geometry, timeline });
+    onPointerLeave,
+  } = useChartInspection({ geometry, timeline, selectedTimestamp, onTimestampChange });
   const details: readonly ChartInspectionDetail[] =
     geometry.kind === 'ready' && inspectedTimestamp !== undefined
       ? inspectTimestamp(geometry.series, inspectedTimestamp).map((row) => ({
@@ -142,11 +147,22 @@ export function PharoLineChart(props: Props) {
       : [];
   const selectedDate = inspectedTimestamp !== undefined ? formatXDetail(inspectedTimestamp) : '';
   const valueText =
-    (inspectedTimestamp !== undefined ? formatXAccessible(inspectedTimestamp) : '') +
+    (navigationTimestamp !== undefined ? formatXAccessible(navigationTimestamp) : '') +
     '; ' +
-    details.map((row) => row.label + ': ' + row.display).join('; ');
+    (geometry.kind === 'ready' && navigationTimestamp !== undefined
+      ? inspectTimestamp(geometry.series, navigationTimestamp).map(
+          (row) =>
+            row.label +
+            ': ' +
+            (row.kind === 'available' ? formatYDetail(row.value) : 'Unavailable'),
+        )
+      : []
+    ).join('; ');
   const crosshairX =
-    geometry.kind === 'ready' && inspectedTimestamp !== undefined
+    geometry.kind === 'ready' &&
+    inspectedTimestamp !== undefined &&
+    inspectedTimestamp >= geometry.xDomain[0] &&
+    inspectedTimestamp <= geometry.xDomain[1]
       ? geometry.plot.left +
         ((inspectedTimestamp - geometry.xDomain[0]) / (geometry.xDomain[1] - geometry.xDomain[0])) *
           (geometry.plot.right - geometry.plot.left)
@@ -206,6 +222,7 @@ export function PharoLineChart(props: Props) {
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerCancel}
+            onPointerLeave={onPointerLeave}
           >
             <title id={titleId}>{label}</title>
             {description ? <desc id={descriptionId}>{description}</desc> : null}
@@ -316,6 +333,8 @@ export function PharoLineChart(props: Props) {
           label={label}
           timeline={timeline}
           timestamp={inspectedTimestamp}
+          navigationTimestamp={navigationTimestamp}
+          onNavigationFocus={onNavigationFocus}
           date={selectedDate}
           valueText={valueText}
           details={details}

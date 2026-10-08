@@ -24,7 +24,13 @@ import type { PriceHistoryProps as Props } from './types';
  * ```
  */
 export function PriceHistory(props: Props) {
-  const { resources, mode = 'price', externalDataTriggerId } = props;
+  const {
+    resources,
+    mode = 'price',
+    externalDataTriggerId,
+    selectedTimestamp,
+    onTimestampChange,
+  } = props;
   const available = resources.filter((resource) => (resource.query.data?.length ?? 0) > 0).length;
   const pending = resources.some((resource) => resource.query.isPending);
   const rawSeries = resources.map((resource) =>
@@ -55,6 +61,8 @@ export function PriceHistory(props: Props) {
           label={label}
           description={description}
           series={series}
+          selectedTimestamp={selectedTimestamp}
+          onTimestampChange={onTimestampChange}
           xAxisLabel="Date (UTC)"
           yAxisLabel={mode === 'performance' ? 'Price change (%)' : 'Price'}
           baselineY={mode === 'performance' ? 0 : undefined}

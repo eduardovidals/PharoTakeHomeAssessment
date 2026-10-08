@@ -1321,6 +1321,113 @@ test.describe('independent built charts', () => {
     }
   });
 
+  test('controlled dates separate transient hover from pointer and native keyboard commits', async ({
+    page,
+  }, testInfo) => {
+    const example = page.getByRole('region', { name: 'Controlled date example', exact: true });
+    const chart = page.getByRole('img', { name: 'Controlled measurements', exact: true });
+    const details = page.getByRole('region', { name: 'Details for Controlled measurements' });
+    const slider = page.getByRole('slider', { name: 'Inspect Controlled measurements' });
+    await chart.scrollIntoViewIfNeeded();
+    const box = await chart.boundingBox();
+    if (!box) throw new Error('Controlled chart has no visible rectangle.');
+    const width = Number(await chart.getAttribute('width'));
+    const x = box.x + (56 / width) * box.width;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await expect(details).toContainText('2024-03-10');
+    await expect(example.getByText('Comparison date: Latest', { exact: true })).toBeVisible();
+    await expect(example.getByText('Explicit date changes: 0', { exact: true })).toBeVisible();
+    await expect(slider).toHaveValue('3');
+    await slider.press('ArrowLeft');
+    await expect(example.getByText('Comparison date: 2024-03-12', { exact: true })).toBeVisible();
+    await expect(slider).toHaveValue('2');
+    await chart.scrollIntoViewIfNeeded();
+    const updated = await chart.boundingBox();
+    if (!updated) throw new Error('Controlled chart disappeared.');
+    await page.mouse.click(
+      updated.x + (56 / width) * updated.width,
+      updated.y + updated.height / 2,
+    );
+    await expect(example.getByText('Comparison date: 2024-03-10', { exact: true })).toBeVisible();
+    await expect(example.getByText('Explicit date changes: 2', { exact: true })).toBeVisible();
+    await page.mouse.move(updated.x + updated.width - 16, updated.y + updated.height / 2);
+    await expect(details).toContainText('2024-03-13');
+    await expect(example.getByText('Comparison date: 2024-03-10', { exact: true })).toBeVisible();
+    await page.mouse.move(updated.x, updated.y - 8);
+    await expect(details).toContainText('2024-03-10');
+    await slider.press('End');
+    await expect(example.getByText('Comparison date: 2024-03-13', { exact: true })).toBeVisible();
+    await slider.press('Home');
+    await expect(example.getByText('Comparison date: 2024-03-10', { exact: true })).toBeVisible();
+    await slider.press('Tab');
+    await expect(
+      page.getByRole('button', { name: 'Show data table for Controlled measurements' }),
+    ).toBeFocused();
+    await example.getByRole('button', { name: 'Back to latest comparison' }).click();
+    await expect(example.getByText('Comparison date: Latest', { exact: true })).toBeVisible();
+    await expect(slider).toHaveValue('3');
+    await example.screenshot({ path: testInfo.outputPath('charts-controlled-date-desktop.png') });
+  });
+
+  test('controlled dates commit native touch once and leave vertical gestures uncommitted', async ({
+    browser,
+  }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    try {
+      const page = await context.newPage();
+      await page.goto(origin);
+      const example = page.getByRole('region', { name: 'Controlled date example', exact: true });
+      const chart = page.getByRole('img', { name: 'Controlled measurements', exact: true });
+      await chart.scrollIntoViewIfNeeded();
+      let box = await chart.boundingBox();
+      if (!box) throw new Error('Controlled touch chart has no visible rectangle.');
+      const x = box.x + box.width - 20;
+      const y = box.y + box.height / 2;
+      const before = await page.evaluate(() => scrollY);
+      const session = await context.newCDPSession(page);
+      try {
+        await session.send('Input.dispatchTouchEvent', {
+          type: 'touchStart',
+          touchPoints: [{ x, y }],
+        });
+        await session.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [{ x, y: y - 35 }],
+        });
+        await session.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [{ x, y: y - 100 }],
+        });
+        await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
+        await expect(example.getByText('Explicit date changes: 0', { exact: true })).toBeVisible();
+      } finally {
+        await session.detach();
+      }
+      await chart.scrollIntoViewIfNeeded();
+      box = await chart.boundingBox();
+      if (!box) throw new Error('Controlled touch chart disappeared.');
+      const width = Number(await chart.getAttribute('width'));
+      await page.touchscreen.tap(
+        box.x + ((56 + (width - 72) / 3) / width) * box.width,
+        box.y + box.height / 2,
+      );
+      await expect(example.getByText('Comparison date: 2024-03-11', { exact: true })).toBeVisible();
+      await expect(example.getByText('Explicit date changes: 1', { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole('slider', { name: 'Inspect Controlled measurements' }),
+      ).toHaveValue('1');
+      await example.screenshot({ path: testInfo.outputPath('charts-controlled-date-mobile.png') });
+    } finally {
+      await context.close();
+    }
+  });
+
   test('compiled chart Docs expose the actual generic public contract', async ({
     page,
   }, testInfo) => {

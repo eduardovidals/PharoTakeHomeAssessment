@@ -65,6 +65,8 @@ const east: PharoChartSeries = {
 };
 
 function App() {
+  const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
+  const [dateCommits, setDateCommits] = useState(0);
   const [externalOpen, setExternalOpen] = useState(false);
   const [externalHidden, setExternalHidden] = useState(false);
   const [narrow, setNarrow] = useState(false);
@@ -290,6 +292,32 @@ function App() {
           label="Blank external trigger"
           series={[north]}
           dataTable={{ mode: 'external', triggerId: ' ' }}
+        />
+      </section>
+      <section aria-label="Controlled date example" className="min-w-0 space-y-pharo-3">
+        <h2 className="text-pharo-lg font-semibold">Consumer-owned date</h2>
+        <p>
+          Comparison date:{' '}
+          {selectedTimestamp === null
+            ? 'Latest'
+            : new Date(selectedTimestamp).toISOString().slice(0, 10)}
+        </p>
+        <p>Explicit date changes: {dateCommits}</p>
+        <button
+          type="button"
+          className="min-h-pharo-control rounded-pharo-control border border-pharo-control-border px-pharo-3 focus-visible:pharo-focus-ring"
+          onClick={() => setSelectedTimestamp(null)}
+        >
+          Back to latest comparison
+        </button>
+        <PharoLineChart
+          label="Controlled measurements"
+          series={unequalSeries}
+          selectedTimestamp={selectedTimestamp}
+          onTimestampChange={(timestamp) => {
+            setSelectedTimestamp(timestamp);
+            setDateCommits((count) => count + 1);
+          }}
         />
       </section>
       <section aria-label="Empty example">

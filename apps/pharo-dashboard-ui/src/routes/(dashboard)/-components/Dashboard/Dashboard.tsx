@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { pricesQueryOptions, priceStatsQueryOptions } from '../../../../api/prices';
 import { getSeriesWindows, toChartSeries } from './adapters/priceSeries';
@@ -8,6 +8,7 @@ import { ObservationDialog } from './components/ObservationDialog';
 import { PriceHistory } from './components/PriceHistory';
 import { dashboardStyles } from './styles';
 import { useSeriesAppearances } from './hooks/useSeriesAppearances';
+import { getComparisonTimeline } from './utils';
 import type { DashboardProps as Props } from './types';
 
 /**
@@ -23,6 +24,9 @@ export function Dashboard(props: Props) {
   const selectionId = useId();
   const dataTriggerId = useId();
   const pickerInputRef = useRef<HTMLInputElement>(null);
+  const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
+  // Clearing every instrument starts the next comparison at Latest; changing mode keeps the pin.
+  if (selectedTickers.length === 0 && selectedTimestamp !== null) setSelectedTimestamp(null);
   const appearances = useSeriesAppearances(selectedTickers);
   // Start both resource families together, independent of instrument-list availability.
   const prices = useQueries({
@@ -59,6 +63,7 @@ export function Dashboard(props: Props) {
     toChartSeries(ticker, query.data ?? [], appearance),
   );
   const windows = getSeriesWindows(rawSeries);
+  const timeline = getComparisonTimeline(rawSeries);
 
   return (
     <main className={dashboardStyles.page}>
@@ -100,9 +105,17 @@ export function Dashboard(props: Props) {
               resources={priceResources}
               mode={mode}
               externalDataTriggerId={dataTriggerId}
+              selectedTimestamp={selectedTimestamp}
+              onTimestampChange={setSelectedTimestamp}
             />
             <div className={dashboardStyles.details}>
-              <ComparisonMatrix columns={columns} onRemove={removeInstrument} />
+              <ComparisonMatrix
+                columns={columns}
+                onRemove={removeInstrument}
+                selectedTimestamp={selectedTimestamp}
+                timeline={timeline}
+                onTimestampChange={setSelectedTimestamp}
+              />
               <ObservationDialog triggerId={dataTriggerId} series={rawSeries} />
             </div>
           </div>

@@ -827,6 +827,100 @@ describe('PharoLineChart recorded observation access', () => {
     expect(slider).toHaveValue('2');
   });
 
+  it('keeps controlled hover temporary and navigation anchored to the committed date', () => {
+    const onTimestampChange = vi.fn();
+    const props = { series: unequalObservations, label: 'Pinned comparison', onTimestampChange };
+    const view = renderChart({ ...props, selectedTimestamp: null });
+    const chart = screen.getByRole('img', { name: props.label });
+    mockScaledBounds(chart);
+    const slider = screen.getByRole('slider', { name: 'Inspect Pinned comparison' });
+    const details = screen.getByRole('region', { name: 'Details for Pinned comparison' });
+    pointer(chart, 'pointermove', 128);
+    expect(details).toHaveTextContent('2024-03-10');
+    expect(slider).toHaveValue('3');
+    expect(slider).toHaveAttribute(
+      'aria-valuetext',
+      '2024-03-13; Sensor A: 8; Sensor B: Unavailable',
+    );
+    expect(onTimestampChange).not.toHaveBeenCalled();
+    pointer(chart, 'pointerout', 128);
+    expect(details).toHaveTextContent('2024-03-13');
+    pointer(chart, 'pointermove', 128);
+    fireEvent.focus(slider);
+    expect(details).toHaveTextContent('2024-03-13');
+    fireEvent.change(slider, { target: { value: '2' } });
+    expect(onTimestampChange).toHaveBeenLastCalledWith(firstDate + 2 * day);
+    // A controlled consumer owns acceptance; a callback alone cannot alter its selected date.
+    expect(slider).toHaveValue('3');
+    view.rerender(<PharoLineChart {...props} selectedTimestamp={firstDate + 2 * day} />);
+    expect(slider).toHaveValue('2');
+    expect(details).toHaveTextContent('2024-03-12');
+    pointer(chart, 'pointermove', 128);
+    expect(slider).toHaveValue('2');
+    expect(onTimestampChange).toHaveBeenCalledTimes(1);
+    pointer(chart, 'pointerout', 128);
+    expect(details).toHaveTextContent('2024-03-12');
+    view.rerender(<PharoLineChart {...props} selectedTimestamp={null} />);
+    expect(details).toHaveTextContent('2024-03-13');
+    expect(onTimestampChange).toHaveBeenCalledTimes(1);
+    pointer(chart, 'pointermove', 128);
+    view.rerender(<PharoLineChart {...props} selectedTimestamp={firstDate + day} />);
+    view.rerender(<PharoLineChart {...props} selectedTimestamp={null} />);
+    expect(details).toHaveTextContent('2024-03-13');
+  });
+
+  it('commits mouse clicks and completed touch taps once, but not hover or scroll gestures', () => {
+    const onTimestampChange = vi.fn();
+    renderChart({
+      series: unequalObservations,
+      label: 'Committed interactions',
+      selectedTimestamp: null,
+      onTimestampChange,
+    });
+    const chart = screen.getByRole('img', { name: 'Committed interactions' });
+    mockScaledBounds(chart);
+    pointer(chart, 'pointermove', 328);
+    expect(onTimestampChange).not.toHaveBeenCalled();
+    pointer(chart, 'pointerdown', 328);
+    pointer(chart, 'pointerup', 328);
+    fireEvent.click(chart);
+    expect(onTimestampChange).toHaveBeenCalledExactlyOnceWith(firstDate + 2 * day);
+    pointer(chart, 'pointerdown', 128, 'touch');
+    pointer(chart, 'pointerup', 128, 'touch');
+    fireEvent.click(chart);
+    expect(onTimestampChange.mock.calls).toEqual([[firstDate + 2 * day], [firstDate]]);
+    pointer(chart, 'pointerdown', 228, 'touch');
+    pointer(chart, 'pointermove', 228, 'touch', 140);
+    pointer(chart, 'pointerup', 228, 'touch', 140);
+    pointer(chart, 'pointerdown', 228, 'touch');
+    pointer(chart, 'pointercancel', 228, 'touch');
+    pointer(chart, 'pointerup', 228, 'touch');
+    expect(onTimestampChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('retains an unavailable controlled date through data updates without inventing a replacement commit', () => {
+    const onTimestampChange = vi.fn();
+    const props = {
+      series: unequalObservations,
+      label: 'Exact pin',
+      selectedTimestamp: firstDate + 2 * day,
+      onTimestampChange,
+    };
+    const view = renderChart(props);
+    const withoutDate = unequalObservations.map((item) => ({
+      ...item,
+      points: item.points.filter((point) => point.x !== props.selectedTimestamp),
+    }));
+    view.rerender(<PharoLineChart {...props} series={withoutDate} />);
+    const details = screen.getByRole('region', { name: 'Details for Exact pin' });
+    expect(details).toHaveTextContent('2024-03-12');
+    expect(within(details).getAllByText('Unavailable')).toHaveLength(2);
+    expect(screen.getByRole('slider', { name: 'Inspect Exact pin' })).toHaveValue('1');
+    measure(view.container, 320, 272);
+    expect(details).toHaveTextContent('2024-03-12');
+    expect(onTimestampChange).not.toHaveBeenCalled();
+  });
+
   it('preserves selection through resize and order changes, then reconciles a removed date to its earlier neighbor', () => {
     const view = renderChart({ series: unequalObservations, label: 'Changing dates' });
     fireEvent.change(screen.getByRole('slider', { name: 'Inspect Changing dates' }), {

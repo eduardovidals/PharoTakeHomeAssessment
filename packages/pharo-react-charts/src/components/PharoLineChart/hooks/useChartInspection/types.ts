@@ -6,6 +6,10 @@ export interface UseChartInspectionOptions {
   readonly geometry: ChartGeometry;
   /** Chronological union of real recorded timestamps. */
   readonly timeline: readonly number[];
+  /** Undefined retains local inspection; null follows latest; a number is consumer-owned. */
+  readonly selectedTimestamp?: number | null;
+  /** Explicit click/tap/range commits only, never pointer preview or data reconciliation. */
+  readonly onTimestampChange?: (timestamp: number) => void;
 }
 
 /** @internal Ownership of one potential touch tap, without preventing scrolling. */
@@ -18,4 +22,12 @@ export interface ChartTouchGesture {
   readonly startY: number;
   /** A moved or multi-pointer gesture is never committed as a tap. */
   readonly moved: boolean;
+}
+
+/** @internal Preview is valid only for the controlled selection that produced it. */
+export interface ChartInspectionPreview {
+  /** Actual recorded timestamp under the pointer. */
+  readonly timestamp: number;
+  /** Consumer selection that must remain unchanged for this preview to apply. */
+  readonly selection: number | null | undefined;
 }

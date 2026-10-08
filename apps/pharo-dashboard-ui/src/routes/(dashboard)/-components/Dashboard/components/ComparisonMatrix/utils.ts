@@ -1,3 +1,5 @@
+import { getHistoricalComparison } from './calculations/utils';
+import { formatDateRange, formatDateTable, toUtcTimestamp } from '../../../../../../utils/date';
 import {
   formatPercentage,
   formatPrice,
@@ -5,6 +7,7 @@ import {
 } from '../../../../../../utils/number';
 import type {
   ComparisonColumn,
+  ComparisonPeriod,
   ComparisonQuery,
   ComparisonResource,
   ComparisonRow,
@@ -42,22 +45,41 @@ export function getResourceFeedback(
   return { canRetry: false, notFound: false };
 }
 
-/** Format raw latest close and supplied API metrics without recomputing financial values. */
-export function getComparisonRows(columns: readonly ComparisonColumn[]): readonly ComparisonRow[] {
+/** Latest retains API metrics; pinned values come only from each cached history prefix. */
+export function getComparisonRows(
+  columns: readonly ComparisonColumn[],
+  selectedTimestamp: number | null = null,
+): readonly ComparisonRow[] {
+  const snapshots = columns.map(({ prices }) =>
+    selectedTimestamp === null
+      ? undefined
+      : getHistoricalComparison(prices.data ?? [], selectedTimestamp),
+  );
+  const metricSources = columns.map(({ prices, statistics }, index) =>
+    selectedTimestamp === null
+      ? { data: statistics.data, isPending: statistics.isPending }
+      : { data: snapshots[index]?.statistics, isPending: prices.isPending },
+  );
   return [
     {
-      label: 'Latest close',
-      values: columns.map(({ prices }) => ({
+      label: selectedTimestamp === null ? 'Latest close' : 'Closing price',
+      values: columns.map(({ prices }, index) => ({
         text:
           prices.data === undefined && prices.isPending
             ? 'Loading…'
-            : formatPrice(prices.data?.at(-1)?.price),
+            : selectedTimestamp === null
+              ? formatPrice(prices.data?.at(-1)?.price)
+              : prices.data === undefined
+                ? 'Unavailable'
+                : snapshots[index]?.closingPrice === undefined
+                  ? 'No observation'
+                  : formatPrice(snapshots[index]?.closingPrice),
         tone: 'neutral',
       })),
     },
     {
       label: 'Total return',
-      values: columns.map(({ statistics }) => {
+      values: metricSources.map((statistics) => {
         const text =
           statistics.data === undefined && statistics.isPending
             ? 'Loading…'
@@ -72,7 +94,7 @@ export function getComparisonRows(columns: readonly ComparisonColumn[]): readonl
     },
     {
       label: 'Daily volatility',
-      values: columns.map(({ statistics }) => ({
+      values: metricSources.map((statistics) => ({
         text:
           statistics.data === undefined && statistics.isPending
             ? 'Loading…'
@@ -84,7 +106,7 @@ export function getComparisonRows(columns: readonly ComparisonColumn[]): readonl
     },
     {
       label: 'Max drawdown',
-      values: columns.map(({ statistics }) => ({
+      values: metricSources.map((statistics) => ({
         text:
           statistics.data === undefined && statistics.isPending
             ? 'Loading…'
@@ -96,8 +118,13 @@ export function getComparisonRows(columns: readonly ComparisonColumn[]): readonl
 }
 
 /** One polite summary covers status changes without per-cell competing announcements. */
-export function getComparisonAnnouncement(columns: readonly ComparisonColumn[]): string {
-  const queries = columns.flatMap(({ prices, statistics }) => [prices, statistics]);
+export function getComparisonAnnouncement(
+  columns: readonly ComparisonColumn[],
+  selectedTimestamp: number | null = null,
+): string {
+  const queries = columns.flatMap(({ prices, statistics }) =>
+    selectedTimestamp === null ? [prices, statistics] : [prices],
+  );
   const fetching = queries.filter((query) => query.isFetching).length;
   const failed = queries.filter(
     (query) => query.isError && query.error.kind !== 'cancelled',
@@ -106,5 +133,41 @@ export function getComparisonAnnouncement(columns: readonly ComparisonColumn[]):
     return `Updating ${fetching} comparison ${fetching === 1 ? 'resource' : 'resources'}.`;
   if (failed > 0)
     return `${failed} comparison ${failed === 1 ? 'resource is' : 'resources are'} unavailable.`;
-  return 'Comparison data ready.';
+  return selectedTimestamp === null
+    ? 'Comparison data ready.'
+    : `Comparison pinned to ${formatDateTable(selectedTimestamp)}. Statistics include observations through this date.`;
+}
+
+/** Show identical recorded windows once while keeping differing histories explicit. */
+export function getComparisonPeriods(
+  columns: readonly ComparisonColumn[],
+  selectedTimestamp: number | null,
+): readonly ComparisonPeriod[] {
+  const periods = columns.map(({ ticker, prices }) => {
+    const data = prices.data;
+    if (data === undefined)
+      return { ticker, text: prices.isPending ? 'Loading period…' : 'Period unavailable.' };
+    const included =
+      selectedTimestamp === null
+        ? data
+        : data.filter(({ date }) => toUtcTimestamp(date) <= selectedTimestamp);
+    const firstIncluded = included[0];
+    const lastIncluded = included.at(-1);
+    const snapshot = {
+      observationCount: included.length,
+      firstTimestamp: firstIncluded ? toUtcTimestamp(firstIncluded.date) : undefined,
+      lastTimestamp: lastIncluded ? toUtcTimestamp(lastIncluded.date) : undefined,
+    };
+    if (snapshot.observationCount === 0) return { ticker, text: 'No observations in this period.' };
+    const through = selectedTimestamp ?? snapshot.lastTimestamp;
+    const range = formatDateRange(snapshot.firstTimestamp, through);
+    const count = `${snapshot.observationCount} ${snapshot.observationCount === 1 ? 'observation' : 'observations'}`;
+    const missing =
+      selectedTimestamp !== null && snapshot.lastTimestamp !== selectedTimestamp
+        ? ` · Last recorded ${formatDateTable(snapshot.lastTimestamp)}`
+        : '';
+    return { ticker, text: `${range} · ${count}${missing}` };
+  });
+  const shared = periods[0]?.text;
+  return shared && periods.every(({ text }) => text === shared) ? [{ text: shared }] : periods;
 }

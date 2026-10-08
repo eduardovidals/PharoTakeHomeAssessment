@@ -141,6 +141,35 @@ function matrixHeaders(app: AppTest) {
 }
 
 describe('Dashboard URL selection and independently owned resources', () => {
+  test('owns one pinned comparison date across modes and returns to Latest after clearing', async () => {
+    const requests = installMarketHandlers();
+    const user = userEvent.setup();
+    const app = await renderApp({ initialEntries: ['/?tickers=AAA,BBB'] });
+    await waitFor(() => expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45'));
+    const loaded = [...requests];
+    await user.click(app.view.getByRole('button', { name: 'Previous date' }));
+    for (const ticker of ['AAA', 'BBB']) {
+      expect(matrixCell(app, ticker, 'Closing price')).toHaveTextContent('100.00');
+      expect(matrixCell(app, ticker, 'Total return')).toHaveTextContent('0.00%');
+      expect(matrixCell(app, ticker, 'Daily volatility')).toHaveTextContent(
+        'Not enough observations',
+      );
+    }
+    await user.click(app.view.getByRole('radio', { name: 'Price' }));
+    expect(matrixCell(app, 'AAA', 'Closing price')).toHaveTextContent('100.00');
+    expect(app.view.getByRole('button', { name: 'Back to latest' })).toBeVisible();
+    expect([...requests]).toEqual(loaded);
+    await user.click(app.view.getByRole('button', { name: 'Back to latest' }));
+    expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45');
+    expect(matrixCell(app, 'AAA', 'Total return')).toHaveTextContent('+23.45%');
+    await user.click(app.view.getByRole('button', { name: 'Previous date' }));
+    await clearSelection(app, user);
+    await chooseInstrument(app, user, 'AAA');
+    expect(app.view.queryByRole('button', { name: 'Back to latest' })).not.toBeInTheDocument();
+    expect(matrixCell(app, 'AAA', 'Latest close')).toHaveTextContent('123.45');
+    expect([...requests]).toEqual(loaded);
+  });
+
   test('uses URL mode for the control and preserves fetched resources through explicit view changes', async () => {
     const requests = installMarketHandlers();
     const user = userEvent.setup();

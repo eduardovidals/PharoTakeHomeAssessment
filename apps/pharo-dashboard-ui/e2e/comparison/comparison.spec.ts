@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { Page, Request, Route } from '@playwright/test';
+import { priceSeriesSchema, priceStatsSchema } from '../../src/api/prices/schema';
+import { getHistoricalComparison } from '../../src/routes/(dashboard)/-components/Dashboard/components/ComparisonMatrix/calculations/utils';
+import { formatPercentage, formatSignedPercentage } from '../../src/utils/number';
 
 const dateLabel = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -647,11 +650,15 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     });
     await inspector.press('Home');
     await inspector.press('ArrowRight');
+    const pinnedValues = await matrix.getByRole('cell').allTextContents();
+    expect(pinnedValues).not.toEqual(fullWindowValues);
     await choice.getByText('Performance', { exact: true }).click();
     await expect(
       page.getByRole('slider', { name: 'Inspect Rebased price change', exact: true }),
     ).toHaveValue('1');
     expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
+    await expect(matrix.getByRole('cell')).toHaveText(pinnedValues);
+    await page.getByRole('button', { name: 'Back to latest', exact: true }).click();
     await expect(matrix.getByRole('cell')).toHaveText(fullWindowValues);
     await page.getByRole('button', { name: 'View data', exact: true }).click();
     const performanceTable = page.getByRole('table', {
@@ -763,5 +770,288 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
       'rgb(180, 83, 9)',
       '2px, 4px',
     );
+  });
+});
+
+const comparisonTickers = ['TICK0001', 'TICK0002', 'TICK0003'] as const;
+
+async function loadComparisonResponses(page: Page) {
+  // Observe the application's existing Query requests; the oracle adds no HTTP calls.
+  const pending = comparisonTickers.map(async (ticker) => {
+    const [prices, statistics] = await Promise.all([
+      page.waitForResponse(
+        (response) => new URL(response.url()).pathname === `/api/prices/${ticker}`,
+      ),
+      page.waitForResponse(
+        (response) => new URL(response.url()).pathname === `/api/prices/${ticker}/stats`,
+      ),
+    ]);
+    expect(prices.status()).toBe(200);
+    expect(statistics.status()).toBe(200);
+    return {
+      ticker,
+      prices: priceSeriesSchema.parse(await prices.json()),
+      statistics: priceStatsSchema.parse(await statistics.json()),
+    };
+  });
+  await page.goto('/?tickers=TICK0001,TICK0002,TICK0003');
+  const responses = await Promise.all(pending);
+  await ready(page, comparisonTickers);
+  return responses;
+}
+
+async function chooseComparisonDate(page: Page, date: string, touch = false) {
+  const control = page.getByRole('button', { name: /Comparison date/ });
+  if (touch) await control.tap();
+  else await control.press('Enter');
+  const label = dateLabel.format(new Date(`${date}T00:00:00.000Z`));
+  const option = page.getByRole('option', { name: label, exact: true });
+  if (touch) await option.tap();
+  else {
+    await page.getByRole('listbox').press('Home');
+    await page.keyboard.type(label);
+    await expect(option).toBeFocused();
+    await page.keyboard.press('Enter');
+  }
+  await expect(control).toContainText(label);
+  await expect(control).toBeFocused();
+}
+
+async function chartPosition(page: Page, fraction: number) {
+  const chart = page.getByRole('img', { name: 'Rebased price change', exact: true });
+  await chart.scrollIntoViewIfNeeded();
+  const box = await chart.boundingBox();
+  const viewBox = (await chart.getAttribute('viewBox'))?.split(' ').map(Number);
+  // e2e-locator: The real SVG plot rectangle gives a viewport-independent recorded-date target.
+  const plot = chart.locator('clipPath rect');
+  const [left, top, width, height] = await Promise.all(
+    ['x', 'y', 'width', 'height'].map(async (name) => Number(await plot.getAttribute(name))),
+  );
+  if (
+    !box ||
+    !viewBox?.[2] ||
+    !viewBox[3] ||
+    left === undefined ||
+    top === undefined ||
+    width === undefined ||
+    height === undefined
+  )
+    throw new Error('Expected measured plot geometry.');
+  return {
+    chart,
+    position: {
+      x: ((left + width * fraction) * box.width) / viewBox[2],
+      y: ((top + height / 2) * box.height) / viewBox[3],
+    },
+  };
+}
+
+async function expectFirstDate(
+  page: Page,
+  responses: Awaited<ReturnType<typeof loadComparisonResponses>>,
+) {
+  for (const { ticker, prices } of responses) {
+    const first = prices[0];
+    if (!first) throw new Error('Expected an initial observation.');
+    await expect(await matrixCell(page, ticker, 'Closing price')).toHaveText(
+      priceLabel.format(first.price),
+    );
+    await expect(await matrixCell(page, ticker, 'Total return')).toHaveText('0.00%');
+    await expect(await matrixCell(page, ticker, 'Daily volatility')).toHaveText(
+      'Not enough observations',
+    );
+    await expect(await matrixCell(page, ticker, 'Max drawdown')).toHaveText('0.00%');
+  }
+}
+
+async function expectFinalParity(
+  page: Page,
+  responses: Awaited<ReturnType<typeof loadComparisonResponses>>,
+) {
+  for (const { ticker, prices, statistics } of responses) {
+    const final = prices.at(-1);
+    if (!final) throw new Error('Expected a final observation.');
+    const pinned = getHistoricalComparison(prices, Date.parse(`${final.date}T00:00:00.000Z`));
+    // Exact unrounded JSON equality with the real C# response, not a display tolerance.
+    expect(pinned.statistics).toEqual(statistics);
+    expect(pinned.observationCount).toBe(prices.length);
+    expect(pinned.closingPrice).toBe(final.price);
+    await expect(await matrixCell(page, ticker, 'Closing price')).toHaveText(
+      priceLabel.format(final.price),
+    );
+    await expect(await matrixCell(page, ticker, 'Total return')).toHaveText(
+      formatSignedPercentage(statistics.totalReturnPercent),
+    );
+    await expect(await matrixCell(page, ticker, 'Daily volatility')).toHaveText(
+      formatPercentage(statistics.dailyVolatilityPercent),
+    );
+    await expect(await matrixCell(page, ticker, 'Max drawdown')).toHaveText(
+      formatPercentage(statistics.maxDrawdownPercent),
+    );
+  }
+}
+
+test.describe('Pin date-aware comparison statistics', () => {
+  test.use({ viewport: { width: 1366, height: 768 } });
+
+  test('navigates actual dates with the keyboard and matches the backend exactly at the final date', async ({
+    page,
+  }, testInfo) => {
+    const requests = recordRequests(page);
+    const responses = await loadComparisonResponses(page);
+    const loaded = [...requests.paths];
+    expect(loaded).toHaveLength(7);
+    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+    const latestCells = await matrix.getByRole('cell').allTextContents();
+    const control = page.getByRole('button', { name: /Comparison date/ });
+    await expect(control).toContainText('Latest');
+    await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
+    await expect(page.getByRole('button', { name: 'Back to latest', exact: true })).toHaveCount(0);
+    const first = responses[0]?.prices[0];
+    const second = responses[0]?.prices[1];
+    const penultimate = responses[0]?.prices.at(-2);
+    const final = responses[0]?.prices.at(-1);
+    if (!first || !second || !penultimate || !final)
+      throw new Error('Expected real historical date endpoints.');
+
+    await chooseComparisonDate(page, first.date);
+    await expectFirstDate(page, responses);
+    await expect(matrix).toHaveAccessibleDescription(/Pinned Jun 23, 2026.*inclusive/);
+    await expect(page.getByRole('button', { name: 'Previous date', exact: true })).toBeDisabled();
+    await page.screenshot({ path: testInfo.outputPath('date-desktop-first.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Next date', exact: true }).press('Enter');
+    await expect(control).toContainText(dateLabel.format(new Date(`${second.date}T00:00:00.000Z`)));
+    for (const ticker of comparisonTickers) {
+      await expect(await matrixCell(page, ticker, 'Daily volatility')).toHaveText(
+        'Not enough observations',
+      );
+    }
+    await page.getByRole('button', { name: 'Previous date', exact: true }).press('Enter');
+    await expectFirstDate(page, responses);
+    await expect(control).toBeFocused();
+
+    await chooseComparisonDate(page, penultimate.date);
+    await page.getByRole('button', { name: 'Next date', exact: true }).press('Enter');
+    await expect(control).toContainText(dateLabel.format(new Date(`${final.date}T00:00:00.000Z`)));
+    await expect(control).toBeFocused();
+    await expectFinalParity(page, responses);
+    await expect(page.getByRole('button', { name: 'Next date', exact: true })).toBeDisabled();
+    await page.screenshot({ path: testInfo.outputPath('date-desktop-final.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Back to latest', exact: true }).press('Enter');
+    await expect(control).toContainText('Latest');
+    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+    await expect(control).toBeFocused();
+    expect(requests.paths).toEqual(loaded);
+    requests.stop();
+  });
+
+  test('previews on hover but commits clicks and native keyboard dates without refetching', async ({
+    page,
+  }, testInfo) => {
+    const requests = recordRequests(page);
+    const responses = await loadComparisonResponses(page);
+    const loaded = [...requests.paths];
+    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+    const latestCells = await matrix.getByRole('cell').allTextContents();
+    const control = page.getByRole('button', { name: /Comparison date/ });
+    const details = page.getByRole('region', {
+      name: 'Details for Rebased price change',
+      exact: true,
+    });
+    const firstTarget = await chartPosition(page, 0);
+    await firstTarget.chart.hover({ position: firstTarget.position });
+    await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
+    await expect(control).toContainText('Latest');
+    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+    await firstTarget.chart.click({ position: firstTarget.position });
+    await expectFirstDate(page, responses);
+    const pinnedCells = await matrix.getByRole('cell').allTextContents();
+
+    const finalTarget = await chartPosition(page, 1);
+    await finalTarget.chart.hover({ position: finalTarget.position });
+    await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
+    await expect(control).toContainText('Jun 23, 2026');
+    await expect(matrix.getByRole('cell')).toHaveText(pinnedCells);
+    await page.screenshot({
+      path: testInfo.outputPath('date-desktop-hover.png'),
+      animations: 'disabled',
+    });
+    await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
+    await control.hover();
+    await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
+    const inspector = page.getByRole('slider', {
+      name: 'Inspect Rebased price change',
+      exact: true,
+    });
+    await inspector.press('End');
+    await expectFinalParity(page, responses);
+    await inspector.press('Home');
+    await expectFirstDate(page, responses);
+    await expect(inspector).toBeFocused();
+    await inspector.press('ArrowRight');
+    await expect(control).toContainText('Jun 24, 2026');
+    const keyboardCells = await matrix.getByRole('cell').allTextContents();
+    await page
+      .getByRole('radiogroup', { name: 'Chart view' })
+      .getByText('Price', { exact: true })
+      .click();
+    await expect(control).toContainText('Jun 24, 2026');
+    await expect(matrix.getByRole('cell')).toHaveText(keyboardCells);
+    await expect(
+      page.getByRole('slider', { name: 'Inspect Historical closing prices', exact: true }),
+    ).toHaveValue('1');
+    await page.getByRole('button', { name: 'Back to latest', exact: true }).click();
+    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+    expect(requests.paths).toEqual(loaded);
+    requests.stop();
+  });
+});
+
+test.describe('Pin comparison dates on touch screens', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('pins a chart tap and makes every ticker reachable at first and final dates', async ({
+    page,
+  }, testInfo) => {
+    const requests = recordRequests(page);
+    const responses = await loadComparisonResponses(page);
+    const loaded = [...requests.paths];
+    const firstTarget = await chartPosition(page, 0);
+    await firstTarget.chart.tap({ position: firstTarget.position });
+    await expectFirstDate(page, responses);
+    await page.screenshot({ path: testInfo.outputPath('date-mobile-first.png'), fullPage: true });
+    const final = responses[0]?.prices.at(-1);
+    if (!final) throw new Error('Expected a final recorded date.');
+    await chooseComparisonDate(page, final.date, true);
+    await expectFinalParity(page, responses);
+    const area = page.getByRole('region', { name: 'Comparison table scroll area', exact: true });
+    for (const ticker of comparisonTickers) {
+      const cell = await matrixCell(page, ticker, 'Closing price');
+      await cell.scrollIntoViewIfNeeded();
+      await expect(cell).toBeInViewport();
+      await expect(
+        area.getByRole('rowheader', { name: 'Closing price', exact: true }),
+      ).toBeInViewport();
+    }
+    for (const name of ['Previous date', 'Next date', 'Back to latest']) {
+      expect(
+        (await page.getByRole('button', { name, exact: true }).boundingBox())?.height,
+      ).toBeGreaterThanOrEqual(44);
+    }
+    // e2e-locator: The native root dimensions prove the date controls do not overflow a mobile viewport.
+    expect(
+      await page
+        .locator('html')
+        .evaluate(
+          (element: { scrollWidth: number; clientWidth: number }) =>
+            element.scrollWidth <= element.clientWidth,
+        ),
+    ).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('date-mobile-final.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Back to latest', exact: true }).tap();
+    await ready(page, comparisonTickers);
+    await expect(page.getByRole('button', { name: /Comparison date/ })).toContainText('Latest');
+    expect(requests.paths).toEqual(loaded);
+    requests.stop();
   });
 });

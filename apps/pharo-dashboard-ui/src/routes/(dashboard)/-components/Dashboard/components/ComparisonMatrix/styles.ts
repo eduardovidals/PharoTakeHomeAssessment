@@ -23,6 +23,7 @@ export const matrixStyles: Record<ComparisonStylePart, string> = {
   panel: 'min-w-0 rounded-pharo-card border border-pharo-border bg-pharo-surface p-pharo-4',
   heading: 'text-pharo-base font-semibold text-pharo-foreground outline-pharo-focus',
   description: 'mt-pharo-1 text-pharo-xs text-pharo-muted',
+  periods: 'mt-pharo-1 space-y-pharo-1 text-pharo-xs text-pharo-muted',
   announcement: 'sr-only',
   scrollHint: 'mt-pharo-3 text-pharo-xs text-pharo-muted',
   scroll:

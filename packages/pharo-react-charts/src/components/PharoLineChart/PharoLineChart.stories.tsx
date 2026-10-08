@@ -602,3 +602,69 @@ export const UpdatedObservations: Story = {
     await expect(within(table).queryByRole('cell', { name: /^21$/ })).not.toBeInTheDocument();
   },
 };
+
+/** Public chart arguments for the consumer-owned date example. */
+interface ControlledDateExampleProps {
+  /** Current chart arguments from this isolated story instance. */
+  readonly chartProps: PharoLineChartProps;
+}
+
+function ControlledDateExample(props: ControlledDateExampleProps) {
+  const { chartProps } = props;
+  const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
+  return (
+    <div className="space-y-pharo-3">
+      <p>
+        Comparison date:{' '}
+        {selectedTimestamp === null
+          ? 'Latest'
+          : new Date(selectedTimestamp).toISOString().slice(0, 10)}
+      </p>
+      <button
+        type="button"
+        className="min-h-pharo-control rounded-pharo-control border border-pharo-control-border px-pharo-3 focus-visible:pharo-focus-ring"
+        onClick={() => setSelectedTimestamp(null)}
+      >
+        Back to latest
+      </button>
+      <PharoLineChart
+        {...chartProps}
+        selectedTimestamp={selectedTimestamp}
+        onTimestampChange={setSelectedTimestamp}
+      />
+    </div>
+  );
+}
+
+export const ControlledDate: Story = {
+  args: { label: 'Controlled recorded dates', series: readings },
+  render: (args) => <ControlledDateExample chartProps={args} />,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A consumer owns the committed date. Pointer hover previews locally, while click, tap and range navigation commit. Returning to latest clears the consumer pin.',
+      },
+    },
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const chart = await canvas.findByRole('img', { name: args.label });
+    const slider = canvas.getByRole('slider', { name: `Inspect ${args.label}` });
+    const details = canvas.getByRole('region', { name: `Details for ${args.label}` });
+    const bounds = chart.getBoundingClientRect();
+    await userEvent.pointer({
+      target: chart,
+      coords: { clientX: bounds.left + 56, clientY: bounds.top + 60 },
+    });
+    await expect(canvas.getByText('Comparison date: Latest')).toBeVisible();
+    await expect(details).toHaveTextContent('2024-03-10');
+    await expect(slider).toHaveValue('2');
+    await fireEvent.change(slider, { target: { value: '1' } });
+    await expect(canvas.getByText('Comparison date: 2024-03-11')).toBeVisible();
+    await expect(details).toHaveTextContent('2024-03-11');
+    await userEvent.click(canvas.getByRole('button', { name: 'Back to latest' }));
+    await expect(canvas.getByText('Comparison date: Latest')).toBeVisible();
+    await expect(slider).toHaveValue('2');
+  },
+};

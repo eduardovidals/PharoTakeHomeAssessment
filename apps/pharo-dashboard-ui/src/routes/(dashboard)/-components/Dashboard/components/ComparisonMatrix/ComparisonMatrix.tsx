@@ -1,8 +1,15 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { PharoButton } from '@pharo/react-components';
+import { formatDateTable } from '../../../../../../utils/date';
+import { ComparisonDateNavigation } from './components/ComparisonDateNavigation';
 import { useComparisonOverflow } from './hooks/useComparisonOverflow';
 import { appearanceStyles, matrixStyles, valueStyles } from './styles';
-import { getComparisonAnnouncement, getComparisonRows, getResourceFeedback } from './utils';
+import {
+  getComparisonAnnouncement,
+  getComparisonPeriods,
+  getComparisonRows,
+  getResourceFeedback,
+} from './utils';
 import type { ComparisonMatrixProps as Props, ComparisonQuery, ComparisonResource } from './types';
 
 /**
@@ -13,14 +20,21 @@ import type { ComparisonMatrixProps as Props, ComparisonQuery, ComparisonResourc
  * ```
  */
 export function ComparisonMatrix(props: Props) {
-  const { columns, onRemove } = props;
+  const { columns, onRemove, selectedTimestamp = null, timeline = [], onTimestampChange } = props;
   const id = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { scrollRef, tableRef, isOverflowing } = useComparisonOverflow();
   const [retrying, setRetrying] = useState<readonly string[]>([]);
   const [removing, setRemoving] = useState<readonly string[]>([]);
   const [actionFailure, setActionFailure] = useState<string | null>(null);
-  const rows = getComparisonRows(columns);
+  const rows = useMemo(
+    () => getComparisonRows(columns, selectedTimestamp),
+    [columns, selectedTimestamp],
+  );
+  const periods = useMemo(
+    () => getComparisonPeriods(columns, selectedTimestamp),
+    [columns, selectedTimestamp],
+  );
   const feedback = columns.map((column) => ({
     ticker: column.ticker,
     prices: getResourceFeedback(
@@ -28,11 +42,14 @@ export function ComparisonMatrix(props: Props) {
       'prices',
       retrying.includes(`${column.ticker}:prices`),
     ),
-    statistics: getResourceFeedback(
-      column.statistics,
-      'statistics',
-      retrying.includes(`${column.ticker}:statistics`),
-    ),
+    statistics:
+      selectedTimestamp === null
+        ? getResourceFeedback(
+            column.statistics,
+            'statistics',
+            retrying.includes(`${column.ticker}:statistics`),
+          )
+        : { canRetry: false, notFound: false },
   }));
   const hasFeedback = feedback.some(
     ({ prices, statistics }) =>
@@ -85,11 +102,28 @@ export function ComparisonMatrix(props: Props) {
       <h2 ref={headingRef} id={`${id}-heading`} tabIndex={-1} className={matrixStyles.heading}>
         Comparison
       </h2>
+      {onTimestampChange && (
+        <ComparisonDateNavigation
+          selectedTimestamp={selectedTimestamp}
+          timeline={timeline}
+          onTimestampChange={onTimestampChange}
+        />
+      )}
       <p id={`${id}-description`} className={matrixStyles.description}>
-        Metrics cover each instrument’s full supplied window.
+        {selectedTimestamp === null
+          ? 'Metrics cover each instrument’s full supplied window.'
+          : `Pinned ${formatDateTable(selectedTimestamp)} · Statistics from the first available observation through this date, inclusive.`}
       </p>
+      <div id={`${id}-periods`} className={matrixStyles.periods}>
+        {periods.map(({ ticker, text }) => (
+          <p key={ticker ?? 'shared'}>
+            {ticker ? `${ticker}: ` : ''}
+            {text}
+          </p>
+        ))}
+      </div>
       <p role="status" className={matrixStyles.announcement}>
-        {actionFailure ?? getComparisonAnnouncement(columns)}
+        {actionFailure ?? getComparisonAnnouncement(columns, selectedTimestamp)}
       </p>
       {actionFailure && <p className={matrixStyles.error}>{actionFailure}</p>}
       {isOverflowing && (
@@ -113,7 +147,9 @@ export function ComparisonMatrix(props: Props) {
           ref={tableRef}
           className={matrixStyles.table}
           aria-labelledby={`${id}-heading`}
-          aria-describedby={`${id}-description`}
+          aria-describedby={
+            selectedTimestamp === null ? `${id}-description` : `${id}-description ${id}-periods`
+          }
         >
           <thead>
             <tr>

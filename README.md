@@ -1,6 +1,6 @@
 # Pharo instrument price dashboard
 
-A local React and ASP.NET Core dashboard for the supplied synthetic historical prices. Choose up to three instruments, compare raw prices or rebased performance, and read their full-window statistics in one matrix. Complete raw observations open in a dialog. Selection and the optional chart view are shareable through the URL.
+A local React and ASP.NET Core dashboard for the supplied synthetic historical prices. Choose up to three instruments, compare raw prices or rebased performance, and compare full-window or pinned-date statistics in one matrix. Complete raw observations open in a dialog. Selection and the optional chart view are shareable through the URL.
 
 ## Run locally
 
@@ -122,7 +122,9 @@ A link such as `/?tickers=TICK0001,TICK0002&view=price` preserves ordered select
 
 **Price** plots raw closing prices. **Performance** plots `100 × (price / firstObservedPrice − 1)` for each instrument, using its own first recorded price without rounding the source values. It describes price change, not adjusted total return. The chart preserves gaps and shows a zero reference in Performance mode. A shared recorded range/count appears once when available histories agree; differing windows are identified, with per-instrument ranges and bases in **View data**. Missing resources never become zero-valued data, and prices carry no specified currency.
 
-Dates are formatted in UTC with Day.js; the date axis samples actual recorded timestamps. Color and dash identities agree across tags, chart and matrix. Pointer inspection, touch taps and the labeled native keyboard range select recorded dates. Inspection starts at the latest observation and preserves an explicit date through valid mode changes. The comparison matrix always shows each instrument’s full-window latest close, total return, daily volatility and maximum drawdown; hovering the chart does not change those metrics.
+Dates are formatted in UTC with Day.js; the date axis samples actual recorded timestamps. Color and dash identities agree across tags, chart and matrix. **Latest** is the default and retains the API’s full-window statistics. Click or tap the chart, use its labeled keyboard range, or choose a **Comparison date** to pin the matrix. Previous/Next date navigate recorded dates; **Back to latest** restores the default. Hover only previews chart values and never changes the comparison. A pin survives chart-mode changes; clearing all instruments or reloading starts at Latest. The pin is local interaction state, while instruments and chart mode remain URL-owned.
+
+For a pinned date, closing price requires an observation on that exact date; missing records show **No observation**. Total return, daily sample volatility and maximum drawdown use each instrument’s first observation through the selected date, inclusive, from existing cached prices. The calculations mirror the backend’s unrounded formulas, including null volatility for fewer than three prices. Period labels explain differing histories; date navigation makes no additional API requests.
 
 **View data** opens **Raw observations**, containing every recorded row and selected column even in Performance mode. Unavailable values remain explicit. The dialog scrolls locally, supports Close and Escape, and returns focus to its trigger; it does not refetch data or unmount the chart. Unknown identifiers offer Remove, while transient failures offer only the affected price/statistics retry. Healthy peers remain usable.
 

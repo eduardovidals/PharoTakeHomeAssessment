@@ -22,6 +22,10 @@ export interface PriceHistoryProps {
   readonly mode?: ChartMode;
   /** Reachable application-owned raw-data disclosure; standalone charts retain inline data. */
   readonly externalDataTriggerId?: string;
+  /** Dashboard-owned comparison date; null means Latest, omitted preserves standalone inspection. */
+  readonly selectedTimestamp?: number | null;
+  /** Only explicit chart clicks, taps and keyboard navigation commit a comparison date. */
+  readonly onTimestampChange?: (timestamp: number) => void;
 }
 
 /** The finite visual responsibilities in the history panel. */
