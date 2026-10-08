@@ -25,6 +25,7 @@ export function Dashboard(props: Props) {
   const dataTriggerId = useId();
   const pickerInputRef = useRef<HTMLInputElement>(null);
   const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
+  const [previewTimestamp, setPreviewTimestamp] = useState<number | null>(null);
 
   // Clearing every instrument starts the next comparison at Latest; changing mode keeps the pin.
   if (selectedTickers.length === 0 && selectedTimestamp !== null) setSelectedTimestamp(null);
@@ -73,6 +74,13 @@ export function Dashboard(props: Props) {
   );
   const windows = getSeriesWindows(rawSeries);
   const timeline = getComparisonTimeline(rawSeries);
+
+  if (previewTimestamp !== null && !timeline.includes(previewTimestamp)) setPreviewTimestamp(null);
+
+  const handleTimestampChange = (timestamp: number | null) => {
+    setPreviewTimestamp(null);
+    setSelectedTimestamp(timestamp);
+  };
 
   return (
     <main className={dashboardStyles.page}>
@@ -128,15 +136,17 @@ export function Dashboard(props: Props) {
               mode={mode}
               externalDataTriggerId={dataTriggerId}
               selectedTimestamp={selectedTimestamp}
-              onTimestampChange={setSelectedTimestamp}
+              onTimestampChange={handleTimestampChange}
+              onTimestampPreview={setPreviewTimestamp}
             />
             <div className={dashboardStyles.details}>
               <ComparisonMatrix
                 columns={columns}
                 onRemove={removeInstrument}
                 selectedTimestamp={selectedTimestamp}
+                previewTimestamp={previewTimestamp}
                 timeline={timeline}
-                onTimestampChange={setSelectedTimestamp}
+                onTimestampChange={handleTimestampChange}
               />
               <ObservationDialog triggerId={dataTriggerId} series={rawSeries} />
             </div>

@@ -6,11 +6,12 @@ import type { ChartInspectionPreview, ChartTouchGesture, UseChartInspectionOptio
 
 /** Separate temporary chart preview from consumer-owned commits and native touch scrolling. */
 export function useChartInspection(options: UseChartInspectionOptions) {
-  const { geometry, timeline, selectedTimestamp, onTimestampChange } = options;
+  const { geometry, timeline, selectedTimestamp, onTimestampChange, onTimestampPreview } = options;
   const controlled = selectedTimestamp !== undefined;
   const [uncontrolledTimestamp, setUncontrolledTimestamp] = useState<number | undefined>();
   const [preview, setPreview] = useState<ChartInspectionPreview | null>(null);
   const touchGesture = useRef<ChartTouchGesture | null>(null);
+  const reportedPreview = useRef<ChartInspectionPreview | null>(null);
 
   if (preview && preview.selection !== selectedTimestamp) setPreview(null);
 
@@ -40,7 +41,13 @@ export function useChartInspection(options: UseChartInspectionOptions) {
     ? findNearestTimestamp(timeline, committedTimestamp ?? NaN)
     : timestamp;
 
-  const clearPreview = () => setPreview(null);
+  const clearPreview = () => {
+    setPreview(null);
+    if (reportedPreview.current !== null) {
+      reportedPreview.current = null;
+      onTimestampPreview?.(null);
+    }
+  };
 
   const handleInspect = (next: number) => {
     clearPreview();
@@ -62,9 +69,23 @@ export function useChartInspection(options: UseChartInspectionOptions) {
 
     if (nearest === undefined) return;
 
-    if (commit) handleInspect(nearest);
-    else if (controlled) setPreview({ timestamp: nearest, selection: selectedTimestamp });
+    if (commit) {
+      handleInspect(nearest);
+      return;
+    }
+
+    const next = { timestamp: nearest, selection: selectedTimestamp };
+
+    if (controlled) setPreview(next);
     else setUncontrolledTimestamp(nearest);
+
+    if (
+      reportedPreview.current?.timestamp !== nearest ||
+      reportedPreview.current?.selection !== selectedTimestamp
+    ) {
+      reportedPreview.current = next;
+      onTimestampPreview?.(nearest);
+    }
   };
 
   const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {

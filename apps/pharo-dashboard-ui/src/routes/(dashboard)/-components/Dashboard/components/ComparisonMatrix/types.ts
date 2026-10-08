@@ -23,6 +23,8 @@ export interface ComparisonMatrixProps {
   readonly onRemove: (ticker: string) => Promise<void>;
   /** A pinned recorded UTC date; null/omitted preserves Latest API statistics. */
   readonly selectedTimestamp?: number | null;
+  /** Temporary chart hover date, separate from the committed pin and live announcements. */
+  readonly previewTimestamp?: number | null;
   /** Sorted unique timestamps already present in the selected cached histories. */
   readonly timeline?: readonly number[];
   /** The dashboard owns the sole pinned date; this surface only requests changes. */

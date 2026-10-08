@@ -20,7 +20,15 @@ import type { ComparisonMatrixProps as Props, ComparisonQuery, ComparisonResourc
  * ```
  */
 export function ComparisonMatrix(props: Props) {
-  const { columns, onRemove, selectedTimestamp = null, timeline = [], onTimestampChange } = props;
+  const {
+    columns,
+    onRemove,
+    selectedTimestamp = null,
+    previewTimestamp = null,
+    timeline = [],
+    onTimestampChange,
+  } = props;
+  const displayedTimestamp = previewTimestamp ?? selectedTimestamp;
 
   const id = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -30,12 +38,12 @@ export function ComparisonMatrix(props: Props) {
   const [actionFailure, setActionFailure] = useState<string | null>(null);
 
   const rows = useMemo(
-    () => getComparisonRows(columns, selectedTimestamp),
-    [columns, selectedTimestamp],
+    () => getComparisonRows(columns, displayedTimestamp),
+    [columns, displayedTimestamp],
   );
   const periods = useMemo(
-    () => getComparisonPeriods(columns, selectedTimestamp),
-    [columns, selectedTimestamp],
+    () => getComparisonPeriods(columns, displayedTimestamp),
+    [columns, displayedTimestamp],
   );
 
   const feedback = columns.map((column) => ({
@@ -46,7 +54,7 @@ export function ComparisonMatrix(props: Props) {
       retrying.includes(`${column.ticker}:prices`),
     ),
     statistics:
-      selectedTimestamp === null
+      displayedTimestamp === null
         ? getResourceFeedback(
             column.statistics,
             'statistics',
@@ -114,14 +122,15 @@ export function ComparisonMatrix(props: Props) {
       {onTimestampChange && (
         <ComparisonDateNavigation
           selectedTimestamp={selectedTimestamp}
+          previewTimestamp={previewTimestamp}
           timeline={timeline}
           onTimestampChange={onTimestampChange}
         />
       )}
       <p id={`${id}-description`} className={matrixStyles.description}>
-        {selectedTimestamp === null
+        {displayedTimestamp === null
           ? 'Metrics cover each instrument’s full supplied window.'
-          : `Pinned ${formatDateTable(selectedTimestamp)} · Statistics from the first available observation through this date, inclusive.`}
+          : `${previewTimestamp === null ? 'Pinned' : 'Preview'} ${formatDateTable(displayedTimestamp)} · Statistics from the first available observation through this date, inclusive.`}
       </p>
       <div id={`${id}-periods`} className={matrixStyles.periods}>
         {periods.map(({ ticker, text }) => (
@@ -157,7 +166,7 @@ export function ComparisonMatrix(props: Props) {
           className={matrixStyles.table}
           aria-labelledby={`${id}-heading`}
           aria-describedby={
-            selectedTimestamp === null ? `${id}-description` : `${id}-description ${id}-periods`
+            displayedTimestamp === null ? `${id}-description` : `${id}-description ${id}-periods`
           }
         >
           <thead>

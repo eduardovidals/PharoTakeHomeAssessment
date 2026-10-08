@@ -11,6 +11,8 @@ export interface UnavailableDateEntry {
 export interface ComparisonDateNavigationProps {
   /** Null keeps the full-window Latest view; the dashboard remains the sole pin owner. */
   readonly selectedTimestamp: number | null;
+  /** Show chart hover without replacing the pin or exposing a false reset action. */
+  readonly previewTimestamp?: number | null;
   /** Sorted, unique recorded dates. */
   readonly timeline: readonly number[];
   /** Request a change from the dashboard's sole date owner. */

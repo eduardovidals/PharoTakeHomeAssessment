@@ -28,14 +28,14 @@ import type { ComparisonDateNavigationProps as Props, UnavailableDateEntry } fro
  * ```
  */
 export function ComparisonDateNavigation(props: Props) {
-  const { selectedTimestamp, timeline, onTimestampChange } = props;
+  const { selectedTimestamp, previewTimestamp = null, timeline, onTimestampChange } = props;
 
   const latestTimestamp = timeline.at(-1);
-  const current = selectedTimestamp ?? latestTimestamp;
+  const current = previewTimestamp ?? selectedTimestamp ?? latestTimestamp;
   const value = useMemo(() => {
-    const timestamp = selectedTimestamp ?? latestTimestamp;
+    const timestamp = previewTimestamp ?? selectedTimestamp ?? latestTimestamp;
     return timestamp === undefined ? null : toCalendarDate(timestamp);
-  }, [selectedTimestamp, latestTimestamp]);
+  }, [previewTimestamp, selectedTimestamp, latestTimestamp]);
 
   const pickerRef = useRef<HTMLDivElement>(null);
   const [unavailableEntry, setUnavailableEntry] = useState<UnavailableDateEntry>();
@@ -89,20 +89,24 @@ export function ComparisonDateNavigation(props: Props) {
       <DatePicker
         ref={pickerRef}
         className={styles.picker}
-        value={unavailableEntry?.value ?? value}
+        value={previewTimestamp === null ? (unavailableEntry?.value ?? value) : value}
         onChange={handleChange}
         minValue={firstDate === undefined ? undefined : toCalendarDate(firstDate)}
         maxValue={lastDate === undefined ? undefined : toCalendarDate(lastDate)}
         placeholderValue={lastDate === undefined ? undefined : toCalendarDate(lastDate)}
         isDateUnavailable={isDateUnavailable}
         isDisabled={timeline.length === 0}
-        isInvalid={unavailableEntry !== undefined}
+        isInvalid={previewTimestamp === null && unavailableEntry !== undefined}
         validationBehavior="aria"
         granularity="day"
       >
         <div className={styles.labelRow}>
           <Label className={styles.label}>Comparison date</Label>
-          {selectedTimestamp === null && <span className={styles.latest}>Latest</span>}
+          {(previewTimestamp !== null || selectedTimestamp === null) && (
+            <span className={styles.latest}>
+              {previewTimestamp === null ? 'Latest' : 'Preview'}
+            </span>
+          )}
         </div>
         <Group className={styles.field}>
           <DateInput className={styles.input}>
@@ -122,9 +126,11 @@ export function ComparisonDateNavigation(props: Props) {
           />
         </Group>
         <Text slot="description" className={styles.description}>
-          {selectedTimestamp === null
-            ? 'Latest available date. Statistics use each instrument’s full history.'
-            : 'Pinned date. Statistics include observations through this date.'}
+          {previewTimestamp !== null
+            ? 'Chart preview. Click the chart to pin this date.'
+            : selectedTimestamp === null
+              ? 'Latest available date. Statistics use each instrument’s full history.'
+              : 'Pinned date. Statistics include observations through this date.'}
         </Text>
         <FieldError className={styles.error}>Choose a date with recorded observations.</FieldError>
         <Popover className={styles.popover} containerPadding={4}>

@@ -10,6 +10,8 @@ export interface UseChartInspectionOptions {
   readonly selectedTimestamp?: number | null;
   /** Explicit click/tap/range commits only, never pointer preview or data reconciliation. */
   readonly onTimestampChange?: (timestamp: number) => void;
+  /** Deduplicated pointer preview; null clears the consumer's temporary display. */
+  readonly onTimestampPreview?: (timestamp: number | null) => void;
 }
 
 /** @internal Ownership of one potential touch tap, without preventing scrolling. */

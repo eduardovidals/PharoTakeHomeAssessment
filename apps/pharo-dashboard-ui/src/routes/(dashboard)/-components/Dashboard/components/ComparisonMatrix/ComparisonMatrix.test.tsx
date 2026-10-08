@@ -78,6 +78,7 @@ function deferred() {
 
 interface HarnessProps {
   readonly selectedTimestamp?: number | null;
+  readonly previewTimestamp?: number | null;
   readonly client: ApiClient;
   readonly tickers: readonly string[];
   readonly onRemove: (ticker: string) => Promise<void>;
@@ -102,13 +103,14 @@ function Harness(props: HarnessProps) {
         columns={columns}
         onRemove={props.onRemove}
         selectedTimestamp={props.selectedTimestamp}
+        previewTimestamp={props.previewTimestamp}
       />
     </>
   );
 }
 
 interface TestOwner {
-  readonly pin: (timestamp: number | null) => void;
+  readonly pin: (timestamp: number | null, previewTimestamp?: number | null) => void;
   readonly cache: QueryClient;
   readonly show: (tickers: readonly string[]) => void;
 }
@@ -134,7 +136,7 @@ async function withMatrix(
   try {
     await run({
       cache,
-      pin: (timestamp) => {
+      pin: (timestamp, previewTimestamp) => {
         selectedTimestamp = timestamp;
         view.rerender(
           <QueryClientProvider client={cache}>
@@ -143,6 +145,7 @@ async function withMatrix(
               tickers={currentTickers}
               onRemove={onRemove}
               selectedTimestamp={selectedTimestamp}
+              previewTimestamp={previewTimestamp}
             />
           </QueryClientProvider>,
         );
@@ -193,6 +196,37 @@ function defaultResponses() {
 }
 
 describe('ComparisonMatrix', () => {
+  test('previews cached statistics without changing pin announcements and restores the committed view', async () => {
+    defaultResponses();
+    await withMatrix(async ({ pin }) => {
+      await waitFor(() => expect(metric('Total return')).toHaveTextContent('+1.23%'));
+      const latestAnnouncement = screen.getByRole('status').textContent;
+
+      pin(null, Date.parse('2026-08-03'));
+
+      expect(metric('Closing price')).toHaveTextContent('100.12');
+      expect(metric('Total return')).toHaveTextContent('0.00%');
+      expect(screen.getByRole('table')).toHaveAccessibleDescription(/Preview Aug 3, 2026/);
+      expect(screen.getByRole('status').textContent).toBe(latestAnnouncement);
+
+      pin(null);
+
+      expect(metric('Latest close')).toHaveTextContent('110.26');
+      expect(metric('Total return')).toHaveTextContent('+1.23%');
+
+      pin(Date.parse('2026-08-03'), Date.parse('2026-08-04'));
+
+      expect(metric('Closing price')).toHaveTextContent('110.26');
+      expect(metric('Total return')).toHaveTextContent('+10.12%');
+      expect(screen.getByRole('status')).toHaveTextContent('Comparison pinned to Aug 3, 2026');
+
+      pin(Date.parse('2026-08-03'));
+
+      expect(metric('Closing price')).toHaveTextContent('100.12');
+      expect(metric('Total return')).toHaveTextContent('0.00%');
+    });
+  });
+
   test('describes hidden columns only while the native comparison table overflows', async () => {
     defaultResponses();
     await withMatrix(async () => {

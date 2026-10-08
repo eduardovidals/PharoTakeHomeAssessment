@@ -9,6 +9,35 @@ const last = Date.parse('2026-08-05');
 const timeline = [first, middle, last];
 
 describe('ComparisonDateNavigation', () => {
+  test('displays a temporary preview without pinning or offering a false reset action', () => {
+    const change = vi.fn();
+    const { rerender } = render(
+      <ComparisonDateNavigation
+        timeline={timeline}
+        selectedTimestamp={null}
+        previewTimestamp={first}
+        onTimestampChange={change}
+      />,
+    );
+
+    expect(screen.getByText('Preview')).toBeVisible();
+    expect(screen.queryByText('Latest')).not.toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '3');
+    expect(screen.queryByRole('button', { name: 'Back to latest' })).not.toBeInTheDocument();
+
+    rerender(
+      <ComparisonDateNavigation
+        timeline={timeline}
+        selectedTimestamp={null}
+        onTimestampChange={change}
+      />,
+    );
+
+    expect(screen.getByText('Latest')).toBeVisible();
+    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '5');
+    expect(change).not.toHaveBeenCalled();
+  });
+
   test('requests previous, next and Latest without keeping another selected date', async () => {
     const change = vi.fn();
 

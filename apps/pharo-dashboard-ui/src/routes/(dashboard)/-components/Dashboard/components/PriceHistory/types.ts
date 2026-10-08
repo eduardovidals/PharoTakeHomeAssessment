@@ -26,6 +26,8 @@ export interface PriceHistoryProps {
   readonly selectedTimestamp?: number | null;
   /** Only explicit chart clicks, taps and keyboard navigation commit a comparison date. */
   readonly onTimestampChange?: (timestamp: number) => void;
+  /** Temporary pointer inspection; null restores the committed comparison date. */
+  readonly onTimestampPreview?: (timestamp: number | null) => void;
 }
 
 /** The finite visual responsibilities in the history panel. */

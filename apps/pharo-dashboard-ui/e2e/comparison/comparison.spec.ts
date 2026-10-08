@@ -1249,10 +1249,21 @@ test.describe('Pin date-aware comparison statistics', () => {
     await firstTarget.chart.hover({ position: firstTarget.position });
 
     await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
+    await expectComparisonDate(page, '2026-06-23');
+    await expect(matrix).toHaveAccessibleDescription(/Preview.*Jun 23, 2026/i);
+    await expectFirstDate(page, responses);
+
+    await control.hover();
+
+    await expectComparisonDate(page, '2026-08-03');
     await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
     await expect(matrix.getByRole('cell')).toHaveText(latestCells);
 
     await firstTarget.chart.click({ position: firstTarget.position });
+    await control.hover();
+
+    await expectComparisonDate(page, '2026-06-23');
+    await expect(matrix).toHaveAccessibleDescription(/Pinned Jun 23, 2026/);
     await expectFirstDate(page, responses);
     const pinnedCells = await matrix.getByRole('cell').allTextContents();
 
@@ -1260,8 +1271,9 @@ test.describe('Pin date-aware comparison statistics', () => {
     await finalTarget.chart.hover({ position: finalTarget.position });
 
     await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
-    await expectComparisonDate(page, '2026-06-23');
-    await expect(matrix.getByRole('cell')).toHaveText(pinnedCells);
+    await expectComparisonDate(page, '2026-08-03');
+    await expect(matrix).toHaveAccessibleDescription(/Preview.*Aug 3, 2026/i);
+    await expectFinalParity(page, responses);
 
     await page.screenshot({
       path: testInfo.outputPath('date-desktop-hover.png'),
@@ -1273,6 +1285,9 @@ test.describe('Pin date-aware comparison statistics', () => {
     await control.hover();
 
     await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
+    await expectComparisonDate(page, '2026-06-23');
+    await expect(matrix).toHaveAccessibleDescription(/Pinned Jun 23, 2026/);
+    await expect(matrix.getByRole('cell')).toHaveText(pinnedCells);
 
     const inspector = page.getByRole('slider', {
       name: 'Inspect Rebased price change',

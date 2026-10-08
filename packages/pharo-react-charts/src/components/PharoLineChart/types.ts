@@ -67,6 +67,10 @@ export interface PharoLineChartProps extends PharoChartFormatters {
    * In controlled mode, the consumer updates selectedTimestamp in response.
    */
   readonly onTimestampChange?: (timestamp: number) => void;
+  /** Temporary recorded-date hover; null ends preview without changing the committed date.
+   * Notifications come from pointer/focus/commit events, never data reconciliation.
+   */
+  readonly onTimestampPreview?: (timestamp: number | null) => void;
   /** Omit for inline disclosure; external availability is explicitly owned by the consumer. */
   readonly dataTable?: PharoChartDataTableMode;
   /** Old catch-all aliases are rejected, including forwarding through wider objects. */

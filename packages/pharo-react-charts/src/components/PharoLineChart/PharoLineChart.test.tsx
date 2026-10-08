@@ -1060,6 +1060,62 @@ describe('PharoLineChart recorded observation access', () => {
     expect(details).toHaveTextContent('2024-03-13');
   });
 
+  it('reports deduplicated temporary hover and clears it on leave, focus, cancellation and commit', () => {
+    const onTimestampChange = vi.fn();
+    const onTimestampPreview = vi.fn();
+
+    renderChart({
+      series: unequalObservations,
+      label: 'Preview events',
+      selectedTimestamp: null,
+      onTimestampChange,
+      onTimestampPreview,
+    });
+
+    const chart = screen.getByRole('img', { name: 'Preview events' });
+    const slider = screen.getByRole('slider', { name: 'Inspect Preview events' });
+
+    mockScaledBounds(chart);
+    pointer(chart, 'pointermove', 128);
+    pointer(chart, 'pointermove', 140);
+    pointer(chart, 'pointermove', 328, 'pen');
+
+    expect(onTimestampPreview.mock.calls).toEqual([[firstDate], [firstDate + 2 * day]]);
+    expect(onTimestampChange).not.toHaveBeenCalled();
+    expect(slider).toHaveValue('3');
+
+    pointer(chart, 'pointerout', 328);
+    pointer(chart, 'pointerout', 328);
+
+    expect(onTimestampPreview.mock.calls).toEqual([[firstDate], [firstDate + 2 * day], [null]]);
+
+    pointer(chart, 'pointermove', 128);
+    fireEvent.focus(slider);
+
+    expect(onTimestampPreview.mock.calls.slice(-2)).toEqual([[firstDate], [null]]);
+
+    pointer(chart, 'pointermove', 128);
+    pointer(chart, 'pointercancel', 128);
+
+    expect(onTimestampPreview.mock.calls.slice(-2)).toEqual([[firstDate], [null]]);
+
+    pointer(chart, 'pointermove', 128);
+    pointer(chart, 'pointerup', 328);
+
+    expect(onTimestampPreview.mock.calls.slice(-2)).toEqual([[firstDate], [null]]);
+    expect(onTimestampChange).toHaveBeenCalledExactlyOnceWith(firstDate + 2 * day);
+    expect(slider).toHaveValue('3');
+
+    const previews = onTimestampPreview.mock.calls.length;
+
+    pointer(chart, 'pointerdown', 228, 'touch');
+    pointer(chart, 'pointermove', 228, 'touch', 140);
+    pointer(chart, 'pointerup', 228, 'touch', 140);
+
+    expect(onTimestampPreview).toHaveBeenCalledTimes(previews);
+    expect(onTimestampChange).toHaveBeenCalledTimes(1);
+  });
+
   it('commits mouse clicks and completed touch taps once, but not hover or scroll gestures', () => {
     const onTimestampChange = vi.fn();
 

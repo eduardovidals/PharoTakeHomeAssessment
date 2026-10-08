@@ -74,6 +74,7 @@ export function PharoLineChart(props: Props) {
     dataTable,
     selectedTimestamp,
     onTimestampChange,
+    onTimestampPreview,
     className,
   } = props;
 
@@ -147,7 +148,13 @@ export function PharoLineChart(props: Props) {
     onPointerUp,
     onPointerCancel,
     onPointerLeave,
-  } = useChartInspection({ geometry, timeline, selectedTimestamp, onTimestampChange });
+  } = useChartInspection({
+    geometry,
+    timeline,
+    selectedTimestamp,
+    onTimestampChange,
+    onTimestampPreview,
+  });
 
   const details: readonly ChartInspectionDetail[] =
     geometry.kind === 'ready' && inspectedTimestamp !== undefined

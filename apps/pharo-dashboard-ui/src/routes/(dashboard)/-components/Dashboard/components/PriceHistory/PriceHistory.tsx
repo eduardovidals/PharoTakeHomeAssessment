@@ -30,6 +30,7 @@ export function PriceHistory(props: Props) {
     externalDataTriggerId,
     selectedTimestamp,
     onTimestampChange,
+    onTimestampPreview,
   } = props;
 
   const available = resources.filter((resource) => (resource.query.data?.length ?? 0) > 0).length;
@@ -68,6 +69,7 @@ export function PriceHistory(props: Props) {
           series={series}
           selectedTimestamp={selectedTimestamp}
           onTimestampChange={onTimestampChange}
+          onTimestampPreview={onTimestampPreview}
           xAxisLabel="Date (UTC)"
           yAxisLabel={mode === 'performance' ? 'Price change (%)' : 'Price'}
           baselineY={mode === 'performance' ? 0 : undefined}
