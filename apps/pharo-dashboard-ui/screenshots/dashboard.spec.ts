@@ -9,7 +9,7 @@ const output = process.env.PHARO_SCREENSHOT_DIR
   : fileURLToPath(new URL('../../../screenshots/', import.meta.url));
 
 async function matrixCell(page: Page, ticker: string, metric: string) {
-  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  const table = page.getByRole('table', { name: 'Full-period comparison', exact: true });
 
   await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
 

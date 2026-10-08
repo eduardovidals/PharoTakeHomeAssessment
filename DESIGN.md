@@ -21,7 +21,7 @@ The interface focuses on the selected instruments rather than presenting the ent
 
 ## Monorepo and Package Architecture
 
-The repository uses pnpm workspaces for package management and Nx for dependency-aware builds, tests, and typechecks. Two applications and five shared packages make up the workspace:
+The repository uses npm workspaces by default and Nx for dependency-aware builds, tests, and typechecks. npm keeps the reviewer setup to `npm ci`, `npm run build`, and `npm run dev`, using the package manager already available with the selected Node runtime. Two applications and five shared packages make up the workspace:
 
 - `apps/pharo-dashboard-ui`: the React dashboard, routes, API services, and browser tests
 - `apps/pharo-dashboard-api`: CSV ingestion, statistics, HTTP controllers, and .NET tests
@@ -31,15 +31,17 @@ The repository uses pnpm workspaces for package management and Nx for dependency
 - `@pharo/eslint-config`: common lint rules
 - `@pharo/prettier-config`: common formatting rules
 
+A small workspace-protocol helper supports pnpm as an alternative, following the same local-package convention in both modes. It switches internal dependency references, manager metadata, and the Nx hint without changing external version ranges. Each manager has a committed lockfile and is verified from a clean installation. The tradeoff is maintaining two dependency resolutions; the tracked state always returns to npm. Explicit workspace directories keep private tooling outside both package managers.
+
 The React packages expose built ESM and TypeScript declarations through their public entry points. Controls and charts have separate Storybooks so they can be developed independently of the API. Shared packages contain the components used by the application and their required helpers, keeping the library focused on the assessment.
 
-After the initial workspace build, the root development launcher starts the API and UI, checks readiness, and handles ports and process cleanup. This uses ordinary Node and .NET commands without an Nx .NET plugin. Pinned Node, pnpm, and .NET SDK versions keep setup consistent.
+After the initial workspace build, the root development launcher starts the API and UI, checks readiness, and handles ports and process cleanup. This uses ordinary Node and .NET commands without an Nx .NET plugin. Pinned Node, npm, pnpm, and .NET SDK versions keep setup consistent.
 
 ## Shared UI Layer
 
 The UI package is built on React Aria Components. React Aria supplies accessible semantics, keyboard navigation, focus management, and overlay behavior, while the wrappers apply Pharo styling and the application's common interaction patterns.
 
-The shared controls include buttons, an icon button, a multi-select combobox, removable tags, a dialog, a segmented control, and a spinner. The Price/Performance control uses radio-group semantics. The instrument picker composes a multi-select combobox and listbox, with selected instruments shown as removable tags.
+The shared controls include buttons, an icon button, a multi-select combobox, removable tags, a dialog, a segmented control, and a spinner. The Price/Performance control uses React Aria's `ToggleButtonGroup` and `ToggleButton` with single selection and empty selection disabled. The installed React Aria version exposes radio-group semantics: arrow keys move focus, and Enter or Space selects the focused view. The instrument picker composes a multi-select combobox and listbox, with selected instruments shown as removable tags.
 
 Loading remains a presentation concern in the reusable combobox. The application supplies the Query loading state; the component displays an input spinner and an empty-popup loading state. Search results, loading, and errors remain distinct, with error text and Retry outside the listbox options. This keeps fetching in the application while making the wrapper useful wherever the same interaction is needed.
 
@@ -76,11 +78,11 @@ Query keys, `useQuery`, `useQueries`, and request configuration stay in the API 
 
 The injected Axios client defaults to same-origin `/api` with a 10-second timeout. Query's `AbortSignal` reaches the transport, and Zod validates responses before the UI uses them. Failures become typed categories such as not-found, network, timeout, or invalid response, so components can offer useful recovery without showing raw server or Axios errors.
 
-The supplied dataset is immutable for an application session. Queries therefore use an infinite stale time, retain unused entries for 30 minutes, and disable polling and focus/reconnect refetches. Network failures, timeouts, and HTTP 5xx responses receive at most two automatic retries; other failures do not. Explicit retry actions target the affected resource, while missing instruments offer removal. A changed dataset requires a fresh application/cache generation.
+The supplied dataset is immutable for an application session. Queries therefore use an infinite stale time, retain unused entries for 30 minutes, and disable polling and focus/reconnect refetches. Network failures, timeouts, and HTTP 5xx responses receive at most two automatic retries; other failures do not. Explicit retry actions target the affected resource, while missing instruments offer removal. When replacing the CSV, rebuild published output if used, restart the API, and reload the dashboard to recreate the client cache. This keeps startup data and cached responses aligned without adding a live-refresh endpoint.
 
 ## Backend Architecture
 
-The backend uses ASP.NET Core with a small controller, service, and data-store structure. It loads `Data/market_data.csv` before reporting readiness, then serves an immutable in-memory snapshot. This fits the fixed assessment dataset without adding a database or a separate ingestion service.
+The supplied CSV is small and fixed, so the C# API loads and validates it once at startup. Immutable histories and precomputed statistics make endpoint reads predictable and avoid repeated parsing or calculation. A controller, service, and data-store structure keeps these responsibilities separate. A changing production source would need ingestion, versioning, and cache invalidation; the assessment does not need a database.
 
 CsvHelper handles CSV quoting, while the loader enforces the domain contract: exactly the `date,ticker,price` header, valid ISO date-only values, canonicalizable ASCII tickers, and positive invariant decimal prices. Duplicate canonical ticker/date pairs, malformed records, and interior blank rows reject the complete dataset. Only empty trailing records are ignored. Missing, empty, or invalid data prevents startup rather than publishing a partial dataset.
 
@@ -135,7 +137,7 @@ The .NET tests cover strict CSV parsing, immutable store behavior, financial exa
 
 Playwright runs the compiled application against the C# API. It covers selection, URL history, keyboard and touch interaction, focus restoration, recovery, Price/Performance views, chart inspection, raw data, and responsive overflow. Comparison tests check that chart inspection leaves latest closes and backend statistics unchanged. Additional scenarios cover UTC timezones, enlarged text, reduced motion, and forced colors.
 
-`pnpm validate` is the primary local verification command. The [README](README.md) describes setup and focused commands. Browser coverage uses automated viewport and input emulation; it does not imply testing on physical devices.
+`npm run validate` is the primary local verification command; `pnpm run validate` runs the same checks after switching modes. The [README](README.md) describes setup and focused commands. Browser coverage uses automated viewport and input emulation; it does not imply testing on physical devices.
 
 ## UX and Accessibility
 
@@ -143,7 +145,7 @@ The workspace keeps instrument selection, the chart, and comparison statistics c
 
 The picker searches the cached instrument list without additional requests. At the three-instrument limit, unselected options are visibly disabled while selected instruments remain removable. Clear selection appears only when something is selected, and chart-view controls remain available in the empty state. Initial loading feedback uses Query's `isLoading`, so background fetching does not repeatedly interrupt the picker. Live announcements avoid duplicate loading messages.
 
-React renders the chart SVG, while focused D3 modules provide scales, ticks, paths, and timestamp lookup. The chart displays every supplied observation and adapts to its container and text size. Hover, clicks, completed touch taps, and the keyboard range control inspect recorded dates locally. Native touch scrolling remains available without selecting a point, and inspection stays independent of the comparison statistics.
+React owns the SVG and component lifecycle, while focused D3 modules provide scales, ticks, paths, and timestamp lookup. This keeps updates consistent with React state and makes the geometry testable without a second DOM owner. It also means the application maintains its own accessible inspection and table presentation. The chart displays every supplied observation and adapts to its container and text size. Hover, clicks, completed touch taps, and the keyboard range control inspect recorded dates locally. Native touch scrolling remains available without selecting a point, and inspection stays independent of the comparison statistics.
 
 The reusable chart provides an inline data table by default. The dashboard explicitly supplies `dataTable={{ mode: 'external', triggerId }}` to use its View data action instead. A nonblank trigger ID connects the SVG through `aria-details` and suppresses the chart's inline control. This contract does not observe the DOM or infer visibility, so opening the picker cannot reveal a duplicate control. A consumer removing its external action must switch back to inline mode; omitted configuration or a blank ID uses the inline fallback.
 

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 async function matrixCell(page: Page, ticker: string, metric: string) {
-  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  const table = page.getByRole('table', { name: 'Full-period comparison', exact: true });
 
   await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
 
@@ -40,7 +40,7 @@ async function expectSelection(page: Page, tickers: readonly string[]) {
   await expect
     .poll(() => new URL(page.url()).searchParams.get('tickers') ?? '')
     .toBe(tickers.join(','));
-  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  const table = page.getByRole('table', { name: 'Full-period comparison', exact: true });
 
   if (tickers.length === 0) await expect(table).toHaveCount(0);
   else await expect(table.getByRole('columnheader')).toHaveText(['Metric', ...tickers]);
@@ -96,9 +96,18 @@ test.describe('Mobile comparison navigation', () => {
 
     expect((await metric.boundingBox())?.x).toBeCloseTo(labelLeft, 1);
 
-    await area.evaluate((element) => {
-      element.scrollLeft = 0;
-    });
+    // Finish the keyboard/reset scroll before a touch gesture takes over the same scroller.
+    await area.evaluate(
+      (element) =>
+        new Promise<void>((resolve) => {
+          if (element.scrollLeft === 0) {
+            resolve();
+            return;
+          }
+          element.addEventListener('scrollend', () => resolve(), { once: true });
+          element.scrollTo({ left: 0, behavior: 'instant' });
+        }),
+    );
     const box = await area.boundingBox();
     if (!box) throw new Error('Scroll area is missing.');
     const session = await page.context().newCDPSession(page);
@@ -264,7 +273,9 @@ test.describe('Share a real historical-data selection', () => {
     ).toBeVisible();
     expect(new URL(page.url()).search).toBe(raw);
     await expect(
-      page.getByRole('table', { name: 'Comparison', exact: true }).getByRole('columnheader'),
+      page
+        .getByRole('table', { name: 'Full-period comparison', exact: true })
+        .getByRole('columnheader'),
     ).toHaveText(['Metric', 'TICK0001', 'TICK0002', 'TICK0003']);
 
     const input = page.getByRole('combobox', { name: 'Compare instruments' });
@@ -300,7 +311,9 @@ test.describe('Share a real historical-data selection', () => {
         await expect(
           page.getByText("The link's instrument selection is invalid.", { exact: true }),
         ).toBeVisible();
-        await expect(page.getByRole('table', { name: 'Comparison', exact: true })).toHaveCount(0);
+        await expect(
+          page.getByRole('table', { name: 'Full-period comparison', exact: true }),
+        ).toHaveCount(0);
 
         await addTicker(page, 'TICK0001');
         await expectSelection(page, ['TICK0001']);

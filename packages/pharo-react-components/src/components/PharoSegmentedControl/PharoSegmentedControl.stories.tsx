@@ -44,9 +44,26 @@ export const KeyboardChoice: Story = {
     summary.focus();
     await userEvent.keyboard('{ArrowRight}');
 
-    await expect(canvas.getByRole('radio', { name: 'Detail' })).toBeChecked();
+    const detail = canvas.getByRole('radio', { name: 'Detail' });
+
+    await expect(detail).toHaveFocus();
+    await expect(summary).toBeChecked();
+
+    await userEvent.keyboard('{Enter}');
+
+    await expect(detail).toBeChecked();
     await expect(summary).not.toBeChecked();
     await expect(args.onChange).toHaveBeenCalledWith('detail');
+
+    await userEvent.keyboard('{ArrowLeft} ');
+
+    await expect(summary).toBeChecked();
+    await expect(detail).not.toBeChecked();
+
+    await userEvent.click(summary);
+
+    await expect(summary).toBeChecked();
+    await expect(canvas.getAllByRole('radio', { checked: true })).toHaveLength(1);
   },
 };
 

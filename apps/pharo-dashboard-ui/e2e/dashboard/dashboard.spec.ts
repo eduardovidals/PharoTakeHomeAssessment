@@ -15,7 +15,7 @@ const priceLabel = new Intl.NumberFormat('en-US', {
 });
 
 async function matrixCell(page: Page, ticker: string, metric: string) {
-  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  const table = page.getByRole('table', { name: 'Full-period comparison', exact: true });
 
   await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
 
@@ -151,7 +151,9 @@ test.describe('Browse and inspect historical instruments', () => {
 
       await input.press('Escape');
 
-      await expect(page.getByRole('table', { name: 'Comparison', exact: true })).toHaveCount(0);
+      await expect(
+        page.getByRole('table', { name: 'Full-period comparison', exact: true }),
+      ).toHaveCount(0);
       expect(new URL(page.url()).search).toBe('');
       expect(requests).toEqual(fetched);
     } finally {
@@ -204,7 +206,7 @@ test.describe('Browse and inspect historical instruments', () => {
               })
               .boundingBox();
             const matrixBox = await page
-              .getByRole('region', { name: 'Comparison', exact: true })
+              .getByRole('region', { name: 'Full-period comparison', exact: true })
               .boundingBox();
             if (!chartBox || !matrixBox)
               throw new Error('Expected both measured analytical surfaces.');
@@ -332,17 +334,17 @@ test.describe('Browse and inspect historical instruments', () => {
     ] as const)
       await expect(await matrixCell(page, 'TICK0001', metric)).toHaveText(value);
 
-    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+    const matrix = page.getByRole('table', { name: 'Full-period comparison', exact: true });
 
     await expect(matrix).toHaveAccessibleDescription(
-      'Metrics cover each instrument’s full supplied window.',
+      'Latest close and statistics for each instrument’s complete supplied window.',
     );
 
     const explanation = page.getByText('About these metrics', { exact: true });
 
     await explanation.click();
 
-    const matrixRegion = page.getByRole('region', { name: 'Comparison', exact: true });
+    const matrixRegion = page.getByRole('region', { name: 'Full-period comparison', exact: true });
 
     for (const description of [
       /Total return: first to last observation/,
@@ -515,7 +517,9 @@ test.describe('Inspect prices on a narrow touch screen', () => {
 
     await search.press('Escape');
 
-    await expect(page.getByRole('table', { name: 'Comparison', exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole('table', { name: 'Full-period comparison', exact: true }),
+    ).toHaveCount(0);
     expect(new URL(page.url()).search).toBe('');
   });
 });

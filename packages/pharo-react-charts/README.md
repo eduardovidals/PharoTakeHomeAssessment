@@ -86,7 +86,7 @@ Each mounted instance owns its ResizeObserver, typography MutationObserver, owni
 | `formatYDetail(value)` | Exact inspection value | Full plain number |
 | `formatYTable(value)` | Exact table value | Full plain number |
 
-The old `formatX`/`formatY` aliases are rejected. No callback changes underlying observations or implies currency. Complete axis strings remain in SVG titles. Label budgets use the measured font size, sampling ticks and compacting long labels without squeezing glyphs; axis offsets/gutters scale with that typography. Formatter exceptions propagate, so callbacks should handle their valid input domain.
+No callback changes underlying observations or implies currency. Complete axis strings remain in SVG titles. Label budgets use the measured font size, sampling ticks and compacting long labels without squeezing glyphs; axis offsets/gutters scale with that typography. Formatter exceptions propagate, so callbacks should handle their valid input domain.
 
 Optional `xTickValues` supplies readonly UTC epoch-millisecond candidates. Values must be unique finite integers within JavaScript's Date range. The chart sorts a copy, drops candidates outside its display domain and positions them through the UTC scale. An empty array intentionally omits x ticks; omission retains automatic generic UTC ticks. Pass the recorded timestamp union when every displayed date must correspond to an observation, including explicit null records. Measured plot width selects a readable subset, keeping endpoints when both fit. Tick choices never change the inspection timeline or table.
 
@@ -95,6 +95,8 @@ Optional `baselineY` draws a quiet reference line on the shared numerical scale,
 ## Inspect recorded data
 
 Pointer movement and completed touch taps select the nearest timestamp in the sorted union of recorded dates; equal-distance ties choose the earlier date. Touch scrolling and cancelled gestures do not commit an inspection.
+
+Inspection markers and the crosshair update with the recorded path coordinates, without independent transform transitions. This keeps the markers attached to their actual observations during navigation, resizing and series changes.
 
 Inspection initially shows the latest actual timestamp and follows later records until the user chooses a date. Explicit inspection survives resize, order and formatter changes while valid. When more than one timestamp exists, the native `Inspect {label}` range control supports arrow keys, Home and End. Tab follows the normal control order. Complete instructions stay associated with the range and become visible on keyboard focus; the dated readout uses compact wrapping text instead of a permanent instruction panel. A single timestamp still has details and a table. Details expose the full date and each series' exact value at that timestamp; an explicit null or an absent record is shown as `Unavailable`, never zero or a neighboring value. Details are stable content rather than a continuously announced live region.
 
@@ -112,24 +114,24 @@ The chart uses the supplied ID directly and does not observe the document or inf
 
 ## Workspace commands
 
-Run from the repository root with its pinned Node/pnpm versions:
+Run from the repository root after the default `npm ci` installation:
 
 ```sh
 node scripts/nx.mjs run @pharo/react-charts:build
 node scripts/nx.mjs run @pharo/react-charts:typecheck
 node scripts/nx.mjs run @pharo/react-charts:test
-pnpm storybook:charts
+npm run storybook:charts
 node scripts/nx.mjs run @pharo/react-charts:e2e
 ```
 
-The test target includes unit tests and executable Storybook plays. The e2e target builds the public distribution and catalog first, then exercises an isolated built-export consumer and catalog in Chromium. Use `pnpm browser:install` if the required browser is missing.
+The test target includes unit tests and executable Storybook plays. The e2e target builds the public distribution and catalog first, then exercises an isolated built-export consumer and catalog in Chromium. Use `npm run browser:install` if the required browser is missing. After switching to pnpm as described in the [root README](../../README.md), the same Node commands work; use `pnpm run storybook:charts` and `pnpm run browser:install` for those scripts.
 
 ## Bundle report
 
 The browser lane writes and attaches `chart-bundle-report.json` under `packages/pharo-react-charts/test-results/**/`; the attachment is also available in the package's Playwright HTML report. It measures the same production fixture bytes served to browser tests.
 
-The report records production build settings and runtime versions, included-module/package metadata, input/output hashes, raw emitted JS/CSS sizes and Node gzip level9 sizes. JS/CSS gzip totals sum the compressed size of each emitted file separately. It audits retained runtime modules, emitted chunk imports and one physical React/React DOM root.
+The report records production build settings and runtime versions, the active package manager and its lockfile hash, included-module/package metadata, input/output hashes, raw emitted JS/CSS sizes and Node gzip level9 sizes. JS/CSS gzip totals sum the compressed size of each emitted file separately. It audits retained runtime modules from the actual npm or pnpm installation, emitted chunk imports and one physical React/React DOM root.
 
 Consumer figures describe the complete minified fixture, including React/React DOM, retained D3 code, theme CSS and its small harness. The library's unminified externalized ESM is measured separately and excludes dependency bytes. Module rendered lengths are diagnostics, not additive compressed attribution. Use the report from the actual successful run for measured results; no size budget or cross-library comparison is implied.
 
-Earlier assessment measurements predate the current controls, data-table extraction and typography handling. They are not current size claims; rerun the browser lane and inspect its report after changing code, dependencies or build settings. The isolated consumer graph is checked for forbidden base UI, forms, Router, Query, app/API, story and test-runtime modules.
+The isolated consumer graph is checked for forbidden base UI, forms, Router, Query, app/API, story and test-runtime modules.

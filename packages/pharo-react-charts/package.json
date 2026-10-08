@@ -8,7 +8,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@pharo/tailwind-plugin": "workspace:*"
+    "@pharo/tailwind-plugin": "*"
   },
   "scripts": {
     "storybook": "storybook dev --host 127.0.0.1 --port 6008 --ci --no-open --disable-telemetry",
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
     "test:unit": "node ../../scripts/vitest.mjs run --config vitest.config.ts",
     "test:stories": "node ../../scripts/vitest.mjs run --config vitest.storybook.config.ts",
-    "test": "pnpm test:unit && pnpm test:stories",
+    "test": "node ../../scripts/vitest.mjs run --config vitest.config.ts && node ../../scripts/vitest.mjs run --config vitest.storybook.config.ts",
     "e2e": "node ../../scripts/playwright.mjs test"
   },
   "exports": {

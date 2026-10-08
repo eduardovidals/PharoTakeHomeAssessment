@@ -37,7 +37,7 @@ declare function __pharoRecordXhrTimeout(value: {
 }): Promise<void>;
 
 async function matrixCell(page: Page, ticker: string, metric: string) {
-  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  const table = page.getByRole('table', { name: 'Full-period comparison', exact: true });
 
   await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
 
@@ -146,7 +146,9 @@ test.describe('Compare independently cached historical instruments', () => {
       await expect(chart).toBeVisible();
       await ready(page, tickers);
       await expect(
-        page.getByRole('table', { name: 'Comparison', exact: true }).getByRole('columnheader'),
+        page
+          .getByRole('table', { name: 'Full-period comparison', exact: true })
+          .getByRole('columnheader'),
       ).toHaveText(['Metric', ...tickers]);
 
       const appearances = ['primary', 'secondary', 'tertiary'];
@@ -203,7 +205,9 @@ test.describe('Compare independently cached historical instruments', () => {
       await page.getByRole('button', { name: 'Remove TICK0003', exact: true }).click();
 
       await expect(
-        page.getByRole('table', { name: 'Comparison', exact: true }).getByRole('columnheader'),
+        page
+          .getByRole('table', { name: 'Full-period comparison', exact: true })
+          .getByRole('columnheader'),
       ).toHaveText(['Metric', 'TICK0002']);
       // e2e-locator: B is continuously active, so removing its neighbors must not recolor it.
       await expect(chart.locator('[data-series-id="TICK0002"]')).toHaveAttribute(
@@ -382,7 +386,7 @@ test.describe('Compare independently cached historical instruments', () => {
       );
       await expect(
         page
-          .getByRole('table', { name: 'Comparison', exact: true })
+          .getByRole('table', { name: 'Full-period comparison', exact: true })
           .getByRole('columnheader', { name: 'TICK0001', exact: true }),
       ).toHaveCount(0);
       await expect(page.getByText('Request cancelled.', { exact: true })).toHaveCount(0);
@@ -499,7 +503,9 @@ test.describe('Compare independently cached historical instruments', () => {
 
       await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
       await expect(page.getByText('Jun 23 – Aug 3, 2026 (UTC)', { exact: true })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Comparison', exact: true })).toBeFocused();
+      await expect(
+        page.getByRole('heading', { name: 'Full-period comparison', exact: true }),
+      ).toBeFocused();
       await expect(
         page.getByRole('img', { name: 'Historical closing prices', exact: true }),
       ).toBeVisible();
@@ -589,7 +595,9 @@ test.describe('Compare independently cached historical instruments', () => {
       gate.release();
 
       await ready(page, ['TICK0001']);
-      await expect(page.getByRole('heading', { name: 'Comparison', exact: true })).toBeFocused();
+      await expect(
+        page.getByRole('heading', { name: 'Full-period comparison', exact: true }),
+      ).toBeFocused();
       expect(requests.paths).toEqual([...loaded, '/api/prices/TICK0001/stats']);
       expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
     } catch (error) {
@@ -622,7 +630,7 @@ async function expectIdentity(
     .getByRole('grid', { name: 'Selected items', exact: true })
     .getByRole('row', { name: ticker, exact: true });
   const heading = page
-    .getByRole('table', { name: 'Comparison', exact: true })
+    .getByRole('table', { name: 'Full-period comparison', exact: true })
     .getByRole('columnheader', { name: ticker, exact: true });
   // e2e-locator: The tag's decorative pseudo-element uses the same token color and a non-color line pattern.
   const mark = await chip.evaluate((element) => {
@@ -700,7 +708,7 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
 
     expect(loaded).toHaveLength(7);
 
-    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+    const matrix = page.getByRole('table', { name: 'Full-period comparison', exact: true });
     const fullWindowValues = await matrix.getByRole('cell').allTextContents();
 
     await expect(await matrixCell(page, 'TICK0001', 'Latest close')).toHaveText('172.89');
@@ -995,7 +1003,7 @@ test.describe('Chart inspection independent of latest comparison', () => {
       expect(loaded).toHaveLength(7);
       await expectLatestComparison(page, responses);
 
-      const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+      const matrix = page.getByRole('table', { name: 'Full-period comparison', exact: true });
       const latestCells = await matrix.getByRole('cell').allTextContents();
       const details = page.getByRole('region', {
         name: 'Details for Rebased price change',
@@ -1007,7 +1015,7 @@ test.describe('Chart inspection independent of latest comparison', () => {
       });
 
       await expect(inspector).toHaveAttribute('max', '29');
-      await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
+      await expect(matrix).toHaveAccessibleDescription(/complete supplied window/);
 
       const firstTarget = await chartPosition(page, 0);
       await firstTarget.chart.hover({ position: firstTarget.position });
@@ -1069,7 +1077,7 @@ test.describe('Touch chart inspection independent of latest comparison', () => {
       expect(loaded).toHaveLength(7);
       await expectLatestComparison(page, responses);
 
-      const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+      const matrix = page.getByRole('table', { name: 'Full-period comparison', exact: true });
       const latestCells = await matrix.getByRole('cell').allTextContents();
       const details = page.getByRole('region', {
         name: 'Details for Rebased price change',
@@ -1090,7 +1098,7 @@ test.describe('Touch chart inspection independent of latest comparison', () => {
 
       await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
       await expect(matrix.getByRole('cell')).toHaveText(latestCells);
-      await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
+      await expect(matrix).toHaveAccessibleDescription(/complete supplied window/);
 
       const area = page.getByRole('region', { name: 'Comparison table scroll area', exact: true });
       for (const ticker of comparisonTickers) {
@@ -1107,4 +1115,135 @@ test.describe('Touch chart inspection independent of latest comparison', () => {
       requests.stop();
     }
   });
+});
+
+async function expectAlignedInspection(page: Page, action: () => Promise<unknown>) {
+  const chart = page.getByRole('img', {
+    name: /^(Historical closing prices|Rebased price change)$/,
+  });
+  // e2e-locator: Compare actual screen-space marker centers with each recorded SVG path point.
+  // Sampling rendered frames also catches transitions that temporarily detach a dot from its line.
+  const frames = chart.evaluate(async (svg) => {
+    interface ScreenTransform {
+      a: number;
+      b: number;
+      c: number;
+      d: number;
+      e: number;
+      f: number;
+    }
+    const browser: {
+      requestAnimationFrame(callback: () => void): number;
+    } | null = svg.ownerDocument.defaultView;
+    if (!browser) throw new Error('Missing inspection window.');
+    const samples: Array<{ ticker: string; index: number; distance: number }> = [];
+    for (let frame = 0; frame < 24; frame += 1) {
+      await new Promise<void>((resolve) => browser.requestAnimationFrame(() => resolve()));
+      const slider: {
+        value: string;
+      } | null = svg.closest('figure')?.querySelector('input[type="range"]');
+      if (!slider) throw new Error('Missing inspection control.');
+      const index = Number(slider.value);
+      for (const group of svg.querySelectorAll('[data-inspection-series-id]')) {
+        const ticker = group.getAttribute('data-inspection-series-id');
+        const dot = group.querySelector('circle');
+        const path: {
+          getAttribute(name: string): string | null;
+          getScreenCTM(): ScreenTransform | null;
+        } | null = svg.querySelector(`[data-series-id="${ticker}"] path`);
+        if (!dot || !path) throw new Error('Missing recorded path or inspection marker.');
+        const coordinates = Array.from(
+          (path.getAttribute('d') ?? '').matchAll(/[ML](-?[\d.e+]+),(-?[\d.e+]+)/g),
+        );
+        if (coordinates.length !== 30) throw new Error('Expected all 30 recorded coordinates.');
+        const coordinate = coordinates[index];
+        const pathTransform = path.getScreenCTM();
+        if (!coordinate || !pathTransform || !ticker)
+          throw new Error('Missing rendered coordinate transform.');
+        const bounds = dot.getBoundingClientRect();
+        const actual = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+        const x = Number(coordinate[1]);
+        const y = Number(coordinate[2]);
+        const expected = {
+          x: pathTransform.a * x + pathTransform.c * y + pathTransform.e,
+          y: pathTransform.b * x + pathTransform.d * y + pathTransform.f,
+        };
+        samples.push({
+          ticker,
+          index,
+          distance: Math.hypot(actual.x - expected.x, actual.y - expected.y),
+        });
+      }
+    }
+    return samples;
+  });
+  const [samples] = await Promise.all([frames, action()]);
+  expect(samples.length).toBeGreaterThan(0);
+  expect(samples.filter(({ distance }) => distance > 0.75)).toEqual([]);
+}
+
+test.describe('Recorded chart marker alignment', () => {
+  test.use({ viewport: { width: 1366, height: 768 } });
+
+  for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+    test(`keeps marker centers on recorded paths during changes with ${reducedMotion} motion`, async ({
+      page,
+    }, testInfo) => {
+      await page.emulateMedia({ reducedMotion });
+      const responses = await loadComparisonResponses(page);
+      const inspector = page.getByRole('slider', { name: /^Inspect / });
+
+      await expectAlignedInspection(page, () => inspector.press('Home'));
+      await expectAlignedInspection(page, () => inspector.press('ArrowRight'));
+      await expectAlignedInspection(page, () =>
+        page.getByRole('radio', { name: 'Price', exact: true }).click(),
+      );
+      await expectAlignedInspection(page, () => page.setViewportSize({ width: 390, height: 844 }));
+      await expectAlignedInspection(page, () =>
+        page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click(),
+      );
+      await expectAlignedInspection(page, () => chooseInstrument(page, 'TICK0001'));
+      await expectAlignedInspection(page, () => inspector.press('ArrowRight'));
+      await page.screenshot({
+        path: testInfo.outputPath(`aligned-mobile-${reducedMotion}.png`),
+        fullPage: true,
+      });
+      await expectAlignedInspection(page, () =>
+        page.getByRole('radio', { name: 'Performance', exact: true }).click(),
+      );
+      await expectAlignedInspection(page, () => page.setViewportSize({ width: 1366, height: 768 }));
+      await expectAlignedInspection(page, () => inspector.press('End'));
+      await expectLatestComparison(page, responses);
+      await page.screenshot({
+        path: testInfo.outputPath(`aligned-desktop-${reducedMotion}.png`),
+        fullPage: true,
+      });
+      await page.getByRole('button', { name: 'View data', exact: true }).click();
+      const table = page.getByRole('table', { name: 'Recorded closing prices', exact: true });
+      await expect(table.getByRole('rowheader')).toHaveCount(30);
+      await expect(table.getByRole('columnheader', { name: 'Date (UTC)', exact: true })).toHaveCSS(
+        'text-align',
+        'start',
+      );
+      for (const ticker of comparisonTickers)
+        await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toHaveCSS(
+          'text-align',
+          'end',
+        );
+      for (const value of await table.getByRole('cell').all())
+        await expect(value).toHaveCSS('text-align', 'end');
+      await page.screenshot({
+        path: testInfo.outputPath(`aligned-data-desktop-${reducedMotion}.png`),
+      });
+      await page.setViewportSize({ width: 320, height: 844 });
+      for (const ticker of comparisonTickers) {
+        const header = table.getByRole('columnheader', { name: ticker, exact: true });
+        await header.scrollIntoViewIfNeeded();
+        await expect(header).toBeInViewport();
+      }
+      await page.screenshot({
+        path: testInfo.outputPath(`aligned-data-mobile-${reducedMotion}.png`),
+      });
+    });
+  }
 });

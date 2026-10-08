@@ -140,7 +140,7 @@ async function expectLimit(app: AppTest, user: ReturnType<typeof userEvent.setup
 
 /** Read a metric through its semantic row and selected column, not card layout. */
 function matrixCell(app: AppTest, ticker: string, metric: string) {
-  const table = within(app.view.getByRole('table', { name: 'Comparison' }));
+  const table = within(app.view.getByRole('table', { name: 'Full-period comparison' }));
   const column = table
     .getAllByRole('columnheader')
     .findIndex((header) => header.textContent?.trim() === ticker);
@@ -151,7 +151,7 @@ function matrixCell(app: AppTest, ticker: string, metric: string) {
 }
 
 function matrixHeaders(app: AppTest) {
-  return within(app.view.getByRole('table', { name: 'Comparison' }))
+  return within(app.view.getByRole('table', { name: 'Full-period comparison' }))
     .getAllByRole('columnheader')
     .map((header) => header.textContent?.trim());
 }
@@ -305,7 +305,9 @@ describe('Dashboard URL selection and independently owned resources', () => {
 
     await user.keyboard('{Escape}');
 
-    expect(app.view.queryByRole('table', { name: 'Comparison' })).not.toBeInTheDocument();
+    expect(
+      app.view.queryByRole('table', { name: 'Full-period comparison' }),
+    ).not.toBeInTheDocument();
 
     await chooseInstrument(app, user, 'AAA');
 
@@ -426,7 +428,9 @@ describe('Dashboard URL selection and independently owned resources', () => {
     expect(await app.view.findByRole('alert')).toHaveTextContent(
       "The link's instrument selection is invalid.",
     );
-    expect(app.view.queryByRole('table', { name: 'Comparison' })).not.toBeInTheDocument();
+    expect(
+      app.view.queryByRole('table', { name: 'Full-period comparison' }),
+    ).not.toBeInTheDocument();
 
     await chooseInstrument(app, user, 'CCC');
 
@@ -621,7 +625,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
       );
       expect(matrixCell(app, 'AAA', 'Total return')).toHaveTextContent('+6.00%');
       expect(matrixCell(app, 'AAA', 'Max drawdown')).toHaveTextContent('2.00%');
-      expect(app.view.getByRole('heading', { name: 'Comparison' })).toHaveFocus();
+      expect(app.view.getByRole('heading', { name: 'Full-period comparison' })).toHaveFocus();
       expect(
         within(aaaResources).queryByRole('button', { name: 'Retry AAA statistics' }),
       ).not.toBeInTheDocument();
@@ -705,7 +709,9 @@ describe('Dashboard URL selection and independently owned resources', () => {
 
       await waitFor(() =>
         expect(
-          within(app.view.getByRole('region', { name: 'Comparison' })).getByRole('status'),
+          within(app.view.getByRole('region', { name: 'Full-period comparison' })).getByRole(
+            'status',
+          ),
         ).toHaveTextContent('Unable to remove this instrument. Please try again.'),
       );
       expect(remove).not.toHaveAttribute('aria-disabled', 'true');
@@ -723,7 +729,9 @@ describe('Dashboard URL selection and independently owned resources', () => {
 
       await user.keyboard('{Escape}');
 
-      expect(app.view.queryByRole('table', { name: 'Comparison' })).not.toBeInTheDocument();
+      expect(
+        app.view.queryByRole('table', { name: 'Full-period comparison' }),
+      ).not.toBeInTheDocument();
       expect(requests.get('UNKNOWN prices')).toBe(1);
       expect(requests.get('UNKNOWN statistics')).toBe(1);
       expect(requests.get('instruments')).toBe(1);

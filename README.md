@@ -32,7 +32,7 @@ The dashboard lets you search the supplied instrument list, compare up to three 
 
 ### Tooling
 
-- Nx and pnpm workspaces
+- Nx and npm workspaces
 - Vitest and React Testing Library
 - MSW
 - Playwright
@@ -60,18 +60,14 @@ Instrument selection, API integration, and dashboard composition stay in the app
 ## Requirements
 
 - Node.js **24.14.1**
-- pnpm **10.33.0**
+- npm **11.12.1**
 - .NET SDK **10.0.401**
 
 These versions are pinned in [.nvmrc](.nvmrc), [package.json](package.json), and [global.json](global.json). The .NET SDK version must match because SDK roll-forward is disabled.
 
-On Windows or macOS, install Node.js and the .NET **SDK** for your machine's architecture. Microsoft's [.NET installation guide](https://learn.microsoft.com/en-us/dotnet/core/install/) covers both platforms. Open a new terminal after installation and check that `node`, `pnpm`, and `dotnet` are on PATH.
+On Windows or macOS, install Node.js and the .NET **SDK** for your machine's architecture. Microsoft's [.NET installation guide](https://learn.microsoft.com/en-us/dotnet/core/install/) covers both platforms. Open a new terminal after installation and check that `node`, `npm`, and `dotnet` are on PATH.
 
-Install pnpm with:
-
-```bash
-npm install --global pnpm@10.33.0
-```
+Verification uses npm 11.12.1; Node 24.14.1 ships with npm 11.11.0. Check `node --version`, `npm --version`, and `dotnet --version` before installing dependencies. If npm differs, install the pinned version with `npm install --global npm@11.12.1`.
 
 If using nvm on macOS, run `nvm install` and `nvm use` from the repository root. For a custom .NET installation in `~/.dotnet`, add `export PATH="$HOME/.dotnet:$PATH"` to your shell startup file. The standard Windows installer sets PATH automatically.
 
@@ -82,15 +78,15 @@ If using nvm on macOS, run `nvm install` and `nvm use` from the repository root.
 From the repository root:
 
 ```bash
-pnpm install --frozen-lockfile
+npm ci
 ```
 
-pnpm is the workspace package manager. The first installation needs access to npm and NuGet registries.
+npm is the default workspace package manager, and `package-lock.json` records its exact dependency tree. The first installation needs access to npm and NuGet registries.
 
 ### 2. Build the workspace
 
 ```bash
-pnpm run build
+npm run build
 ```
 
 This builds the shared packages, frontend, and backend, including the supplied CSV in the API output.
@@ -98,7 +94,7 @@ This builds the shared packages, frontend, and backend, including the supplied C
 ### 3. Start the full development environment
 
 ```bash
-pnpm run dev
+npm run dev
 ```
 
 What this does:
@@ -116,7 +112,7 @@ Default local URLs:
 
 The UI proxies `/api` requests to the backend. No browser CORS configuration is needed.
 
-Use `Ctrl + C` to stop both processes. The launcher only stops processes it started. After installing and building with pnpm, `npm run dev` also starts the same launcher.
+Use `Ctrl + C` to stop both processes. The launcher only stops processes it started.
 
 ### Using different ports
 
@@ -135,9 +131,9 @@ All commands below run from the workspace root.
 ### Development and Build
 
 ```bash
-pnpm run dev
-pnpm run build
-pnpm run preview
+npm run dev
+npm run build
+npm run preview
 ```
 
 `preview` runs the built UI and published API. Its default UI address is `http://127.0.0.1:4173`.
@@ -145,9 +141,9 @@ pnpm run preview
 ### Lint and Types
 
 ```bash
-pnpm run lint
-pnpm run lint:fix
-pnpm run typecheck
+npm run lint
+npm run lint:fix
+npm run typecheck
 ```
 
 ### Test and Validate
@@ -155,17 +151,17 @@ pnpm run typecheck
 Install Chromium before the first browser-backed test run:
 
 ```bash
-pnpm run browser:install
+npm run browser:install
 ```
 
 Then use:
 
 ```bash
-pnpm run test
-pnpm run test:e2e
-pnpm run test:infrastructure
-pnpm run check:routes
-pnpm run validate
+npm run test
+npm run test:e2e
+npm run test:infrastructure
+npm run check:routes
+npm run validate
 ```
 
 `validate` runs the complete local check: workspace and route checks, lint, typechecks, C# formatting, builds, unit and Storybook tests, browser tests, and infrastructure checks.
@@ -175,10 +171,10 @@ On Linux, Playwright may also need system libraries. Install them with `node scr
 ### Storybook and Screenshots
 
 ```bash
-pnpm run storybook
-pnpm run storybook:charts
-pnpm run storybook:build
-pnpm run screenshots
+npm run storybook
+npm run storybook:charts
+npm run storybook:build
+npm run screenshots
 ```
 
 Storybook ports:
@@ -189,6 +185,41 @@ Storybook ports:
 Both catalogs run independently of the API.
 
 `screenshots` builds the workspace and writes numbered PNGs to the ignored root `screenshots/` folder. It covers selection, chart modes, comparison, raw data, loading, errors, retry, button states, and responsive layouts. Filenames containing `simulated` identify deliberately delayed, failed, or empty responses. The command uses separate test ports, stops its own servers, and refreshes the images on rerun.
+
+## Switching Between npm and pnpm
+
+npm is the committed default. pnpm 10.33.0 remains a supported alternative using the same pinned direct dependencies and workspace packages. Each manager owns its lockfile: `package-lock.json` for npm and `pnpm-lock.yaml` for pnpm.
+
+Stop running development and test processes before switching. The protocol helper changes only local workspace references and package-manager metadata; it does not install dependencies or rewrite either lockfile. Clear the previous manager's dependency directories so the new install starts clean.
+
+### Switch to pnpm
+
+```bash
+npm install --global pnpm@10.33.0
+node scripts/workspace-protocol.mjs pnpm
+node -e "for (const p of ['.', ...require('./package.json').workspaces]) require('node:fs').rmSync(p + '/node_modules', { recursive: true, force: true })"
+pnpm install --frozen-lockfile
+pnpm run build
+pnpm run browser:install
+pnpm run validate
+pnpm run dev
+```
+
+### Switch Back to npm
+
+```bash
+node scripts/workspace-protocol.mjs npm
+node -e "for (const p of ['.', ...require('./package.json').workspaces]) require('node:fs').rmSync(p + '/node_modules', { recursive: true, force: true })"
+npm ci
+npm run build
+npm run browser:install
+npm run validate
+npm run dev
+```
+
+These commands work in Windows and macOS terminals. The helper is also available through `workspace:protocol:npm` and `workspace:protocol:pnpm` root scripts. Running the selected mode again makes no changes. Switching to pnpm uses `workspace:*` references; switching back restores npm-compatible `*` references and the tracked npm baseline.
+
+Both lockfiles stay committed. Generate lockfile changes with the corresponding manager in its own mode, and return to npm before submitting changes. Dependency lifecycle scripts remain disabled; browser installation is an explicit command.
 
 ## App-Specific Notes
 
@@ -218,7 +249,7 @@ The main workflow is:
 4. Hover, click/tap, or use the chart's keyboard control to inspect individual observations.
 5. Open **View data** to inspect all selected raw prices in the accessible dialog.
 
-The matrix always uses full-period API statistics. Chart inspection and Price/Performance switching leave those values unchanged.
+The **Full-period comparison** matrix always uses the latest closing prices and full-period API statistics. Chart inspection and Price/Performance switching leave those values unchanged.
 
 Selection and an explicit chart view can be shared through the URL:
 
@@ -259,7 +290,7 @@ curl http://127.0.0.1:5080/api/prices/TICK0001/stats
 - `PHARO_UI_PORT`: UI port, default `5173` for development or `4173` for preview
 - `MarketData__Path`: CSV path, default `Data/market_data.csv`
 
-CLI port options take precedence over environment variables. Ports must be distinct integers between 1024 and 65535. Relative CSV paths resolve against the API's output/content directory. Restart the API after changing the dataset.
+CLI port options take precedence over environment variables. Ports must be distinct integers between 1024 and 65535. Relative CSV paths resolve against the API's output/content directory. When replacing the CSV, rebuild if using published output, restart the API, and reload the dashboard so its in-memory client cache is recreated.
 
 ## Testing
 
@@ -289,7 +320,7 @@ Playwright runs the compiled dashboard against the real C# API. It covers keyboa
 
 The shared UI and chart packages also have unit tests, executable Storybook scenarios, and isolated browser consumers.
 
-The full local `pnpm validate` run passed on October 8, 2026 at source commit `c7af484`: all 25 Nx tasks completed with the cache disabled, and the command exited with code 0.
+Use `npm run validate` in the default checkout. In pnpm mode, use `pnpm run validate`; both commands execute the same local checks.
 
 ## Shared Package Development
 
@@ -299,11 +330,11 @@ The [chart package README](packages/pharo-react-charts/README.md) documents seri
 
 ## Recommended Developer Workflow
 
-1. Install dependencies with pnpm.
+1. Install dependencies with `npm ci`.
 2. Build the workspace.
-3. Start both applications with `pnpm run dev`.
+3. Start both applications with `npm run dev`.
 4. Use Storybook when working on shared controls or charts.
-5. Run the relevant tests during development and `pnpm run validate` before finishing.
+5. Run the relevant tests during development and `npm run validate` before finishing.
 
 ## Notes
 
@@ -314,4 +345,4 @@ The [chart package README](packages/pharo-react-charts/README.md) documents seri
 
 ## AI Assistance
 
-OpenAI Codex assisted with implementation, testing, review, and documentation. Financial calculation tests, an independent dataset oracle, API integration tests, and browser scenarios make the behavior reproducible. The candidate remains responsible for understanding and explaining the submitted code and design choices.
+I used OpenAI Codex to assist with implementation, test scaffolding, review, and documentation. I directed the application's architecture, scope, and engineering conventions, including keeping financial statistics authoritative in the C# API. The documented validation commands let reviewers reproduce the checks locally.

@@ -2,16 +2,16 @@
   "name": "pharo-take-home-assessment",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "npm@11.12.1",
   "engines": {
     "node": ">=24.14.1 <25",
-    "pnpm": "10.33.0"
+    "npm": "11.12.1"
   },
   "scripts": {
     "lint": "eslint apps/pharo-dashboard-ui packages scripts *.mjs",
-    "lint:fix": "pnpm lint --fix",
+    "lint:fix": "eslint apps/pharo-dashboard-ui packages scripts *.mjs --fix",
     "typecheck": "node scripts/nx.mjs run-many -t typecheck,typecheck:catalog,compile -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/react-components,@pharo/react-charts,@pharo/tailwind-plugin",
-    "test": "pnpm check:routes && node scripts/nx.mjs run-many -t test,infrastructure -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/eslint-config,@pharo/prettier-config,@pharo/tailwind-plugin,@pharo/react-components,@pharo/react-charts",
+    "test": "node --test scripts/route-generation.test.mjs && node scripts/nx.mjs run-many -t test,infrastructure -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/eslint-config,@pharo/prettier-config,@pharo/tailwind-plugin,@pharo/react-components,@pharo/react-charts",
     "build": "node scripts/nx.mjs run-many -t build -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/react-components,@pharo/react-charts",
     "validate": "node scripts/validate.mjs",
     "dev": "node scripts/dev.mjs",
@@ -20,10 +20,12 @@
     "storybook:charts": "node scripts/nx.mjs run @pharo/react-charts:storybook",
     "storybook:build": "node scripts/nx.mjs run-many -t storybook:build -p @pharo/react-components,@pharo/react-charts",
     "test:e2e": "node scripts/nx.mjs run-many -t e2e -p pharo-dashboard-ui,@pharo/react-components,@pharo/react-charts",
-    "screenshots": "pnpm build && node scripts/playwright.mjs test --config apps/pharo-dashboard-ui/playwright.screenshots.config.ts",
+    "screenshots": "node scripts/nx.mjs run-many -t build -p pharo-dashboard-ui,pharo-dashboard-api,@pharo/react-components,@pharo/react-charts && node scripts/playwright.mjs test --config apps/pharo-dashboard-ui/playwright.screenshots.config.ts",
     "test:infrastructure": "node scripts/nx.mjs run pharo-dashboard-ui:infrastructure",
     "check:routes": "node --test scripts/route-generation.test.mjs",
-    "browser:install": "node scripts/playwright.mjs install chromium"
+    "browser:install": "node scripts/playwright.mjs install chromium",
+    "workspace:protocol:npm": "node scripts/workspace-protocol.mjs npm",
+    "workspace:protocol:pnpm": "node scripts/workspace-protocol.mjs pnpm"
   },
   "devDependencies": {
     "react": "19.3.0",
@@ -79,8 +81,16 @@
     "eslint-plugin-jsx-a11y-x": "0.2.0",
     "globals": "17.13.0",
     "eslint-plugin-prettier": "5.5.6",
-    "@pharo/eslint-config": "workspace:*",
-    "@pharo/prettier-config": "workspace:*",
+    "@pharo/eslint-config": "*",
+    "@pharo/prettier-config": "*",
     "@tanstack/router-generator": "1.167.40"
-  }
+  },
+  "workspaces": [
+    "apps/pharo-dashboard-ui",
+    "packages/pharo-react-components",
+    "packages/pharo-react-charts",
+    "packages/pharo-tailwind-plugin",
+    "packages/pharo-eslint-config",
+    "packages/pharo-prettier-config"
+  ]
 }

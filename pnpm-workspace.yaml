@@ -5,3 +5,7 @@ packages:
   - packages/pharo-tailwind-plugin
   - packages/pharo-eslint-config
   - packages/pharo-prettier-config
+
+strictPeerDependencies: true
+autoInstallPeers: false
+storeDir: node_modules/.cache/pnpm-store

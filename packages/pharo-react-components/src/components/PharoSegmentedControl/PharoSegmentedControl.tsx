@@ -1,10 +1,11 @@
-import { Label, Radio, RadioGroup } from 'react-aria-components';
+import { ToggleButton, ToggleButtonGroup } from 'react-aria-components';
+import type { Key } from 'react-aria-components';
 import { mergeClasses } from '../../styles/mergeClasses';
 import { segmentedStyles } from './styles';
 import type { PharoSegmentedControlProps as Props } from './types';
 
 /**
- * Present one controlled choice with native radio focus and arrow-key behavior.
+ * Present one controlled choice with radio semantics and roving button focus.
  * @example
  * ```tsx
  * <PharoSegmentedControl label="Display" options={displayOptions}
@@ -14,33 +15,38 @@ import type { PharoSegmentedControlProps as Props } from './types';
 export function PharoSegmentedControl<Value extends string>(props: Props<Value>) {
   const { label, options, value, onChange, isDisabled, className } = props;
 
-  const handleChange = (next: string) => {
+  const handleSelectionChange = (keys: Set<Key>) => {
+    const next = [...keys][0];
     const option = options.find((candidate) => candidate.value === next);
 
-    if (option && !option.isDisabled && !isDisabled) onChange(option.value);
+    if (option && !option.isDisabled && !isDisabled && option.value !== value)
+      onChange(option.value);
   };
 
   return (
-    <RadioGroup
-      value={value}
-      onChange={handleChange}
-      isDisabled={isDisabled}
-      orientation="horizontal"
-      className={mergeClasses(segmentedStyles.group, className)}
-    >
-      <Label className={segmentedStyles.label}>{label}</Label>
-      <div className={segmentedStyles.options}>
+    <div className={mergeClasses(segmentedStyles.group, className)}>
+      <span className={segmentedStyles.label}>{label}</span>
+      <ToggleButtonGroup
+        aria-label={label}
+        selectionMode="single"
+        disallowEmptySelection
+        selectedKeys={[value]}
+        onSelectionChange={handleSelectionChange}
+        isDisabled={isDisabled}
+        orientation="horizontal"
+        className={segmentedStyles.options}
+      >
         {options.map((option) => (
-          <Radio
+          <ToggleButton
             key={option.value}
-            value={option.value}
+            id={option.value}
             isDisabled={option.isDisabled}
             className={segmentedStyles.option}
           >
             {option.label}
-          </Radio>
+          </ToggleButton>
         ))}
-      </div>
-    </RadioGroup>
+      </ToggleButtonGroup>
+    </div>
   );
 }

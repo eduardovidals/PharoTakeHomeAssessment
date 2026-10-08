@@ -8,7 +8,7 @@ export interface PharoSegmentedOption<Value extends string> {
   readonly isDisabled?: boolean;
 }
 
-/** Controlled exclusive choice using React Aria radio semantics. */
+/** Controlled exclusive toggle-button choice using React Aria radio semantics. */
 export interface PharoSegmentedControlProps<Value extends string> {
   /** Visible label describing the choice. */
   readonly label: string;

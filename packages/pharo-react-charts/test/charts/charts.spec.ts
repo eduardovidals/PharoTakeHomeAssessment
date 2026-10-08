@@ -116,7 +116,23 @@ async function auditBundle(
   expect(chunks.length).toBeGreaterThan(0);
 
   const emittedChunks = new Set(chunks.map((chunk) => chunk.file));
-  const installation = await realpath(path.join(repositoryDirectory, 'node_modules/.pnpm'));
+  const workspace: unknown = JSON.parse(
+    await readFile(path.join(repositoryDirectory, 'package.json'), 'utf8'),
+  );
+  if (
+    !workspace ||
+    typeof workspace !== 'object' ||
+    !('packageManager' in workspace) ||
+    typeof workspace.packageManager !== 'string'
+  )
+    throw new Error('The workspace must identify its active package manager.');
+
+  const manager = /^(npm|pnpm)@/.exec(workspace.packageManager)?.[1];
+  if (!manager) throw new Error('The bundle audit requires an npm or pnpm installation.');
+  const lockfile = manager === 'npm' ? 'package-lock.json' : 'pnpm-lock.yaml';
+  const installation = await realpath(
+    path.join(repositoryDirectory, manager === 'npm' ? 'node_modules' : 'node_modules/.pnpm'),
+  );
   const installedChart = await realpath(path.join(consumer, 'node_modules/@pharo/react-charts'));
   const entries = new Map(
     await Promise.all(
@@ -154,6 +170,8 @@ async function auditBundle(
           expect(
             file.startsWith(installation + path.sep) || file.startsWith(installedChart + path.sep),
           ).toBe(true);
+          if (manager === 'npm')
+            expect(file.startsWith(path.join(installation, '.pnpm') + path.sep)).toBe(false);
 
           let directory = path.dirname(file);
           let owner: { name: string; version: string; root: string } | undefined;
@@ -268,8 +286,8 @@ async function auditBundle(
     });
 
   inputs.push({
-    path: 'workspace/pnpm-lock.yaml',
-    sha256: sha256(await readFile(path.join(repositoryDirectory, 'pnpm-lock.yaml'))),
+    path: `workspace/${lockfile}`,
+    sha256: sha256(await readFile(path.join(repositoryDirectory, lockfile))),
   });
 
   const totals = (extension: string) =>
@@ -289,6 +307,7 @@ async function auditBundle(
     command: 'node scripts/nx.mjs run @pharo/react-charts:e2e',
     tools: {
       node: process.version,
+      packageManager: workspace.packageManager,
       zlib: process.versions.zlib,
       vite: version,
       rolldown: rolldownVersion,
@@ -1142,6 +1161,17 @@ test.describe('independent built charts', () => {
       '8',
       'Unavailable',
     ]);
+
+    await expect(table.getByRole('columnheader', { name: 'Date (UTC)', exact: true })).toHaveCSS(
+      'text-align',
+      'start',
+    );
+    for (const header of await table.getByRole('columnheader', { name: /greenhouse/ }).all())
+      await expect(header).toHaveCSS('text-align', 'end');
+    for (const date of await table.getByRole('rowheader').all())
+      await expect(date).toHaveCSS('text-align', 'start');
+    for (const value of await table.getByRole('cell').all())
+      await expect(value).toHaveCSS('text-align', 'end');
     await expect(chart).toHaveAttribute('height', '320');
 
     await trigger.click();
@@ -1346,78 +1376,35 @@ test.describe('independent built charts', () => {
       await expect(dots).toHaveCount(1);
       await expect(dots).toHaveAttribute('data-inspection-series-id', 'unequal-south');
       await expect(dots.locator('circle')).toBeVisible();
-      await expect(inspection).toHaveCSS('transition-duration', '0.12s');
-      await expect(dots).toHaveCSS('transition-duration', '0.12s');
-
-      await inspection.evaluate(async (element) => {
-        await Promise.all(
-          element.getAnimations({ subtree: true }).map((animation) => animation.finished),
-        );
-      });
-
-      // Attach the observer before moving the pointer so the mutation cannot be missed.
-      const capture = await inspection.evaluateHandle((element) => {
-        const dot = element.querySelector('[data-inspection-series-id="unequal-south"]');
-
-        if (!dot) throw new Error('The exact southern observation marker is missing.');
-
-        const position = () => ({
-          x: new DOMMatrix(getComputedStyle(element).transform).e,
-          y: new DOMMatrix(getComputedStyle(dot).transform).f,
-        });
-
-        const start = position();
-        const originalTransform = element.getAttribute('transform');
-
-        const result = new Promise<{
-          start: typeof start;
-          halfway: typeof start;
-          end: typeof start;
-          animations: number;
-        }>((resolve, reject) => {
-          const observer = new MutationObserver(() => {
-            if (element.getAttribute('transform') === originalTransform) return;
-
-            observer.disconnect();
-
-            try {
-              // Flush the real SVG style change, then seek its native transitions to avoid clock races.
-              position();
-
-              const animations = [...element.getAnimations(), ...dot.getAnimations()];
-
-              for (const animation of animations) {
-                animation.pause();
-                animation.currentTime = Number(animation.effect?.getTiming().duration) / 2;
-              }
-
-              const halfway = position();
-
-              for (const animation of animations) animation.finish();
-
-              resolve({ start, halfway, end: position(), animations: animations.length });
-            } catch (error) {
-              reject(error);
-            }
-          });
-
-          observer.observe(element, { attributes: true, attributeFilter: ['transform'] });
-        });
-
-        return { result };
-      });
+      await expect(inspection).toHaveCSS('transition-duration', '0s');
+      await expect(dots).toHaveCSS('transition-duration', '0s');
 
       await page.mouse.move(left + (2 * span) / 3, y);
-      const motion = await capture.evaluate(({ result }) => result);
-      await capture.dispose();
 
-      expect(motion.animations).toBe(2);
-      expect(motion.halfway.x).toBeGreaterThan(motion.start.x);
-      expect(motion.halfway.x).toBeLessThan(motion.end.x);
-      expect(motion.halfway.y).toBeLessThan(motion.start.y);
-      expect(motion.halfway.y).toBeGreaterThan(motion.end.y);
-      expect(motion.end.x).toBeCloseTo(56 + (2 * (viewWidth - 72)) / 3, 3);
-      expect(motion.end.y).toBeCloseTo(16, 3);
+      await expect(details).toContainText('2024-03-12');
+
+      const position = await inspection.evaluate((element) => {
+        const dot = element.querySelector('circle');
+        const path = element.closest('svg')?.querySelector('[data-series-id="unequal-south"] path');
+        if (!(dot instanceof SVGCircleElement) || !(path instanceof SVGPathElement))
+          throw new Error('The recorded southern path and marker must be visible.');
+        const dotTransform = dot.getScreenCTM();
+        const pathTransform = path.getScreenCTM();
+        if (!dotTransform || !pathTransform) throw new Error('Missing rendered SVG transforms.');
+        const marker = new DOMPoint(dot.cx.baseVal.value, dot.cy.baseVal.value).matrixTransform(
+          dotTransform,
+        );
+        const recorded = path
+          .getPointAtLength(path.getTotalLength())
+          .matrixTransform(pathTransform);
+        return {
+          distance: Math.hypot(marker.x - recorded.x, marker.y - recorded.y),
+          animations: element.getAnimations({ subtree: true }).length,
+        };
+      });
+
+      expect(position.animations).toBe(0);
+      expect(position.distance).toBeLessThan(0.75);
       await expect(dots).toHaveCount(1);
       await expect(dots).toHaveAttribute('data-inspection-series-id', 'unequal-south');
       await expect(details).toContainText('2024-03-12');

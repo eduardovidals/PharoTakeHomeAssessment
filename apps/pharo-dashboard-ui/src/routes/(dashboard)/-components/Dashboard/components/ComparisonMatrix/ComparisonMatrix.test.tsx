@@ -149,7 +149,7 @@ async function withMatrix(
 }
 
 function metric(label: string, index = 0) {
-  const row = within(screen.getByRole('table', { name: 'Comparison' }))
+  const row = within(screen.getByRole('table', { name: 'Full-period comparison' }))
     .getByRole('rowheader', { name: label })
     .closest('tr');
   if (!row) throw new Error('Metric row is missing.');
@@ -172,7 +172,7 @@ describe('ComparisonMatrix', () => {
       await waitFor(() => expect(metric('Latest close', 2)).toHaveTextContent('110.26'));
 
       const scroll = screen.getByRole('region', { name: 'Comparison table scroll area' });
-      const table = screen.getByRole('table', { name: 'Comparison' });
+      const table = screen.getByRole('table', { name: 'Full-period comparison' });
       const observer = [...MatrixResizeObserver.active].find((owner) => owner.targets.has(scroll));
       if (!observer) throw new Error('Comparison resize owner is missing.');
       expect(observer.targets.has(table)).toBe(true);
@@ -232,8 +232,10 @@ describe('ComparisonMatrix', () => {
         expect(cache.getQueryData<PriceStats>(priceStatsKey('A'))).toEqual(data);
         expect(cache.getQueryData(pricesKey('A'))).toEqual(history);
         expect(requests).toBe(1);
-        expect(screen.getByRole('table', { name: 'Comparison' })).toHaveAccessibleDescription(
-          'Metrics cover each instrument’s full supplied window.',
+        expect(
+          screen.getByRole('table', { name: 'Full-period comparison' }),
+        ).toHaveAccessibleDescription(
+          'Latest close and statistics for each instrument’s complete supplied window.',
         );
 
         await userEvent.click(screen.getByText('About these metrics'));
@@ -272,7 +274,7 @@ describe('ComparisonMatrix', () => {
       async ({ show }) => {
         await waitFor(() => expect(metric('Latest close', 2)).toHaveTextContent('110.26'));
         expect(
-          within(screen.getByRole('table', { name: 'Comparison' }))
+          within(screen.getByRole('table', { name: 'Full-period comparison' }))
             .getAllByRole('columnheader')
             .map((header) => header.textContent),
         ).toEqual(['Metric', 'B', 'A', 'C']);
@@ -281,7 +283,9 @@ describe('ComparisonMatrix', () => {
 
         await waitFor(() =>
           expect(
-            within(screen.getByRole('table', { name: 'Comparison' })).getAllByRole('columnheader'),
+            within(screen.getByRole('table', { name: 'Full-period comparison' })).getAllByRole(
+              'columnheader',
+            ),
           ).toHaveLength(2),
         );
         expect(metric('Latest close')).toHaveTextContent('110.26');
@@ -413,7 +417,7 @@ describe('ComparisonMatrix', () => {
             screen.queryByRole('button', { name: /Retry.*A statistics/ }),
           ).not.toBeInTheDocument(),
         );
-        expect(screen.getByRole('heading', { name: 'Comparison' })).toHaveFocus();
+        expect(screen.getByRole('heading', { name: 'Full-period comparison' })).toHaveFocus();
         expect(requests).toEqual({ prices: 1, statistics: 4, peer: 1 });
       } finally {
         release.resolve();
@@ -488,7 +492,7 @@ describe('ComparisonMatrix', () => {
 
       expect(await screen.findByRole('button', { name: 'Remove A from comparison' })).toBeVisible();
       expect(screen.queryByRole('button', { name: /Retry.*A statistics/ })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Comparison' })).toHaveFocus();
+      expect(screen.getByRole('heading', { name: 'Full-period comparison' })).toHaveFocus();
       expect(requests).toBe(4);
     });
   });

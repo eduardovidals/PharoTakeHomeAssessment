@@ -23,7 +23,6 @@ import {
   disclosureStyles,
   figureStyles,
   inspectionMarkerStyles,
-  inspectionMotionStyles,
   inspectionOverlayStyles,
   labelStyles,
   legendItemStyles,
@@ -326,7 +325,6 @@ export function PharoLineChart(props: Props) {
                       key={row.id}
                       data-inspection-series-id={row.id}
                       transform={`translate(0 ${y})`}
-                      className={inspectionMotionStyles}
                     >
                       <circle
                         r={5}

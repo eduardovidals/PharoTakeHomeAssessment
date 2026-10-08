@@ -35,7 +35,7 @@
         ],
         "cache": false,
         "options": {
-          "command": "node --test scripts/dev.test.mjs scripts/catalog-config.test.mjs scripts/vite-privacy.test.mjs",
+          "command": "node --test scripts/dev.test.mjs scripts/catalog-config.test.mjs scripts/vite-privacy.test.mjs scripts/workspace-protocol.test.mjs",
           "cwd": "."
         }
       }
@@ -57,8 +57,8 @@
     "zod": "4.6.5",
     "axios": "1.20.0",
     "dayjs": "1.11.23",
-    "@pharo/react-components": "workspace:*",
-    "@pharo/react-charts": "workspace:*",
-    "@pharo/tailwind-plugin": "workspace:*"
+    "@pharo/react-components": "*",
+    "@pharo/react-charts": "*",
+    "@pharo/tailwind-plugin": "*"
   }
 }

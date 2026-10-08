@@ -9,7 +9,7 @@ const shortDate = new Intl.DateTimeFormat('en-US', {
 });
 
 async function matrixCell(page: Page, ticker: string, metric: string) {
-  const table = page.getByRole('table', { name: 'Comparison', exact: true });
+  const table = page.getByRole('table', { name: 'Full-period comparison', exact: true });
 
   await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
 
@@ -375,7 +375,7 @@ test.describe('Preserve analytical access with text scaling and user display pre
 
         await input.press('Escape');
 
-        const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+        const matrix = page.getByRole('table', { name: 'Full-period comparison', exact: true });
 
         await expect(matrix.getByRole('columnheader')).toHaveText([
           'Metric',

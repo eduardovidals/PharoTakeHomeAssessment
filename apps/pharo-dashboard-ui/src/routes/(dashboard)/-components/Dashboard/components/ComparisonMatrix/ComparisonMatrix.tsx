@@ -92,10 +92,10 @@ export function ComparisonMatrix(props: Props) {
   return (
     <section className={matrixStyles.panel} aria-labelledby={`${id}-heading`}>
       <h2 ref={headingRef} id={`${id}-heading`} tabIndex={-1} className={matrixStyles.heading}>
-        Comparison
+        Full-period comparison
       </h2>
       <p id={`${id}-description`} className={matrixStyles.description}>
-        Metrics cover each instrument’s full supplied window.
+        Latest close and statistics for each instrument’s complete supplied window.
       </p>
       <p role="status" className={matrixStyles.announcement}>
         {actionFailure ?? getComparisonAnnouncement(columns)}

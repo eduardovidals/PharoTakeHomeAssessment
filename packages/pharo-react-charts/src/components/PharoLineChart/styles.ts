@@ -23,9 +23,7 @@ export const disclosureStyles =
 
 export const crosshairStyles = 'stroke-pharo-control-border';
 
-export const inspectionOverlayStyles = 'pointer-events-none pharo-transition-transform';
-
-export const inspectionMotionStyles = 'pharo-transition-transform';
+export const inspectionOverlayStyles = 'pointer-events-none';
 
 export const inspectionMarkerStyles = 'stroke-pharo-surface';
 

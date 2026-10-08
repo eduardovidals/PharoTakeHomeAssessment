@@ -497,7 +497,7 @@ test.describe('Use the built Pharo components without application providers', ()
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(before);
   });
 
-  test('exclusive choices follow arrow keys, skip disabled options and retain visible focus', async ({
+  test('exclusive choices use arrows to focus and Enter or Space to select, skipping disabled options', async ({
     page,
   }, testInfo) => {
     const group = page.getByRole('radiogroup', { name: 'Collection layout' });
@@ -508,27 +508,38 @@ test.describe('Use the built Pharo components without application providers', ()
     await list.focus();
     await list.press('ArrowRight');
 
-    await expect(grid).toBeChecked();
     await expect(grid).toBeFocused();
+    await expect(list).toBeChecked();
+
+    await grid.press('Enter');
+
+    await expect(grid).toBeChecked();
     await expect(list).not.toBeChecked();
     await expect(group.getByRole('radio', { name: 'Map', exact: true })).toBeDisabled();
     await expect(page.getByText('Current layout: grid', { exact: true })).toBeVisible();
 
-    // e2e-locator: React Aria's wrapping label owns the visible target and focus treatment.
-    const visibleChoice = grid.locator('..').locator('..');
-
-    await expect(visibleChoice).toHaveCSS('min-height', '44px');
-    await expect(visibleChoice).toHaveCSS('outline-width', '3px');
+    await expect(grid).toHaveCSS('min-height', '44px');
+    await expect(grid).toHaveCSS('outline-width', '3px');
 
     await page.emulateMedia({ forcedColors: 'active' });
 
-    await expect(visibleChoice).toHaveCSS('forced-color-adjust', 'none');
+    await expect(grid).toHaveCSS('forced-color-adjust', 'none');
 
     await page.screenshot({ path: testInfo.outputPath('components-segmented-focus.png') });
     await grid.press('ArrowLeft');
 
+    await expect(list).toBeFocused();
+    await expect(grid).toBeChecked();
+
+    await list.press('Space');
+
     await expect(list).toBeChecked();
     await expect(grid).not.toBeChecked();
+
+    await list.click();
+
+    await expect(group.getByRole('radio', { checked: true })).toHaveCount(1);
+    await expect(list).toBeChecked();
   });
 
   test('the built consumer does not expose private fixture bytes', async ({ request }) => {

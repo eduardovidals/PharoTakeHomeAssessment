@@ -26,7 +26,7 @@ function ControlledChoice() {
 }
 
 describe('PharoSegmentedControl', () => {
-  test('labels one radio group and moves the exclusive choice with arrows, skipping disabled options', async () => {
+  test('labels toggle buttons with radio semantics and moves focus with arrows, skipping disabled options', async () => {
     const user = userEvent.setup();
     render(<ControlledChoice />);
     const group = screen.getByRole('radiogroup', { name: 'Presentation' });
@@ -34,6 +34,7 @@ describe('PharoSegmentedControl', () => {
     const detail = within(group).getByRole('radio', { name: 'Detail' });
 
     expect(summary).toBeChecked();
+    expect(summary.tagName).toBe('BUTTON');
 
     await user.tab();
 
@@ -41,14 +42,36 @@ describe('PharoSegmentedControl', () => {
 
     await user.keyboard('{ArrowRight}');
 
-    expect(detail).toBeChecked();
     expect(detail).toHaveFocus();
+    expect(summary).toBeChecked();
+
+    await user.keyboard('{Enter}');
+
+    expect(detail).toBeChecked();
     expect(summary).not.toBeChecked();
 
     await user.keyboard('{ArrowLeft}');
 
+    expect(summary).toHaveFocus();
+    expect(detail).toBeChecked();
+
+    await user.keyboard(' ');
+
     expect(summary).toBeChecked();
     expect(within(group).getAllByRole('radio', { checked: true })).toHaveLength(1);
+  });
+
+  test('never clears the active choice or selects a disabled option', async () => {
+    const user = userEvent.setup();
+    render(<ControlledChoice />);
+    const summary = screen.getByRole('radio', { name: 'Summary' });
+
+    await user.click(summary);
+    await user.keyboard('{Enter} ');
+    await user.click(screen.getByRole('radio', { name: 'Unavailable' }));
+
+    expect(summary).toBeChecked();
+    expect(screen.getAllByRole('radio', { checked: true })).toHaveLength(1);
   });
 
   test('leaves selection with its consumer and emits only the selected generic value', async () => {
@@ -94,8 +117,8 @@ describe('PharoSegmentedControl', () => {
       />,
     );
 
-    expect(screen.getByRole('radiogroup')).toHaveClass('gap-pharo-4');
-    expect(screen.getByRole('radiogroup')).not.toHaveClass('gap-pharo-2');
+    expect(screen.getByRole('radiogroup').parentElement).toHaveClass('gap-pharo-4');
+    expect(screen.getByRole('radiogroup').parentElement).not.toHaveClass('gap-pharo-2');
     expect(screen.getByRole('radio', { name: 'Summary' })).toBeChecked();
 
     for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
