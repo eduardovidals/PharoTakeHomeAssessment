@@ -28,7 +28,7 @@ export const styles: Record<
   // The measured trigger width and native overlay maximum height are runtime geometry.
   popover:
     'z-50 flex min-h-0 w-(--trigger-width) max-w-[calc(100vw-2*var(--spacing-pharo-2))] flex-col overflow-hidden rounded-pharo-control border border-pharo-control-border bg-pharo-surface pharo-shadow-overlay',
-  list: 'min-h-0 max-h-pharo-plot-mobile overflow-auto overscroll-contain p-pharo-2 outline-none',
+  list: 'min-h-0 max-h-pharo-plot-mobile space-y-pharo-1 overflow-auto overscroll-contain p-pharo-2 outline-none',
   option:
     'flex min-h-pharo-control cursor-default items-center rounded-pharo-control border border-transparent px-pharo-3 py-pharo-2 text-pharo-sm text-pharo-foreground outline-none focus:bg-pharo-selected focus:text-pharo-action focus-visible:pharo-focus-ring selected:pharo-selected-action disabled:cursor-not-allowed disabled:text-pharo-disabled-foreground',
   content: 'flex min-w-0 grow items-center justify-between gap-pharo-2',
