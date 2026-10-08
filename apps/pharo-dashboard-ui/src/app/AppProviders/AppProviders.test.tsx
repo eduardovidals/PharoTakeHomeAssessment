@@ -28,13 +28,13 @@ function CacheWitness(props: WitnessProps) {
 
 test('mounts its file route with the router cache and isolates application instances', async () => {
   const first = await renderApp({
-    configure(app) {
+    configure: (app) => {
       app.queryClient.setQueryData(['isolation-witness'], 42);
       app.router.update({ Wrap: CacheWitness, context: app.router.options.context });
     },
   });
   const second = await renderApp({
-    configure(app) {
+    configure: (app) => {
       app.router.update({ Wrap: CacheWitness, context: app.router.options.context });
     },
   });

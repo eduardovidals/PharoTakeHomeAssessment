@@ -76,7 +76,7 @@ export async function startDashboard(options = {}) {
     resolveExit = resolve;
   });
 
-  function launch(command, args, cwd, env) {
+  const launch = (command, args, cwd, env) => {
     options.signal?.throwIfAborted();
 
     const child = spawn(command, args, {
@@ -110,9 +110,9 @@ export async function startDashboard(options = {}) {
     children.push(record);
 
     return child.pid;
-  }
+  };
 
-  async function signalOwned(record, signal) {
+  const signalOwned = async (record, signal) => {
     if (record.retired || record.child.pid === undefined) return;
 
     try {
@@ -137,9 +137,9 @@ export async function startDashboard(options = {}) {
     } catch (error) {
       if (!(error instanceof Error) || !('code' in error) || error.code !== 'ESRCH') throw error;
     }
-  }
+  };
 
-  function stop() {
+  const stop = () => {
     if (stopping) return stopping;
 
     stopping = (async () => {
@@ -207,11 +207,11 @@ export async function startDashboard(options = {}) {
     })();
 
     return stopping;
-  }
+  };
 
-  function cancel() {
+  const cancel = () => {
     void stop().catch(() => {});
-  }
+  };
 
   options.signal?.addEventListener('abort', cancel, { once: true });
 

@@ -8,7 +8,10 @@ import { pricePointSchema, priceSeriesSchema, priceStatsSchema } from './schema'
 import type { PriceSeries, PriceStats } from './types';
 
 const base = 'http://localhost/api';
-const client = () => createApiClient({ baseURL: base });
+
+function client() {
+  return createApiClient({ baseURL: base });
+}
 
 const history = [
   { date: '0001-01-01', price: 100.123456789 },

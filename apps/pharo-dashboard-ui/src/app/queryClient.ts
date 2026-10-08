@@ -11,7 +11,7 @@ export function createAppQueryClient() {
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         refetchInterval: false,
-        retry(failureCount, error) {
+        retry: (failureCount, error) => {
           if (failureCount >= 2 || !isApiFailure(error)) return false;
 
           return (

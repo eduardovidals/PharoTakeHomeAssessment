@@ -11,11 +11,13 @@ const march13 = Date.UTC(2024, 2, 13);
 
 const recordedDates = [10, 11, 13, 14, 18, 19, 21, 25].map((date) => Date.UTC(2024, 2, date));
 
-const fullDate = (value: number) =>
-  `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight Coordinated Universal Time`;
+function fullDate(value: number) {
+  return `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight Coordinated Universal Time`;
+}
 
-const fullValue = (value: number) =>
-  `Reading ${value.toString()} in fully described measurement units`;
+function fullValue(value: number) {
+  return `Reading ${value.toString()} in fully described measurement units`;
+}
 
 const shortDate = new Intl.DateTimeFormat('en-US', {
   month: 'short',

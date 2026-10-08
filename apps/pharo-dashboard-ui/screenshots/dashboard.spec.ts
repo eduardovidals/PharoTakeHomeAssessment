@@ -31,7 +31,8 @@ test.describe('Review the dashboard screens and interactions', () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
 
     let number = 0;
-    async function capture(name: string, screen: Page = page) {
+
+    const capture = async (name: string, screen: Page = page) => {
       const filename = `${String(++number).padStart(2, '0')}-${name}.png`;
       await screen.screenshot({
         path: join(output, filename),
@@ -40,11 +41,13 @@ test.describe('Review the dashboard screens and interactions', () => {
         animations: 'disabled',
       });
       console.log(filename);
-    }
+    };
+
     const button = (name: string) => page.getByRole('button', { name, exact: true });
     const search = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
     const option = (ticker: string) => page.getByRole('option', { name: ticker, exact: true });
-    async function add(ticker: string) {
+
+    const add = async (ticker: string) => {
       await search.fill(ticker);
       await option(ticker).click();
       await expect
@@ -54,15 +57,16 @@ test.describe('Review the dashboard screens and interactions', () => {
       await expect(search).toHaveValue('');
 
       await search.press('Escape');
-    }
-    async function ready(tickers: string[]) {
+    };
+
+    const ready = async (tickers: string[]) => {
       for (const ticker of tickers) {
         await expect(await matrixCell(page, ticker, 'Latest close')).toHaveText(/^[\d,]+\.\d{2}$/);
         await expect(await matrixCell(page, ticker, 'Total return')).toHaveText(
           /^[+−-]?\d+\.\d{2}%$/,
         );
       }
-    }
+    };
 
     // Normal flows use the real application, API and supplied CSV.
     await page.goto('/');

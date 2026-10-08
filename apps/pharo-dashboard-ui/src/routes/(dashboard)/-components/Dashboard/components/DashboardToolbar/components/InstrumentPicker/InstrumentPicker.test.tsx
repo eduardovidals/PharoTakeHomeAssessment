@@ -48,7 +48,9 @@ function createGate() {
   };
 }
 
-const popup = () => within(document.body);
+function popup() {
+  return within(document.body);
+}
 
 async function expectActive(input: HTMLElement, ticker: string) {
   const option = await popup().findByRole('option', { name: ticker });

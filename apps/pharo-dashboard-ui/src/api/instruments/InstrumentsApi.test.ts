@@ -9,7 +9,9 @@ import type { Instruments } from './types';
 
 const endpoint = 'http://localhost/api/instruments';
 
-const client = () => createApiClient({ baseURL: 'http://localhost/api' });
+function client() {
+  return createApiClient({ baseURL: 'http://localhost/api' });
+}
 
 test.each([
   [' abc.1 ', 'ABC.1'],

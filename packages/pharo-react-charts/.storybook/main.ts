@@ -11,7 +11,7 @@ const config = {
   addons: ['@storybook/addon-docs', '@storybook/addon-a11y'],
   framework: { name: '@storybook/react-vite', options: {} },
   typescript: { reactDocgen: 'react-docgen-typescript' },
-  viteFinal(configuration) {
+  viteFinal: (configuration) => {
     return mergeConfig(configuration, {
       plugins: [react(), tailwindcss()],
       resolve: { dedupe: ['react', 'react-dom'] },

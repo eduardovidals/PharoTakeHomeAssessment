@@ -37,17 +37,17 @@ export async function renderApp(options: RenderAppOptions = {}): Promise<AppTest
   let view: RenderResult | undefined;
   let disposal: Promise<void> | undefined;
 
-  function dispose(): Promise<void> {
+  const dispose = (): Promise<void> => {
     disposal ??= Promise.resolve().then(async () => {
       const failures: unknown[] = [];
 
-      async function attempt(release: () => void | Promise<void>) {
+      const attempt = async (release: () => void | Promise<void>) => {
         try {
           await release();
         } catch (error) {
           failures.push(error);
         }
-      }
+      };
 
       // Every release runs even if an earlier owner fails. No global RTL cleanup here.
       await attempt(() => view?.unmount());
@@ -63,7 +63,7 @@ export async function renderApp(options: RenderAppOptions = {}): Promise<AppTest
     });
 
     return disposal;
-  }
+  };
 
   // Register before acquiring anything that may throw or await.
   activeDisposals.add(dispose);

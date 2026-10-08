@@ -55,13 +55,14 @@ test('cleans a partially rendered graph when its real router wrapper throws', as
 
   const primaryError = new Error('Provider startup failed');
   let acquired: AppTest | undefined;
-  function FailedWrapper(): never {
+
+  const FailedWrapper = (): never => {
     throw primaryError;
-  }
+  };
 
   await expect(
     renderApp({
-      configure(app) {
+      configure: (app) => {
         acquired = app;
         app.queryClient.setQueryData(['startup-witness'], 42);
         vi.spyOn(app.view, 'unmount');
@@ -96,7 +97,7 @@ test('preserves the primary startup error together with cleanup failures', async
   let rejection: unknown;
   try {
     await renderApp({
-      configure(app) {
+      configure: (app) => {
         acquired = app;
         const destroy = app.history.destroy.bind(app.history);
         vi.spyOn(app.history, 'destroy').mockImplementation(() => {

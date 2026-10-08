@@ -12,7 +12,9 @@ import type { ApiClient } from './types';
 
 const base = 'http://localhost/api';
 
-const point = (price: number) => [{ date: '2024-03-10', price }];
+function point(price: number) {
+  return [{ date: '2024-03-10', price }];
+}
 
 const stats = { totalReturnPercent: 5, dailyVolatilityPercent: 2, maxDrawdownPercent: 1 };
 

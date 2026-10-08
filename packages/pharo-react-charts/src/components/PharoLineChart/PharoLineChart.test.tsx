@@ -407,11 +407,11 @@ describe('PharoLineChart', () => {
     const view = renderChart({ series: observations, label: 'Narrow date labels' });
     const chart = screen.getByRole('img', { name: 'Narrow date labels' });
 
-    function visibleDates() {
+    const visibleDates = () => {
       const timeAxis = within(chart).getByLabelText('UTC time axis');
 
       return [...timeAxis.querySelectorAll('text title')].map((title) => title.textContent);
-    }
+    };
 
     expect(visibleDates()).toEqual(['Mar 10', 'Mar 11', 'Mar 12']);
 

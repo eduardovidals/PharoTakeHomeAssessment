@@ -46,9 +46,11 @@ const stats = {
 
 function installMarketHandlers() {
   const requests = new Map<string, number>();
-  function record(resource: string) {
+
+  const record = (resource: string) => {
     requests.set(resource, (requests.get(resource) ?? 0) + 1);
-  }
+  };
+
   server.use(
     http.get('*/api/instruments', () => {
       record('instruments');
@@ -481,12 +483,14 @@ describe('Dashboard URL selection and independently owned resources', () => {
     const statsGate = createGate();
     const started = new Set<string>();
     const handlers: Promise<Response>[] = [];
-    function hold(name: string, gate: ReturnType<typeof createGate>, response: Response) {
+
+    const hold = (name: string, gate: ReturnType<typeof createGate>, response: Response) => {
       started.add(name);
       const pending = gate.promise.then(() => response);
       handlers.push(pending);
       return pending;
-    }
+    };
+
     server.use(
       http.get('*/api/instruments', () =>
         hold('instruments', instrumentGate, HttpResponse.json(available)),
@@ -575,7 +579,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
 
     const app = await renderApp({
       initialEntries: ['/?tickers=AAA,BBB'],
-      configure(current) {
+      configure: (current) => {
         const defaults = current.queryClient.getDefaultOptions();
         current.queryClient.setDefaultOptions({
           ...defaults,
@@ -741,12 +745,14 @@ describe('Dashboard URL selection and independently owned resources', () => {
     const abort = vi.spyOn(XMLHttpRequest.prototype, 'abort');
     let stopObserving: (() => void) | undefined;
     const handlers: Promise<Response>[] = [];
-    function delayed(name: string, response: Response) {
+
+    const delayed = (name: string, response: Response) => {
       started.add(name);
       const pending = gate.promise.then(() => response);
       handlers.push(pending);
       return pending;
-    }
+    };
+
     server.use(
       http.get('*/api/prices/AAA', () =>
         delayed('prices', HttpResponse.json([{ date: '2024-01-01', price: 9999 }])),
@@ -765,7 +771,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
     const user = userEvent.setup();
     try {
       const app = await renderApp({
-        configure(current) {
+        configure: (current) => {
           const observer = current.apiClient.interceptors.request.use((config) => {
             if (config.url?.startsWith('/prices/AAA') && config.signal) {
               signals.set(config.url, config.signal);

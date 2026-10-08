@@ -25,7 +25,7 @@ export async function bootstrapApplication(
   let root: Root | undefined;
   let disposal: Promise<void> | undefined;
 
-  function dispose(): Promise<void> {
+  const dispose = (): Promise<void> => {
     disposal ??= Promise.resolve().then(async () => {
       const failures: unknown[] = [];
       for (const release of [
@@ -45,7 +45,7 @@ export async function bootstrapApplication(
     });
 
     return disposal;
-  }
+  };
 
   try {
     const apiClient = createApiClient(options.apiConfig);
