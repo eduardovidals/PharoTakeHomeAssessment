@@ -72,9 +72,7 @@ describe('PharoTagGroup', () => {
         removeLabel={(item) => `Discard category ${item.text}`}
       />,
     );
-    expect(
-      screen.getByRole('button', { name: 'Discard category Alpha' }),
-    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Discard category Alpha' })).toBeVisible();
   });
 
   test('observes a rejected async removal and permits a later retry without losing controlled tags', async () => {
