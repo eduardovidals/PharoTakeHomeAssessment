@@ -24,11 +24,11 @@ export function runtimePorts(environment = process.env, preview = false) {
 }
 
 /** Keep CLI state in the project's ignored dependency cache. */
-export function dotnetEnvironment() {
+export function dotnetEnvironment(environment = process.env) {
   const cache = path.join(rootDirectory, 'node_modules/.cache/dotnet');
   mkdirSync(cache, { recursive: true });
   return {
-    ...process.env,
+    ...environment,
     DOTNET_CLI_HOME: cache,
     NUGET_PACKAGES: path.join(cache, 'packages'),
     DOTNET_CLI_TELEMETRY_OPTOUT: '1',

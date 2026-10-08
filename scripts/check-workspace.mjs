@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { rootDirectory } from './runtime.mjs';
 
 const packages = [
   'react-components',
@@ -14,9 +16,9 @@ for (const name of packages) {
   const manifest = JSON.parse(readFileSync(`packages/pharo-${name}/package.json`, 'utf8'));
   assert.equal(manifest.name, `@pharo/${name}`);
 }
-const result = spawnSync('pnpm', ['exec', 'nx', 'show', 'projects', '--json'], {
+const nxScript = path.join(rootDirectory, 'scripts/nx.mjs');
+const result = spawnSync(process.execPath, [nxScript, 'show', 'projects', '--json'], {
   encoding: 'utf8',
-  env: { ...process.env, NX_DAEMON: 'false', NX_NO_CLOUD: 'true' },
 });
 assert.equal(result.status, 0, result.stderr || result.error?.message);
 const actual = JSON.parse(result.stdout);
@@ -73,9 +75,8 @@ const requiredTargets = {
   ],
 };
 for (const [project, names] of Object.entries(requiredTargets)) {
-  const inspected = spawnSync('pnpm', ['exec', 'nx', 'show', 'project', project, '--json'], {
+  const inspected = spawnSync(process.execPath, [nxScript, 'show', 'project', project, '--json'], {
     encoding: 'utf8',
-    env: { ...process.env, NX_DAEMON: 'false', NX_NO_CLOUD: 'true' },
   });
   assert.equal(inspected.status, 0, inspected.stderr || inspected.error?.message);
   const { targets } = JSON.parse(inspected.stdout);

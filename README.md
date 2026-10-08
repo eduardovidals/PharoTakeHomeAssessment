@@ -6,16 +6,22 @@ A local React and ASP.NET Core dashboard for the supplied synthetic historical p
 
 Use **Node.js 24.14.1**, **pnpm 10.33.0** and **.NET SDK 10.0.401**, with `node`, `pnpm` and `dotnet` on your PATH. The repository pins Node in `.nvmrc`, pnpm in `package.json` and the SDK in `global.json` with SDK roll-forward disabled. Dependency downloads require npm and NuGet access.
 
-If you use nvm, activate the pinned Node version from the repository root:
+On Windows or macOS, install Node.js and the **.NET SDK** (not only the runtime) for your machine's architecture, using Microsoft's [.NET installation instructions](https://learn.microsoft.com/en-us/dotnet/core/install/). Open a new terminal after installation so it picks up PATH changes. Install pnpm with:
+
+```sh
+npm install --global pnpm@10.33.0
+```
+
+If you use nvm on macOS, activate the pinned Node version from the repository root:
 
 ```sh
 nvm install
 nvm use
 ```
 
-Install the pinned .NET SDK using Microsoft's [.NET installation instructions](https://learn.microsoft.com/en-us/dotnet/core/install/). If you installed it in `~/.dotnet` on macOS or Linux, add `export PATH="$HOME/.dotnet:$PATH"` to your shell startup file (such as `~/.zshrc`), then open a new terminal. Run `node --version` and `dotnet --version` from the repository root to confirm the pinned versions are selected.
+If you installed .NET in `~/.dotnet` on macOS or Linux, add `export PATH="$HOME/.dotnet:$PATH"` to your shell startup file (such as `~/.zshrc`), then open a new terminal. On Windows, the standard installer adds .NET to PATH; a custom installation must also be on PATH. Run `node --version`, `pnpm --version` and `dotnet --version` from the repository root to confirm the pinned versions are selected.
 
-From the repository root:
+From the repository root, in PowerShell, Command Prompt or a macOS terminal:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -25,7 +31,17 @@ pnpm dev
 
 After the pnpm install and build steps, `npm run dev` also starts the same launcher.
 
-Open **http://127.0.0.1:5173**. The launcher starts the API on **http://127.0.0.1:5080**, waits for both services, and stops its own processes on Ctrl+C. Vite proxies `/api` to the API; no browser CORS configuration is required. Occupied ports cause a startup error without terminating their existing owners.
+Open **http://127.0.0.1:5173**. The launcher checks the required SDK before starting either service, starts the API on **http://127.0.0.1:5080**, and waits for both services. Vite proxies `/api` to the API; no browser CORS configuration is required.
+
+Use **Ctrl+C** in the launching terminal to stop both services before restarting. Shutdown targets only that launcher's process groups on macOS/Linux and process trees on Windows. Terminal-close signals also request cleanup; forcibly ending processes can bypass cleanup.
+
+If a port is already in use, the launcher leaves its owner running. If it is your existing Pharo instance, use the open dashboard or stop that instance from its terminal. To run another instance on different ports, this command works in both Windows and macOS shells:
+
+```sh
+npm run dev -- --api-port 5081 --ui-port 5174
+```
+
+Open the UI URL printed by the launcher. CLI port options override the environment variables below; the UI proxy always uses the selected API port. Permission errors are reported separately from occupied ports.
 
 After a build, `pnpm preview` runs the published API with the built UI at **http://127.0.0.1:4173**. This is a local preview, not a deployment setup.
 

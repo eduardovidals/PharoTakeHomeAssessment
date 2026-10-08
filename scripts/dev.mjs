@@ -1,9 +1,10 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
+import { parseArgs } from 'node:util';
 import { dotnetEnvironment, rootDirectory, runtimePorts } from './runtime.mjs';
 
 const requiredDotnetSdk = JSON.parse(
@@ -16,11 +17,35 @@ async function assertPortAvailable(port) {
     listener.listen(port, '127.0.0.1');
     await once(listener, 'listening');
   } catch (error) {
-    throw new Error(`Port ${port} is unavailable; its existing owner was left running.`, {
-      cause: error,
-    });
+    const message =
+      error.code === 'EADDRINUSE'
+        ? `Port ${port} is already in use. Another Pharo instance may be running. Use that instance, stop it with Ctrl+C in its terminal, or choose different ports: npm run dev -- --api-port 5081 --ui-port 5174. The existing process was left running.`
+        : `Cannot listen on 127.0.0.1:${port} (${error.code ?? error.message}). Check local network permissions.`;
+    throw new Error(message, { cause: error });
   } finally {
     if (listener.listening) await new Promise((resolve) => listener.close(resolve));
+  }
+}
+
+function assertSdkAvailable(environment) {
+  const result = spawnSync('dotnet', ['--version'], {
+    cwd: rootDirectory,
+    env: dotnetEnvironment(environment),
+    encoding: 'utf8',
+    timeout: 10000,
+    windowsHide: true,
+  });
+  if (result.error?.code === 'ENOENT') {
+    throw new Error(
+      `The .NET SDK ${requiredDotnetSdk} is required. Install it and add dotnet to your PATH; see README.md (Run locally).`,
+      { cause: result.error },
+    );
+  }
+  if (result.error || result.status !== 0 || result.stdout.trim() !== requiredDotnetSdk) {
+    throw new Error(
+      `Cannot select .NET SDK ${requiredDotnetSdk}. Install the SDK specified in global.json, then check dotnet --version from the repository root. See README.md (Run locally).`,
+      { cause: result.error ?? new Error(result.stderr.trim()) },
+    );
   }
 }
 
@@ -28,11 +53,13 @@ async function assertPortAvailable(port) {
 export async function startDashboard(options = {}) {
   options.signal?.throwIfAborted();
   const preview = options.preview ?? false;
-  const { apiPort, uiPort } = runtimePorts(options.environment ?? process.env, preview);
+  const environment = { ...process.env, ...options.environment };
+  const { apiPort, uiPort } = runtimePorts(environment, preview);
   const apiUrl = `http://127.0.0.1:${apiPort}`;
   const uiUrl = `http://127.0.0.1:${uiPort}`;
   await assertPortAvailable(apiPort);
   await assertPortAvailable(uiPort);
+  assertSdkAvailable(environment);
   options.signal?.throwIfAborted();
   const children = [];
   let stopping;
@@ -49,6 +76,7 @@ export async function startDashboard(options = {}) {
       env,
       stdio: options.stdio ?? 'inherit',
       detached: process.platform !== 'win32',
+      windowsHide: true,
     });
     const record = { child, closed: false, retired: false };
     child.once('error', (error) => {
@@ -72,11 +100,24 @@ export async function startDashboard(options = {}) {
     return child.pid;
   }
 
-  function signalOwned(record, signal) {
+  async function signalOwned(record, signal) {
     if (record.retired || record.child.pid === undefined) return;
     try {
       if (process.platform === 'win32') {
-        if (!record.closed) record.child.kill(signal);
+        if (record.closed) return;
+        // Terminate the owned tree while its root still exists. child.kill() on
+        // Windows terminates only the leader and can orphan the ASP.NET host.
+        const terminator = spawn('taskkill.exe', ['/PID', String(record.child.pid), '/T', '/F'], {
+          stdio: 'ignore',
+          windowsHide: true,
+          timeout: 3000,
+        });
+        const [code] = await once(terminator, 'close');
+        if (code !== 0 && !record.closed) {
+          throw new Error(
+            `Could not stop owned process tree ${record.child.pid} (taskkill ${code}).`,
+          );
+        }
       } else process.kill(-record.child.pid, signal);
     } catch (error) {
       if (!(error instanceof Error) || !('code' in error) || error.code !== 'ESRCH') throw error;
@@ -88,14 +129,16 @@ export async function startDashboard(options = {}) {
     stopping = (async () => {
       const errors = [];
       const inspectionErrors = new Set();
-      const signalAll = (signal) => {
-        for (const record of children) {
-          try {
-            signalOwned(record, signal);
-          } catch (error) {
-            errors.push(error);
-          }
-        }
+      const signalAll = async (signal) => {
+        await Promise.all(
+          children.map(async (record) => {
+            try {
+              await signalOwned(record, signal);
+            } catch (error) {
+              errors.push(error);
+            }
+          }),
+        );
       };
       const waitForShutdown = async (timeout) => {
         const deadline = Date.now() + timeout;
@@ -124,9 +167,9 @@ export async function startDashboard(options = {}) {
         return false;
       };
       try {
-        signalAll('SIGTERM');
+        await signalAll('SIGTERM');
         if (!(await waitForShutdown(5000))) {
-          signalAll('SIGKILL');
+          await signalAll('SIGKILL');
           if (!(await waitForShutdown(3000))) {
             errors.push(new Error('An owned process did not close after shutdown.'));
           }
@@ -156,7 +199,7 @@ export async function startDashboard(options = {}) {
           '--urls',
           apiUrl,
         ];
-    const api = launch('dotnet', apiArgs, rootDirectory, dotnetEnvironment());
+    const api = launch('dotnet', apiArgs, rootDirectory, dotnetEnvironment(environment));
     const ui = launch(
       process.execPath,
       [
@@ -170,7 +213,7 @@ export async function startDashboard(options = {}) {
       ],
       rootDirectory + '/apps/pharo-dashboard-ui',
       {
-        ...process.env,
+        ...environment,
         PHARO_API_PORT: String(apiPort),
         PHARO_UI_PORT: String(uiPort),
       },
@@ -222,11 +265,23 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       process.exitCode = 1;
     });
   };
-  process.on('SIGINT', close);
-  process.on('SIGTERM', close);
+  const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'];
+  if (process.platform === 'win32') signals.push('SIGBREAK');
+  for (const signal of signals) process.on(signal, close);
   try {
+    const { values } = parseArgs({
+      options: {
+        preview: { type: 'boolean', default: false },
+        'api-port': { type: 'string' },
+        'ui-port': { type: 'string' },
+      },
+    });
+    const environment = { ...process.env };
+    if (values['api-port'] !== undefined) environment.PHARO_API_PORT = values['api-port'];
+    if (values['ui-port'] !== undefined) environment.PHARO_UI_PORT = values['ui-port'];
     host = await startDashboard({
-      preview: process.argv.includes('--preview'),
+      preview: values.preview,
+      environment,
       signal: cancellation.signal,
     });
     console.log(`API: ${host.apiUrl}\nUI:  ${host.uiUrl}`);
@@ -239,7 +294,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       console.error(error instanceof Error ? error.message : 'Dashboard startup failed.');
     process.exitCode = cancelled ? 0 : 1;
   } finally {
-    process.removeListener('SIGINT', close);
-    process.removeListener('SIGTERM', close);
+    for (const signal of signals) process.removeListener(signal, close);
   }
 }
