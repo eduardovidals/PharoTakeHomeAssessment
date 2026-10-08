@@ -297,7 +297,7 @@ test.describe('Use the built Pharo components without application providers', ()
     const option = page.getByRole('option', { name: 'Fern', exact: true });
     await expect(option).toHaveAttribute('aria-selected', 'true');
     await expect(option).toHaveAttribute('aria-disabled', 'true');
-    await expect(option).toHaveCSS('color', 'rgb(82, 100, 123)');
+    await expect(option).toHaveCSS('color', 'rgb(82, 97, 118)');
     await expect(option).toHaveCSS('background-color', 'rgb(229, 235, 242)');
     // Playwright intentionally refuses a disabled target; dispatch a real pointer click
     // at its bounds to verify React Aria itself suppresses selection.

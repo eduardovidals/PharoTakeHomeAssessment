@@ -141,17 +141,34 @@ test.describe('Use the public Pharo theme independently', () => {
       'text-pharo-foreground',
       'pharo-focus-ring',
       'pharo-transition-colors',
+      'pharo-selected-action',
+      'h-pharo-plot-mobile',
+      'h-pharo-plot-desktop',
+      'max-w-pharo-workspace',
+      'max-w-pharo-matrix',
+      'max-w-pharo-dialog',
     ]) {
       expect(compiledCss).toContain(utility);
     }
     expect(compiledCss).not.toContain('19137');
     expect(compiledCss).toContain('.mb-pharo-12');
-    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(244, 247, 251)');
-    await expect(page.locator('body')).toHaveCSS('color', 'rgb(19, 36, 61)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(245, 247, 250)');
+    await expect(page.locator('body')).toHaveCSS('color', 'rgb(23, 36, 58)');
     await expect(page.locator('body')).toHaveCSS('font-family', /system-ui/);
     for (const name of ['foreground', 'muted', 'error', 'success', 'warning']) {
       const style = await colors(page.getByTestId(name));
       expect(contrast(style.foreground, style.background), name).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const surface of ['surface', 'quiet', 'selected']) {
+      for (const meaning of ['positive', 'negative']) {
+        const value = page.getByTestId(`${meaning}-${surface}`);
+        const style = await colors(value);
+        expect(
+          contrast(style.foreground, style.background),
+          `${meaning} on ${surface}`,
+        ).toBeGreaterThanOrEqual(4.5);
+        await expect(value).toContainText(meaning === 'positive' ? '+12.34%' : '−5.67%');
+      }
     }
     for (const name of ['Theme action', 'Unavailable action']) {
       const style = await colors(page.getByRole('button', { name, exact: true }));
@@ -170,6 +187,16 @@ test.describe('Use the public Pharo theme independently', () => {
       dashes.push(style.dash);
     }
     expect(new Set(dashes).size).toBe(3);
+    const baseline = await page
+      .getByTestId('chart-baseline')
+      .evaluate((element) => getComputedStyle(element).stroke);
+    const grid = await page
+      .getByTestId('chart-grid')
+      .evaluate((element) => getComputedStyle(element).stroke);
+    expect(contrast(baseline, 'rgb(255, 255, 255)')).toBeGreaterThanOrEqual(3);
+    expect(contrast(grid, 'rgb(255, 255, 255)')).toBeLessThan(
+      contrast(baseline, 'rgb(255, 255, 255)'),
+    );
     await page.screenshot({ path: testInfo.outputPath('theme-default.png'), fullPage: true });
   });
 
@@ -189,7 +216,7 @@ test.describe('Use the public Pharo theme independently', () => {
     await disabled.hover();
     await expect(disabled).toBeDisabled();
     await expect(disabled).toHaveCSS('background-color', 'rgb(229, 235, 242)');
-    await expect(disabled).toHaveCSS('color', 'rgb(82, 100, 123)');
+    await expect(disabled).toHaveCSS('color', 'rgb(82, 97, 118)');
 
     await page.reload();
     await page.keyboard.press('Tab');
@@ -221,7 +248,7 @@ test.describe('Use the public Pharo theme independently', () => {
       await dialog.evaluate((element) => document.getElementById('root')?.contains(element)),
     ).toBe(false);
     const text = page.getByTestId('portal-text');
-    await expect(text).toHaveCSS('color', 'rgb(19, 36, 61)');
+    await expect(text).toHaveCSS('color', 'rgb(23, 36, 58)');
     const bodyFont = await page
       .locator('body')
       .evaluate((element) => getComputedStyle(element).fontFamily);
@@ -237,6 +264,50 @@ test.describe('Use the public Pharo theme independently', () => {
     await expect(action).toHaveCSS('transition-duration', '0.12s');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(action).toHaveCSS('transition-duration', '0s');
+  });
+
+  test('a real selected action keeps a visible selected state in forced colors', async ({
+    page,
+  }) => {
+    const selected = page.getByRole('button', { name: 'Selected view' });
+    await expect(selected).toHaveAttribute('aria-pressed', 'true');
+    await expect(selected).toHaveCSS('background-color', 'rgb(0, 61, 135)');
+    await page.emulateMedia({ forcedColors: 'active' });
+    await expect(selected).toHaveCSS('forced-color-adjust', 'none');
+    const active = await colors(selected);
+    // System Highlight may include transparency; preserve its user-defined pair.
+    expect(active.foreground).not.toBe(active.background);
+    await selected.click();
+    await expect(selected).toHaveAttribute('aria-pressed', 'false');
+    await expect(selected).toHaveCSS('forced-color-adjust', 'auto');
+    const inactive = await colors(selected);
+    expect(inactive.background).not.toBe(active.background);
+    await selected.click();
+    await expect(selected).toHaveAttribute('aria-pressed', 'true');
+    await expect(selected).toHaveCSS('background-color', active.background);
+  });
+
+  test('compact roles keep touch inputs readable while only the plot changes responsive height', async ({
+    page,
+  }) => {
+    await expect(page.locator('.max-w-pharo-workspace')).toHaveCSS('max-width', '1440px');
+    await expect(page.locator('.max-w-pharo-matrix')).toHaveCSS('max-width', '440px');
+    await expect(page.locator('.max-w-pharo-dialog')).toHaveCSS('max-width', '896px');
+    const plot = page.getByTestId('responsive-plot');
+    const input = page.getByRole('textbox', { name: 'Density input' });
+    await expect(plot).toHaveCSS('height', '320px');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(plot).toHaveCSS('height', '256px');
+    await expect(input).toHaveCSS('font-size', '16px');
+    const dimensions = await input.boundingBox();
+    expect(dimensions?.height).toBeGreaterThanOrEqual(44);
+    const header = await page.getByTestId('compact-header').boundingBox();
+    expect(header?.height).toBeGreaterThanOrEqual(64);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390,
+    );
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expect(plot).toHaveCSS('height', '320px');
   });
 
   test('the built consumer does not serve private fixture bytes', async ({ request }) => {

@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
+import { Button, Dialog, DialogTrigger, Popover, ToggleButton } from 'react-aria-components';
 import './styles.css';
 
 const root = document.getElementById('root');
@@ -53,6 +53,29 @@ createRoot(root).render(
       >
         Control boundary contrast
       </div>
+      <div className="grid gap-pharo-3 sm:grid-cols-3">
+        {[
+          { name: 'surface', className: 'bg-pharo-surface' },
+          { name: 'quiet', className: 'bg-pharo-surface-quiet' },
+          { name: 'selected', className: 'bg-pharo-selected' },
+        ].map(({ name, className }) => (
+          <dl key={name} className={`${className} rounded-pharo-control p-pharo-3`}>
+            <dt className="text-pharo-sm text-pharo-foreground">Signed returns · {name}</dt>
+            <dd
+              data-testid={`positive-${name}`}
+              className={`${className} text-pharo-positive tabular-nums`}
+            >
+              +12.34%
+            </dd>
+            <dd
+              data-testid={`negative-${name}`}
+              className={`${className} text-pharo-negative tabular-nums`}
+            >
+              −5.67%
+            </dd>
+          </dl>
+        ))}
+      </div>
     </section>
 
     <section
@@ -81,6 +104,12 @@ createRoot(root).render(
             </Dialog>
           </Popover>
         </DialogTrigger>
+        <ToggleButton
+          defaultSelected
+          className="min-h-pharo-control rounded-pharo-control border border-pharo-control-border bg-pharo-surface px-pharo-4 text-pharo-sm text-pharo-foreground focus-visible:pharo-focus-ring selected:pharo-selected-action"
+        >
+          Selected view
+        </ToggleButton>
       </div>
     </section>
 
@@ -117,6 +146,18 @@ createRoot(root).render(
           strokeWidth="4"
           className="stroke-pharo-chart-3"
         />
+        <path
+          data-testid="chart-grid"
+          d="M 20 145 H 330"
+          fill="none"
+          className="stroke-pharo-chart-grid"
+        />
+        <path
+          data-testid="chart-baseline"
+          d="M 20 140 H 330"
+          fill="none"
+          className="stroke-pharo-chart-baseline"
+        />
         <text x="360" y="35" className="fill-pharo-foreground text-pharo-sm">
           Series one · solid
         </text>
@@ -127,6 +168,34 @@ createRoot(root).render(
           Series three · dotted
         </text>
       </svg>
+    </section>
+
+    <section
+      aria-label="Compact responsive sizing"
+      className="max-w-pharo-workspace space-y-pharo-3 rounded-pharo-card bg-pharo-surface p-pharo-dialog-inset"
+    >
+      <header data-testid="compact-header" className="flex min-h-pharo-header items-center">
+        <h2 className="text-pharo-lg">Readable density</h2>
+      </header>
+      <label className="flex flex-col gap-pharo-2 text-pharo-sm text-pharo-foreground">
+        Density input
+        <input
+          className="min-h-pharo-control w-full rounded-pharo-control border border-pharo-control-border bg-pharo-surface px-pharo-3 text-pharo-base focus-visible:pharo-focus-ring"
+          placeholder="A comfortable touch control"
+        />
+      </label>
+      <div
+        data-testid="responsive-plot"
+        className="flex h-pharo-plot-mobile items-center justify-center bg-pharo-surface-quiet text-pharo-sm text-pharo-muted sm:h-pharo-plot-desktop"
+      >
+        Responsive plot box
+      </div>
+      <p className="max-w-pharo-matrix text-pharo-sm text-pharo-muted">
+        Growing readout and table content stay outside the measured plot box.
+      </p>
+      <div className="max-w-pharo-dialog text-pharo-sm text-pharo-foreground">
+        Dialog surfaces share the same bounded width and inset roles.
+      </div>
     </section>
   </main>,
 );

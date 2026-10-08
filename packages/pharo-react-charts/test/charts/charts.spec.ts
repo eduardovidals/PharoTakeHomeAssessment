@@ -629,7 +629,7 @@ test.describe('independent built charts', () => {
       stroke: getComputedStyle(element).stroke,
       dash: getComputedStyle(element).strokeDasharray,
     }));
-    expect(style.stroke).toBe('rgb(0, 122, 155)');
+    expect(style.stroke).toBe('rgb(124, 58, 237)');
     expect(style.dash).not.toBe('none');
     await page.getByRole('button', { name: 'Remove north' }).click();
     await page.getByRole('button', { name: 'Add east' }).click();
