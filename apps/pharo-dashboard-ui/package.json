@@ -6,6 +6,9 @@
   "nx": {
     "name": "pharo-dashboard-ui",
     "targets": {
+      "test": {
+        "parallelism": false
+      },
       "e2e": {
         "dependsOn": [
           "build",
@@ -20,6 +23,7 @@
       },
       "infrastructure": {
         "executor": "nx:run-commands",
+        "parallelism": false,
         "dependsOn": [
           "build",
           {

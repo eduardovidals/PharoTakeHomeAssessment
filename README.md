@@ -73,7 +73,7 @@ pnpm test:e2e
 pnpm validate
 ```
 
-`pnpm test` runs the .NET tests, frontend/package unit tests, executable Storybook tests, and infrastructure checks. `pnpm test:e2e` runs the compiled app against the real API and isolated public-package browser consumers. `pnpm validate` combines workspace/route-generation checks, lint, types, C# formatting, tests, builds, infrastructure and e2e through one Nx graph. These commands describe reproducible checks; this README is not a validation report.
+`pnpm test` runs the .NET tests, frontend/package unit tests, executable Storybook tests, and infrastructure checks. `pnpm test:e2e` runs the compiled app against the real API and isolated public-package browser consumers. `pnpm validate` combines workspace/route-generation checks, lint, types, C# formatting, tests, builds, infrastructure and e2e through one Nx graph. Dashboard unit tests and infrastructure checks each run separately from other Nx tasks to avoid competing with browser and build processes; their assertions and time limits remain unchanged. These commands describe reproducible checks; this README is not a validation report.
 
 On Linux, Playwright may also require system libraries: use `node scripts/playwright.mjs install --with-deps chromium`. Browser and .NET caches live under ignored `node_modules/.cache`.
 
