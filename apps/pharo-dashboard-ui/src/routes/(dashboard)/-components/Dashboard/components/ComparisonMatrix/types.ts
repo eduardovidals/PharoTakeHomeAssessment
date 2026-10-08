@@ -21,14 +21,6 @@ export interface ComparisonMatrixProps {
   readonly columns: readonly ComparisonColumn[];
   /** Queue removal; the owning dashboard restores actual picker focus on commit. */
   readonly onRemove: (ticker: string) => Promise<void>;
-  /** A pinned recorded UTC date; null/omitted preserves Latest API statistics. */
-  readonly selectedTimestamp?: number | null;
-  /** Temporary chart hover date, separate from the committed pin and live announcements. */
-  readonly previewTimestamp?: number | null;
-  /** Sorted unique timestamps already present in the selected cached histories. */
-  readonly timeline?: readonly number[];
-  /** The dashboard owns the sole pinned date; this surface only requests changes. */
-  readonly onTimestampChange?: (timestamp: number | null) => void;
 }
 
 /** Independent resource names used for feedback and targeted retry intentions. */
@@ -55,14 +47,6 @@ export interface ComparisonValue {
   readonly tone: 'neutral' | 'positive' | 'negative';
 }
 
-/** Shared periods collapse once; differing histories retain explicit ticker identity. */
-export interface ComparisonPeriod {
-  /** Omitted when every selected instrument shares the same recorded window. */
-  readonly ticker?: string;
-  /** Readable recorded range/count and any missing-cutoff observation context. */
-  readonly text: string;
-}
-
 /** One required metric and its URL-ordered values. */
 export interface ComparisonRow {
   /** Meaningful metric label used as the native row header. */
@@ -76,7 +60,6 @@ export type ComparisonStylePart =
   | 'panel'
   | 'heading'
   | 'description'
-  | 'periods'
   | 'announcement'
   | 'scrollHint'
   | 'scroll'

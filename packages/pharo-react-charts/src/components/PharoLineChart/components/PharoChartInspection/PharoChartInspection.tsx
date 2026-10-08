@@ -11,17 +11,7 @@ import type { PharoChartInspectionProps as Props } from './types';
  * ```
  */
 export function PharoChartInspection(props: Props) {
-  const {
-    label,
-    timeline,
-    timestamp,
-    navigationTimestamp = timestamp,
-    onNavigationFocus,
-    date,
-    valueText,
-    details,
-    onInspect,
-  } = props;
+  const { label, timeline, timestamp, date, valueText, details, onInspect } = props;
   const id = useId();
   const instructionId = `${id}-instructions`;
 
@@ -51,8 +41,7 @@ export function PharoChartInspection(props: Props) {
             min={0}
             max={timeline.length - 1}
             step={1}
-            value={timeline.indexOf(navigationTimestamp)}
-            onFocus={onNavigationFocus}
+            value={timeline.indexOf(timestamp)}
             aria-valuetext={valueText}
             aria-describedby={instructionId}
             className={styles.range}

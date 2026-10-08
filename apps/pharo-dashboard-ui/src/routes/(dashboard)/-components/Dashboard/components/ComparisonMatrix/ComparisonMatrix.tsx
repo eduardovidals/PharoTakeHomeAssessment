@@ -1,15 +1,8 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { PharoButton } from '@pharo/react-components';
-import { formatDateTable } from '../../../../../../utils/date';
-import { ComparisonDateNavigation } from './components/ComparisonDateNavigation';
 import { useComparisonOverflow } from './hooks/useComparisonOverflow';
 import { appearanceStyles, matrixStyles, valueStyles } from './styles';
-import {
-  getComparisonAnnouncement,
-  getComparisonPeriods,
-  getComparisonRows,
-  getResourceFeedback,
-} from './utils';
+import { getComparisonAnnouncement, getComparisonRows, getResourceFeedback } from './utils';
 import type { ComparisonMatrixProps as Props, ComparisonQuery, ComparisonResource } from './types';
 
 /**
@@ -20,15 +13,7 @@ import type { ComparisonMatrixProps as Props, ComparisonQuery, ComparisonResourc
  * ```
  */
 export function ComparisonMatrix(props: Props) {
-  const {
-    columns,
-    onRemove,
-    selectedTimestamp = null,
-    previewTimestamp = null,
-    timeline = [],
-    onTimestampChange,
-  } = props;
-  const displayedTimestamp = previewTimestamp ?? selectedTimestamp;
+  const { columns, onRemove } = props;
 
   const id = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -37,14 +22,7 @@ export function ComparisonMatrix(props: Props) {
   const [removing, setRemoving] = useState<readonly string[]>([]);
   const [actionFailure, setActionFailure] = useState<string | null>(null);
 
-  const rows = useMemo(
-    () => getComparisonRows(columns, displayedTimestamp),
-    [columns, displayedTimestamp],
-  );
-  const periods = useMemo(
-    () => getComparisonPeriods(columns, displayedTimestamp),
-    [columns, displayedTimestamp],
-  );
+  const rows = useMemo(() => getComparisonRows(columns), [columns]);
 
   const feedback = columns.map((column) => ({
     ticker: column.ticker,
@@ -53,14 +31,11 @@ export function ComparisonMatrix(props: Props) {
       'prices',
       retrying.includes(`${column.ticker}:prices`),
     ),
-    statistics:
-      displayedTimestamp === null
-        ? getResourceFeedback(
-            column.statistics,
-            'statistics',
-            retrying.includes(`${column.ticker}:statistics`),
-          )
-        : { canRetry: false, notFound: false },
+    statistics: getResourceFeedback(
+      column.statistics,
+      'statistics',
+      retrying.includes(`${column.ticker}:statistics`),
+    ),
   }));
   const hasFeedback = feedback.some(
     ({ prices, statistics }) =>
@@ -119,29 +94,11 @@ export function ComparisonMatrix(props: Props) {
       <h2 ref={headingRef} id={`${id}-heading`} tabIndex={-1} className={matrixStyles.heading}>
         Comparison
       </h2>
-      {onTimestampChange && (
-        <ComparisonDateNavigation
-          selectedTimestamp={selectedTimestamp}
-          previewTimestamp={previewTimestamp}
-          timeline={timeline}
-          onTimestampChange={onTimestampChange}
-        />
-      )}
       <p id={`${id}-description`} className={matrixStyles.description}>
-        {displayedTimestamp === null
-          ? 'Metrics cover each instrument’s full supplied window.'
-          : `${previewTimestamp === null ? 'Pinned' : 'Preview'} ${formatDateTable(displayedTimestamp)} · Statistics from the first available observation through this date, inclusive.`}
+        Metrics cover each instrument’s full supplied window.
       </p>
-      <div id={`${id}-periods`} className={matrixStyles.periods}>
-        {periods.map(({ ticker, text }) => (
-          <p key={ticker ?? 'shared'}>
-            {ticker ? `${ticker}: ` : ''}
-            {text}
-          </p>
-        ))}
-      </div>
       <p role="status" className={matrixStyles.announcement}>
-        {actionFailure ?? getComparisonAnnouncement(columns, selectedTimestamp)}
+        {actionFailure ?? getComparisonAnnouncement(columns)}
       </p>
       {actionFailure && <p className={matrixStyles.error}>{actionFailure}</p>}
       {isOverflowing && (
@@ -165,9 +122,7 @@ export function ComparisonMatrix(props: Props) {
           ref={tableRef}
           className={matrixStyles.table}
           aria-labelledby={`${id}-heading`}
-          aria-describedby={
-            displayedTimestamp === null ? `${id}-description` : `${id}-description ${id}-periods`
-          }
+          aria-describedby={`${id}-description`}
         >
           <thead>
             <tr>

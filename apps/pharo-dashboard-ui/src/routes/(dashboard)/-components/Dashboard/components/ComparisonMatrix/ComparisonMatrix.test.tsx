@@ -77,8 +77,6 @@ function deferred() {
 }
 
 interface HarnessProps {
-  readonly selectedTimestamp?: number | null;
-  readonly previewTimestamp?: number | null;
   readonly client: ApiClient;
   readonly tickers: readonly string[];
   readonly onRemove: (ticker: string) => Promise<void>;
@@ -99,18 +97,12 @@ function Harness(props: HarnessProps) {
   return (
     <>
       <button type="button">Elsewhere</button>
-      <ComparisonMatrix
-        columns={columns}
-        onRemove={props.onRemove}
-        selectedTimestamp={props.selectedTimestamp}
-        previewTimestamp={props.previewTimestamp}
-      />
+      <ComparisonMatrix columns={columns} onRemove={props.onRemove} />
     </>
   );
 }
 
 interface TestOwner {
-  readonly pin: (timestamp: number | null, previewTimestamp?: number | null) => void;
   readonly cache: QueryClient;
   readonly show: (tickers: readonly string[]) => void;
 }
@@ -130,36 +122,14 @@ async function withMatrix(
     </QueryClientProvider>,
   );
 
-  let selectedTimestamp: number | null = null;
-  let currentTickers = tickers;
   const failures: unknown[] = [];
   try {
     await run({
       cache,
-      pin: (timestamp, previewTimestamp) => {
-        selectedTimestamp = timestamp;
-        view.rerender(
-          <QueryClientProvider client={cache}>
-            <Harness
-              client={client}
-              tickers={currentTickers}
-              onRemove={onRemove}
-              selectedTimestamp={selectedTimestamp}
-              previewTimestamp={previewTimestamp}
-            />
-          </QueryClientProvider>,
-        );
-      },
       show: (next) => {
-        currentTickers = next;
         view.rerender(
           <QueryClientProvider client={cache}>
-            <Harness
-              client={client}
-              tickers={next}
-              onRemove={onRemove}
-              selectedTimestamp={selectedTimestamp}
-            />
+            <Harness client={client} tickers={next} onRemove={onRemove} />
           </QueryClientProvider>,
         );
       },
@@ -196,37 +166,6 @@ function defaultResponses() {
 }
 
 describe('ComparisonMatrix', () => {
-  test('previews cached statistics without changing pin announcements and restores the committed view', async () => {
-    defaultResponses();
-    await withMatrix(async ({ pin }) => {
-      await waitFor(() => expect(metric('Total return')).toHaveTextContent('+1.23%'));
-      const latestAnnouncement = screen.getByRole('status').textContent;
-
-      pin(null, Date.parse('2026-08-03'));
-
-      expect(metric('Closing price')).toHaveTextContent('100.12');
-      expect(metric('Total return')).toHaveTextContent('0.00%');
-      expect(screen.getByRole('table')).toHaveAccessibleDescription(/Preview Aug 3, 2026/);
-      expect(screen.getByRole('status').textContent).toBe(latestAnnouncement);
-
-      pin(null);
-
-      expect(metric('Latest close')).toHaveTextContent('110.26');
-      expect(metric('Total return')).toHaveTextContent('+1.23%');
-
-      pin(Date.parse('2026-08-03'), Date.parse('2026-08-04'));
-
-      expect(metric('Closing price')).toHaveTextContent('110.26');
-      expect(metric('Total return')).toHaveTextContent('+10.12%');
-      expect(screen.getByRole('status')).toHaveTextContent('Comparison pinned to Aug 3, 2026');
-
-      pin(Date.parse('2026-08-03'));
-
-      expect(metric('Closing price')).toHaveTextContent('100.12');
-      expect(metric('Total return')).toHaveTextContent('0.00%');
-    });
-  });
-
   test('describes hidden columns only while the native comparison table overflows', async () => {
     defaultResponses();
     await withMatrix(async () => {
@@ -614,107 +553,5 @@ describe('ComparisonMatrix', () => {
       expect(screen.queryByRole('button', { name: /Retry|Remove/ })).not.toBeInTheDocument();
       expect(screen.queryByText(/RAW_SCHEMA/)).not.toBeInTheDocument();
     });
-  });
-
-  test('pins cached prefixes without new requests and restores independent Latest API statistics', async () => {
-    defaultResponses();
-    let requests = 0;
-    server.use(
-      http.get(base + '/prices/A', () => {
-        requests += 1;
-        return HttpResponse.json(history);
-      }),
-    );
-    await withMatrix(async ({ pin, cache }) => {
-      await waitFor(() => expect(metric('Total return')).toHaveTextContent('+1.23%'));
-
-      pin(Date.parse('2026-08-03'));
-
-      expect(metric('Closing price')).toHaveTextContent('100.12');
-      expect(metric('Total return')).toHaveTextContent('0.00%');
-      expect(metric('Daily volatility')).toHaveTextContent('Not enough observations');
-      expect(metric('Max drawdown')).toHaveTextContent('0.00%');
-      expect(screen.getByRole('table')).toHaveAccessibleDescription(
-        /Pinned Aug 3, 2026.*inclusive.*1 observation/,
-      );
-      expect(screen.getByRole('status')).toHaveTextContent('Comparison pinned to Aug 3, 2026');
-
-      pin(Date.parse('2026-08-04'));
-
-      expect(metric('Closing price')).toHaveTextContent('110.26');
-      expect(metric('Total return')).toHaveTextContent('+10.12%');
-      expect(metric('Daily volatility')).toHaveTextContent('Not enough observations');
-
-      pin(null);
-
-      expect(metric('Total return')).toHaveTextContent('+1.23%');
-      expect(metric('Latest close')).toHaveTextContent('110.26');
-      expect(requests).toBe(1);
-      expect(cache.getQueryData(pricesKey('A'))).toEqual(history);
-    });
-  });
-
-  test('does not let a statistics failure hide healthy pinned calculations or offer irrelevant retries', async () => {
-    defaultResponses();
-    server.use(http.get(base + '/prices/A/stats', () => HttpResponse.json({}, { status: 503 })));
-    await withMatrix(async ({ pin }) => {
-      await screen.findByRole('button', { name: 'Retry A statistics' });
-      pin(Date.parse('2026-08-04'));
-
-      expect(metric('Total return')).toHaveTextContent('+10.12%');
-      expect(screen.queryByRole('button', { name: /Retry/ })).not.toBeInTheDocument();
-      expect(screen.queryByRole('rowheader', { name: 'Resources' })).not.toBeInTheDocument();
-      expect(screen.getByRole('status')).not.toHaveTextContent('unavailable');
-
-      pin(null);
-
-      expect(screen.getByRole('button', { name: 'Retry A statistics' })).toBeVisible();
-      expect(metric('Total return')).toHaveTextContent('Unavailable');
-    });
-  });
-
-  test('labels different starts and missing closing dates without carrying prices forward', async () => {
-    defaultResponses();
-    server.use(
-      http.get(base + '/prices/B', () => HttpResponse.json([{ date: '2026-08-04', price: 200 }])),
-      http.get(base + '/prices/C', () => HttpResponse.json([{ date: '2026-08-03', price: 300 }])),
-    );
-    await withMatrix(
-      async ({ pin }) => {
-        await waitFor(() => expect(metric('Latest close', 2)).toHaveTextContent('300.00'));
-
-        pin(Date.parse('2026-08-03'));
-
-        expect(metric('Closing price', 1)).toHaveTextContent('No observation');
-        expect(metric('Total return', 1)).toHaveTextContent('Unavailable');
-        expect(screen.getByText('B: No observations in this period.')).toBeVisible();
-
-        pin(Date.parse('2026-08-04'));
-
-        expect(metric('Closing price', 2)).toHaveTextContent('No observation');
-        expect(metric('Total return', 2)).toHaveTextContent('0.00%');
-        expect(metric('Closing price', 1)).toHaveTextContent('200.00');
-        expect(screen.getByText('B: Aug 4, 2026 · 1 observation')).toBeVisible();
-        expect(
-          screen.getByText('C: Aug 3 – Aug 4, 2026 · 1 observation · Last recorded Aug 3, 2026'),
-        ).toBeVisible();
-      },
-      ['A', 'B', 'C'],
-    );
-  });
-
-  test('shows identical period metadata once for multiple tickers', async () => {
-    defaultResponses();
-    await withMatrix(
-      async ({ pin }) => {
-        await waitFor(() => expect(metric('Latest close', 2)).toHaveTextContent('110.26'));
-
-        pin(Date.parse('2026-08-04'));
-
-        expect(screen.getAllByText('Aug 3 – Aug 4, 2026 · 2 observations')).toHaveLength(1);
-        expect(metric('Closing price', 2)).toHaveTextContent('110.26');
-      },
-      ['A', 'B', 'C'],
-    );
   });
 });

@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { Page, Request, Route } from '@playwright/test';
 import { priceSeriesSchema, priceStatsSchema } from '../../src/api/prices/schema';
-import { getHistoricalComparison } from '../../src/routes/(dashboard)/-components/Dashboard/components/ComparisonMatrix/calculations/utils';
 import { formatPercentage, formatSignedPercentage } from '../../src/utils/number';
 
 const dateLabel = new Intl.DateTimeFormat('en-US', {
@@ -748,9 +747,7 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     await inspector.press('Home');
     await inspector.press('ArrowRight');
 
-    const pinnedValues = await matrix.getByRole('cell').allTextContents();
-
-    expect(pinnedValues).not.toEqual(fullWindowValues);
+    await expect(matrix.getByRole('cell')).toHaveText(fullWindowValues);
 
     await choice.getByText('Performance', { exact: true }).click();
 
@@ -758,10 +755,6 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
       page.getByRole('slider', { name: 'Inspect Rebased price change', exact: true }),
     ).toHaveValue('1');
     expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
-    await expect(matrix.getByRole('cell')).toHaveText(pinnedValues);
-
-    await page.getByRole('button', { name: 'Back to latest', exact: true }).click();
-
     await expect(matrix.getByRole('cell')).toHaveText(fullWindowValues);
 
     await page.getByRole('button', { name: 'View data', exact: true }).click();
@@ -935,77 +928,6 @@ async function loadComparisonResponses(page: Page) {
   return responses;
 }
 
-async function expectComparisonDate(page: Page, date: string) {
-  const [year, month, day] = date.split('-').map(Number);
-
-  await expect(page.getByRole('spinbutton', { name: /^month,/i })).toBeVisible();
-  await expect(page.getByRole('spinbutton', { name: /^month,/i })).toHaveText(
-    new RegExp(`^0?${month}$`),
-  );
-  await expect(page.getByRole('spinbutton', { name: /^month,/i })).toHaveAttribute(
-    'aria-valuenow',
-    String(month),
-  );
-  await expect(page.getByRole('spinbutton', { name: /^day,/i })).toBeVisible();
-  await expect(page.getByRole('spinbutton', { name: /^day,/i })).toHaveText(
-    new RegExp(`^0?${day}$`),
-  );
-  await expect(page.getByRole('spinbutton', { name: /^day,/i })).toHaveAttribute(
-    'aria-valuenow',
-    String(day),
-  );
-  await expect(page.getByRole('spinbutton', { name: /^year,/i })).toBeVisible();
-  await expect(page.getByRole('spinbutton', { name: /^year,/i })).toHaveText(String(year));
-  await expect(page.getByRole('spinbutton', { name: /^year,/i })).toHaveAttribute(
-    'aria-valuenow',
-    String(year),
-  );
-}
-
-async function chooseComparisonDate(page: Page, date: string, touch = false) {
-  const control = page.getByRole('button', { name: 'Choose comparison date', exact: true });
-  if (touch) await control.tap();
-  else await control.press('Enter');
-
-  const calendar = page.getByRole('dialog');
-  const target = new Date(`${date}T00:00:00.000Z`);
-  const monthLabel = new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(target);
-
-  // The source series spans three months; navigate the real calendar month controls.
-  for (let step = 0; step < 3; step += 1) {
-    const displayedMonth = await calendar.getByRole('heading').textContent();
-    if (displayedMonth === monthLabel) break;
-    if (!displayedMonth) throw new Error('Expected the visible calendar month.');
-
-    const direction =
-      Date.parse(`1 ${displayedMonth} UTC`) > target.getTime() ? 'Previous' : 'Next';
-    const navigation = calendar.getByRole('button', { name: `${direction} month`, exact: true });
-    if (touch) await navigation.tap();
-    else await navigation.press('Enter');
-  }
-
-  await expect(calendar.getByRole('heading')).toHaveText(monthLabel);
-
-  const label = new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(target);
-  const cell = calendar.getByRole('button', { name: new RegExp(`^${label}(?: selected)?(?:,|$)`) });
-  if (touch) await cell.tap();
-  else await cell.press('Enter');
-
-  await expect(calendar).toHaveCount(0);
-  await expectComparisonDate(page, date);
-  await expect(control).toBeFocused();
-}
-
 async function chartPosition(page: Page, fraction: number) {
   const chart = page.getByRole('img', { name: 'Rebased price change', exact: true });
   await chart.scrollIntoViewIfNeeded();
@@ -1035,39 +957,17 @@ async function chartPosition(page: Page, fraction: number) {
   };
 }
 
-async function expectFirstDate(
-  page: Page,
-  responses: Awaited<ReturnType<typeof loadComparisonResponses>>,
-) {
-  for (const { ticker, prices } of responses) {
-    const first = prices[0];
-    if (!first) throw new Error('Expected an initial observation.');
-    await expect(await matrixCell(page, ticker, 'Closing price')).toHaveText(
-      priceLabel.format(first.price),
-    );
-    await expect(await matrixCell(page, ticker, 'Total return')).toHaveText('0.00%');
-    await expect(await matrixCell(page, ticker, 'Daily volatility')).toHaveText(
-      'Not enough observations',
-    );
-    await expect(await matrixCell(page, ticker, 'Max drawdown')).toHaveText('0.00%');
-  }
-}
-
-async function expectFinalParity(
+async function expectLatestComparison(
   page: Page,
   responses: Awaited<ReturnType<typeof loadComparisonResponses>>,
 ) {
   for (const { ticker, prices, statistics } of responses) {
-    const final = prices.at(-1);
-    if (!final) throw new Error('Expected a final observation.');
-    const pinned = getHistoricalComparison(prices, Date.parse(`${final.date}T00:00:00.000Z`));
+    const latest = prices.at(-1);
+    if (!latest) throw new Error('Expected a latest observation.');
 
-    // Exact unrounded JSON equality with the real C# response, not a display tolerance.
-    expect(pinned.statistics).toEqual(statistics);
-    expect(pinned.observationCount).toBe(prices.length);
-    expect(pinned.closingPrice).toBe(final.price);
-    await expect(await matrixCell(page, ticker, 'Closing price')).toHaveText(
-      priceLabel.format(final.price),
+    expect(prices).toHaveLength(30);
+    await expect(await matrixCell(page, ticker, 'Latest close')).toHaveText(
+      priceLabel.format(latest.price),
     );
     await expect(await matrixCell(page, ticker, 'Total return')).toHaveText(
       formatSignedPercentage(statistics.totalReturnPercent),
@@ -1081,354 +981,130 @@ async function expectFinalParity(
   }
 }
 
-test.describe('Pin date-aware comparison statistics', () => {
+test.describe('Chart inspection independent of latest comparison', () => {
   test.use({ viewport: { width: 1366, height: 768 }, timezoneId: 'America/Los_Angeles' });
 
-  test('navigates actual dates with the keyboard and matches the backend exactly at the final date', async ({
+  test('keeps hover, click and keyboard inspection independent of latest comparison', async ({
     page,
   }, testInfo) => {
     const requests = recordRequests(page);
-    const responses = await loadComparisonResponses(page);
-    const loaded = [...requests.paths];
+    try {
+      const responses = await loadComparisonResponses(page);
+      const loaded = [...requests.paths];
 
-    expect(loaded).toHaveLength(7);
+      expect(loaded).toHaveLength(7);
+      await expectLatestComparison(page, responses);
 
-    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
-    const latestCells = await matrix.getByRole('cell').allTextContents();
-    const control = page.getByRole('button', { name: 'Choose comparison date', exact: true });
+      const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+      const latestCells = await matrix.getByRole('cell').allTextContents();
+      const details = page.getByRole('region', {
+        name: 'Details for Rebased price change',
+        exact: true,
+      });
+      const inspector = page.getByRole('slider', {
+        name: 'Inspect Rebased price change',
+        exact: true,
+      });
 
-    await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
-    await expect(page.getByRole('button', { name: 'Back to latest', exact: true })).toHaveCount(0);
+      await expect(inspector).toHaveAttribute('max', '29');
+      await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
 
-    const first = responses[0]?.prices[0];
-    const second = responses[0]?.prices[1];
-    const penultimate = responses[0]?.prices.at(-2);
-    const final = responses[0]?.prices.at(-1);
-    if (!first || !second || !penultimate || !final)
-      throw new Error('Expected real historical date endpoints.');
+      const firstTarget = await chartPosition(page, 0);
+      await firstTarget.chart.hover({ position: firstTarget.position });
 
-    await expectComparisonDate(page, final.date);
-    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath('date-desktop-latest.png'), fullPage: true });
+      await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
+      await expect(matrix.getByRole('cell')).toHaveText(latestCells);
 
-    await chooseComparisonDate(page, first.date);
-    await expectFirstDate(page, responses);
+      const finalTarget = await chartPosition(page, 1);
+      await finalTarget.chart.click({ position: finalTarget.position });
 
-    await expect(matrix).toHaveAccessibleDescription(/Pinned Jun 23, 2026.*inclusive/);
-    await expect(page.getByRole('button', { name: 'Previous date', exact: true })).toBeDisabled();
+      await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
+      await expect(matrix.getByRole('cell')).toHaveText(latestCells);
 
-    await page.screenshot({ path: testInfo.outputPath('date-desktop-first.png'), fullPage: true });
-    await page.getByRole('button', { name: 'Next date', exact: true }).press('Enter');
+      await inspector.press('Home');
 
-    await expectComparisonDate(page, second.date);
-    for (const ticker of comparisonTickers) {
-      await expect(await matrixCell(page, ticker, 'Daily volatility')).toHaveText(
-        'Not enough observations',
-      );
+      await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
+      await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+
+      await inspector.press('ArrowRight');
+
+      await expect(details.getByRole('heading', { level: 3 })).toHaveText('Wed, Jun 24, 2026');
+      await expect(inspector).toBeFocused();
+      await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+      await page.screenshot({
+        path: testInfo.outputPath('comparison-desktop-inspection.png'),
+        fullPage: true,
+      });
+
+      await inspector.press('End');
+
+      await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
+      await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+
+      await page.getByRole('button', { name: 'View data', exact: true }).click();
+
+      await expect(
+        page
+          .getByRole('table', { name: 'Recorded closing prices', exact: true })
+          .getByRole('rowheader'),
+      ).toHaveCount(30);
+      expect(requests.paths).toEqual(loaded);
+    } finally {
+      requests.stop();
     }
-
-    await page.getByRole('button', { name: 'Previous date', exact: true }).press('Enter');
-    await expectFirstDate(page, responses);
-
-    await expect(control).toBeFocused();
-
-    await chooseComparisonDate(page, penultimate.date);
-    await page.getByRole('button', { name: 'Next date', exact: true }).press('Enter');
-
-    await expectComparisonDate(page, final.date);
-    await expect(control).toBeFocused();
-
-    await expectFinalParity(page, responses);
-
-    await expect(page.getByRole('button', { name: 'Next date', exact: true })).toBeDisabled();
-
-    await page.screenshot({ path: testInfo.outputPath('date-desktop-final.png'), fullPage: true });
-    await page.getByRole('button', { name: 'Back to latest', exact: true }).press('Enter');
-
-    await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
-    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
-    await expectComparisonDate(page, final.date);
-    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
-    await expect(control).toBeFocused();
-    expect(requests.paths).toEqual(loaded);
-
-    requests.stop();
-  });
-
-  test('uses segmented UTC entry and native calendar keyboard navigation without changing a pin on Escape', async ({
-    page,
-  }, testInfo) => {
-    const requests = recordRequests(page);
-    const responses = await loadComparisonResponses(page);
-    const loaded = [...requests.paths];
-    const control = page.getByRole('button', { name: 'Choose comparison date', exact: true });
-    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
-    const latestCells = await matrix.getByRole('cell').allTextContents();
-    const final = responses[0]?.prices.at(-1);
-    if (!final) throw new Error('Expected a final recorded date.');
-
-    await expectComparisonDate(page, final.date);
-
-    await page.getByRole('spinbutton', { name: /^month,/i }).fill('6');
-    await page.getByRole('spinbutton', { name: /^day,/i }).fill('23');
-    await page.getByRole('spinbutton', { name: /^year,/i }).fill('2026');
-    await control.focus();
-    await expectComparisonDate(page, '2026-06-23');
-    await expectFirstDate(page, responses);
-
-    const firstCells = await matrix.getByRole('cell').allTextContents();
-
-    await control.press('Enter');
-
-    const calendar = page.getByRole('dialog');
-    const first = calendar.getByRole('button', {
-      name: /^Tuesday, June 23, 2026(?: selected)?(?:,|$)/,
-    });
-    const second = calendar.getByRole('button', {
-      name: /^Wednesday, June 24, 2026(?: selected)?(?:,|$)/,
-    });
-
-    await expect(first).toBeFocused();
-    await first.press('ArrowRight');
-
-    await expect(second).toBeFocused();
-    await expect(matrix.getByRole('cell')).toHaveText(firstCells);
-
-    await page.screenshot({
-      path: testInfo.outputPath('calendar-desktop-open.png'),
-      fullPage: true,
-    });
-    await second.press('Escape');
-
-    await expect(calendar).toHaveCount(0);
-    await expect(control).toBeFocused();
-    await expect(matrix.getByRole('cell')).toHaveText(firstCells);
-
-    await control.press('Enter');
-    await first.press('ArrowRight');
-    await second.press('Enter');
-
-    await expectComparisonDate(page, '2026-06-24');
-    await expect(matrix).toHaveAccessibleDescription(/Pinned Jun 24, 2026/);
-
-    await page.getByRole('spinbutton', { name: /^month,/i }).press('Backspace');
-
-    await expect(matrix).toHaveAccessibleDescription(/Pinned Jun 24, 2026/);
-
-    const day = page.getByRole('spinbutton', { name: /^day,/i });
-    await day.press('Backspace');
-    await day.press('Backspace');
-
-    const year = page.getByRole('spinbutton', { name: /^year,/i });
-    for (let digit = 0; digit < 4; digit += 1) await year.press('Backspace');
-
-    await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
-    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
-    await expectComparisonDate(page, final.date);
-    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Back to latest', exact: true })).toHaveCount(0);
-    expect(requests.paths).toEqual(loaded);
-
-    requests.stop();
-  });
-
-  test('previews on hover but commits clicks and native keyboard dates without refetching', async ({
-    page,
-  }, testInfo) => {
-    const requests = recordRequests(page);
-    const responses = await loadComparisonResponses(page);
-    const loaded = [...requests.paths];
-    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
-    const latestCells = await matrix.getByRole('cell').allTextContents();
-    const control = page.getByRole('button', { name: 'Choose comparison date', exact: true });
-    const details = page.getByRole('region', {
-      name: 'Details for Rebased price change',
-      exact: true,
-    });
-    const firstTarget = await chartPosition(page, 0);
-    await firstTarget.chart.hover({ position: firstTarget.position });
-
-    await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
-    await expectComparisonDate(page, '2026-06-23');
-    await expect(matrix).toHaveAccessibleDescription(/Preview.*Jun 23, 2026/i);
-    await expectFirstDate(page, responses);
-
-    await control.hover();
-
-    await expectComparisonDate(page, '2026-08-03');
-    await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
-    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
-
-    await firstTarget.chart.click({ position: firstTarget.position });
-    await control.hover();
-
-    await expectComparisonDate(page, '2026-06-23');
-    await expect(matrix).toHaveAccessibleDescription(/Pinned Jun 23, 2026/);
-    await expectFirstDate(page, responses);
-    const pinnedCells = await matrix.getByRole('cell').allTextContents();
-
-    const finalTarget = await chartPosition(page, 1);
-    await finalTarget.chart.hover({ position: finalTarget.position });
-
-    await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
-    await expectComparisonDate(page, '2026-08-03');
-    await expect(matrix).toHaveAccessibleDescription(/Preview.*Aug 3, 2026/i);
-    await expectFinalParity(page, responses);
-
-    await page.screenshot({
-      path: testInfo.outputPath('date-desktop-hover.png'),
-      animations: 'disabled',
-    });
-
-    await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
-
-    await control.hover();
-
-    await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
-    await expectComparisonDate(page, '2026-06-23');
-    await expect(matrix).toHaveAccessibleDescription(/Pinned Jun 23, 2026/);
-    await expect(matrix.getByRole('cell')).toHaveText(pinnedCells);
-
-    const inspector = page.getByRole('slider', {
-      name: 'Inspect Rebased price change',
-      exact: true,
-    });
-
-    await inspector.press('End');
-    await expectFinalParity(page, responses);
-    await inspector.press('Home');
-    await expectFirstDate(page, responses);
-
-    await expect(inspector).toBeFocused();
-
-    await inspector.press('ArrowRight');
-
-    await expectComparisonDate(page, '2026-06-24');
-
-    const keyboardCells = await matrix.getByRole('cell').allTextContents();
-    await page
-      .getByRole('radiogroup', { name: 'Chart view' })
-      .getByText('Price', { exact: true })
-      .click();
-
-    await expectComparisonDate(page, '2026-06-24');
-    await expect(matrix.getByRole('cell')).toHaveText(keyboardCells);
-    await expect(
-      page.getByRole('slider', { name: 'Inspect Historical closing prices', exact: true }),
-    ).toHaveValue('1');
-
-    await page.getByRole('button', { name: 'Back to latest', exact: true }).click();
-
-    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
-    expect(requests.paths).toEqual(loaded);
-
-    requests.stop();
   });
 });
 
-test.describe('Pin comparison dates on touch screens', () => {
+test.describe('Touch chart inspection independent of latest comparison', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
-  test('pins a chart tap and makes every ticker reachable at first and final dates', async ({
+  test('keeps touch inspection independent of latest comparison and every ticker reachable', async ({
     page,
   }, testInfo) => {
     const requests = recordRequests(page);
-    const responses = await loadComparisonResponses(page);
-    const loaded = [...requests.paths];
-    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
-    const latestCells = await matrix.getByRole('cell').allTextContents();
-    const final = responses[0]?.prices.at(-1);
-    if (!final) throw new Error('Expected a final recorded date.');
+    try {
+      const responses = await loadComparisonResponses(page);
+      const loaded = [...requests.paths];
 
-    await expectComparisonDate(page, final.date);
-    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath('date-mobile-latest.png'), fullPage: true });
+      expect(loaded).toHaveLength(7);
+      await expectLatestComparison(page, responses);
 
-    const firstTarget = await chartPosition(page, 0);
-    await firstTarget.chart.tap({ position: firstTarget.position });
-    await expectFirstDate(page, responses);
-    await page.screenshot({ path: testInfo.outputPath('date-mobile-first.png'), fullPage: true });
-    await chooseComparisonDate(page, final.date, true);
-    await expectFinalParity(page, responses);
+      const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+      const latestCells = await matrix.getByRole('cell').allTextContents();
+      const details = page.getByRole('region', {
+        name: 'Details for Rebased price change',
+        exact: true,
+      });
+      const firstTarget = await chartPosition(page, 0);
+      await firstTarget.chart.tap({ position: firstTarget.position });
 
-    const dateControl = page.getByRole('button', { name: 'Choose comparison date', exact: true });
-    await dateControl.tap();
+      await expect(details.getByRole('heading', { level: 3 })).toHaveText('Tue, Jun 23, 2026');
+      await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+      await page.screenshot({
+        path: testInfo.outputPath('comparison-mobile-inspection.png'),
+        fullPage: true,
+      });
 
-    const calendar = page.getByRole('dialog');
-    await expect(calendar).toBeInViewport();
-    await page.screenshot({
-      path: testInfo.outputPath('calendar-mobile-open.png'),
-      fullPage: true,
-    });
-    await page.keyboard.press('Escape');
+      const finalTarget = await chartPosition(page, 1);
+      await finalTarget.chart.tap({ position: finalTarget.position });
 
-    const area = page.getByRole('region', { name: 'Comparison table scroll area', exact: true });
-    for (const ticker of comparisonTickers) {
-      const cell = await matrixCell(page, ticker, 'Closing price');
-      await cell.scrollIntoViewIfNeeded();
+      await expect(details.getByRole('heading', { level: 3 })).toHaveText('Mon, Aug 3, 2026');
+      await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+      await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
 
-      await expect(cell).toBeInViewport();
-      await expect(
-        area.getByRole('rowheader', { name: 'Closing price', exact: true }),
-      ).toBeInViewport();
+      const area = page.getByRole('region', { name: 'Comparison table scroll area', exact: true });
+      for (const ticker of comparisonTickers) {
+        const cell = await matrixCell(page, ticker, 'Latest close');
+        await cell.scrollIntoViewIfNeeded();
+
+        await expect(cell).toBeInViewport();
+        await expect(
+          area.getByRole('rowheader', { name: 'Latest close', exact: true }),
+        ).toBeInViewport();
+      }
+      expect(requests.paths).toEqual(loaded);
+    } finally {
+      requests.stop();
     }
-    for (const name of ['Previous date', 'Next date', 'Back to latest']) {
-      expect(
-        (await page.getByRole('button', { name, exact: true }).boundingBox())?.height,
-      ).toBeGreaterThanOrEqual(44);
-    }
-    // e2e-locator: The native root dimensions prove the date controls do not overflow a mobile viewport.
-    expect(
-      await page
-        .locator('html')
-        .evaluate(
-          (element: { scrollWidth: number; clientWidth: number }) =>
-            element.scrollWidth <= element.clientWidth,
-        ),
-    ).toBe(true);
-
-    await page.screenshot({ path: testInfo.outputPath('date-mobile-final.png'), fullPage: true });
-    await page.getByRole('button', { name: 'Back to latest', exact: true }).tap();
-
-    await ready(page, comparisonTickers);
-    await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
-    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
-    await expectComparisonDate(page, final.date);
-    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
-    expect(requests.paths).toEqual(loaded);
-
-    requests.stop();
-  });
-
-  test('fits the calendar and segmented input at 320 pixels', async ({ page }, testInfo) => {
-    await page.setViewportSize({ width: 320, height: 740 });
-    const responses = await loadComparisonResponses(page);
-    const first = responses[0]?.prices[0];
-    if (!first) throw new Error('Expected a first recorded date.');
-
-    await chooseComparisonDate(page, first.date, true);
-    await expectFirstDate(page, responses);
-    await page.getByRole('button', { name: 'Choose comparison date', exact: true }).tap();
-
-    const calendar = page.getByRole('dialog');
-    const bounds = await calendar.boundingBox();
-    if (!bounds) throw new Error('Expected visible calendar bounds.');
-
-    expect(bounds.x).toBeGreaterThanOrEqual(0);
-    expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
-    await expect(
-      calendar.getByRole('button', { name: /^Tuesday, June 23, 2026(?: selected)?(?:,|$)/ }),
-    ).toBeInViewport();
-
-    // e2e-locator: Measure the document's actual scroll width after opening the calendar.
-    expect(
-      await page.locator('html').evaluate((element) => element.scrollWidth <= element.clientWidth),
-    ).toBe(true);
-
-    await page.screenshot({
-      path: testInfo.outputPath('calendar-small-mobile-open.png'),
-      fullPage: true,
-    });
-    await page.keyboard.press('Escape');
   });
 });

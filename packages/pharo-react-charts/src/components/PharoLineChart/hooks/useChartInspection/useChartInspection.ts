@@ -2,62 +2,26 @@ import { useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { findNearestTimestamp } from '../../inspection';
 import { findPointerTimestamp } from './utils';
-import type { ChartInspectionPreview, ChartTouchGesture, UseChartInspectionOptions } from './types';
+import type { ChartTouchGesture, UseChartInspectionOptions } from './types';
 
-/** Separate temporary chart preview from consumer-owned commits and native touch scrolling. */
+/** Inspect recorded observations locally while preserving native touch scrolling. */
 export function useChartInspection(options: UseChartInspectionOptions) {
-  const { geometry, timeline, selectedTimestamp, onTimestampChange, onTimestampPreview } = options;
-  const controlled = selectedTimestamp !== undefined;
-  const [uncontrolledTimestamp, setUncontrolledTimestamp] = useState<number | undefined>();
-  const [preview, setPreview] = useState<ChartInspectionPreview | null>(null);
+  const { geometry, timeline } = options;
+  const [inspectedTimestamp, setInspectedTimestamp] = useState<number | undefined>();
   const touchGesture = useRef<ChartTouchGesture | null>(null);
-  const reportedPreview = useRef<ChartInspectionPreview | null>(null);
 
-  if (preview && preview.selection !== selectedTimestamp) setPreview(null);
-
-  let committedTimestamp: number | undefined;
+  let timestamp: number | undefined;
 
   if (geometry.kind === 'ready') {
-    committedTimestamp = controlled
-      ? (selectedTimestamp ?? timeline.at(-1))
-      : findNearestTimestamp(timeline, uncontrolledTimestamp ?? timeline.at(-1) ?? NaN);
+    timestamp = findNearestTimestamp(timeline, inspectedTimestamp ?? timeline.at(-1) ?? NaN);
 
-    // The consumer's explicit timestamp is never reconciled or overwritten here.
-    if (
-      !controlled &&
-      uncontrolledTimestamp !== undefined &&
-      committedTimestamp !== uncontrolledTimestamp
-    )
-      setUncontrolledTimestamp(committedTimestamp);
-  } else if (!controlled && geometry.kind !== 'unmeasured' && uncontrolledTimestamp !== undefined) {
-    setUncontrolledTimestamp(undefined);
+    if (inspectedTimestamp !== undefined && timestamp !== inspectedTimestamp)
+      setInspectedTimestamp(timestamp);
+  } else if (geometry.kind !== 'unmeasured' && inspectedTimestamp !== undefined) {
+    setInspectedTimestamp(undefined);
   }
 
-  const timestamp =
-    controlled && preview?.selection === selectedTimestamp && timeline.includes(preview.timestamp)
-      ? preview.timestamp
-      : committedTimestamp;
-  const navigationTimestamp = controlled
-    ? findNearestTimestamp(timeline, committedTimestamp ?? NaN)
-    : timestamp;
-
-  const clearPreview = () => {
-    setPreview(null);
-    if (reportedPreview.current !== null) {
-      reportedPreview.current = null;
-      onTimestampPreview?.(null);
-    }
-  };
-
-  const handleInspect = (next: number) => {
-    clearPreview();
-
-    if (!controlled) setUncontrolledTimestamp(next);
-
-    onTimestampChange?.(next);
-  };
-
-  const inspectPointer = (event: PointerEvent<SVGSVGElement>, commit = false) => {
+  const inspectPointer = (event: PointerEvent<SVGSVGElement>) => {
     if (geometry.kind !== 'ready') return;
 
     const nearest = findPointerTimestamp(
@@ -67,25 +31,7 @@ export function useChartInspection(options: UseChartInspectionOptions) {
       event.clientX,
     );
 
-    if (nearest === undefined) return;
-
-    if (commit) {
-      handleInspect(nearest);
-      return;
-    }
-
-    const next = { timestamp: nearest, selection: selectedTimestamp };
-
-    if (controlled) setPreview(next);
-    else setUncontrolledTimestamp(nearest);
-
-    if (
-      reportedPreview.current?.timestamp !== nearest ||
-      reportedPreview.current?.selection !== selectedTimestamp
-    ) {
-      reportedPreview.current = next;
-      onTimestampPreview?.(nearest);
-    }
+    if (nearest !== undefined) setInspectedTimestamp(nearest);
   };
 
   const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
@@ -122,7 +68,7 @@ export function useChartInspection(options: UseChartInspectionOptions) {
 
   const handlePointerUp = (event: PointerEvent<SVGSVGElement>) => {
     if (event.pointerType !== 'touch') {
-      if (event.button === 0) inspectPointer(event, true);
+      if (event.button === 0) inspectPointer(event);
 
       return;
     }
@@ -135,24 +81,19 @@ export function useChartInspection(options: UseChartInspectionOptions) {
 
     const distance = Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY);
 
-    if (!gesture.moved && Number.isFinite(distance) && distance <= 8) inspectPointer(event, true);
+    if (!gesture.moved && Number.isFinite(distance) && distance <= 8) inspectPointer(event);
   };
 
   const handlePointerCancel = (event: PointerEvent<SVGSVGElement>) => {
     if (touchGesture.current?.pointerId === event.pointerId) touchGesture.current = null;
-
-    clearPreview();
   };
 
   return {
     timestamp,
-    navigationTimestamp,
-    onInspect: handleInspect,
-    onNavigationFocus: clearPreview,
+    onInspect: setInspectedTimestamp,
     onPointerDown: handlePointerDown,
     onPointerMove: handlePointerMove,
     onPointerUp: handlePointerUp,
     onPointerCancel: handlePointerCancel,
-    onPointerLeave: clearPreview,
   };
 }

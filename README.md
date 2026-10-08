@@ -1,6 +1,6 @@
 # Pharo Take Home Assessment
 
-A local full-stack dashboard for exploring the supplied synthetic historical prices, built with React and ASP.NET Core. Search all 200 tickers, select up to three, and compare closing prices, price performance, and financial statistics. Compare the full recorded period or pin a historical date, then inspect the underlying observations in an accessible dialog.
+A local full-stack dashboard for exploring the supplied synthetic historical prices, built with React and ASP.NET Core. Search all 200 tickers, select up to three, and compare closing prices, price performance, and financial statistics. Compare statistics over the full supplied 30-day window and inspect the underlying observations in an accessible dialog.
 
 ## Tech Stack
 
@@ -134,8 +134,8 @@ Both catalogs work independently of the API:
 
 1. **Find and select instruments.** The **Compare instruments** picker filters the cached list, ranking exact matches before prefixes and other matches. All tickers remain reachable in its scrollable popup. Arrow keys and Enter select a result; Escape closes the popup. Choose up to three, with removable tags and an explanation when the limit is reached.
 2. **Choose Price or Performance.** Price shows recorded closing prices. Performance shows `100 × (price / firstObservedPrice − 1)` for each instrument, using its own first price. This is rebased price change, without corporate-action adjustments. Shared colors and dash patterns connect tags, lines and matrix columns.
-3. **Compare Latest or a historical date.** Latest is the default, showing each instrument's latest close and full-period API statistics. Click/tap the chart, use its keyboard date control, or enter a **Comparison date** through the segmented field and calendar to pin a date. Previous/Next navigate recorded dates; **Back to latest** restores full-period statistics. Hover temporarily previews the recorded date and its comparison values; leaving the chart restores Latest or the pinned comparison.
-4. **Read the calculation period.** A previewed or pinned historical date uses the first observation through that date, inclusive, for return, sample volatility and maximum drawdown. Closing price requires an observation on the exact date; otherwise it shows **No observation**. Period labels identify differing histories. Date navigation reuses cached prices without new requests.
+3. **Compare full-period statistics.** The matrix shows each instrument's latest recorded close and total return, daily volatility, and maximum drawdown from the existing statistics endpoint over the supplied 30-day window.
+4. **Inspect chart observations.** Hover, click/tap, or use the chart's keyboard control to read individual recorded dates and values. Inspection stays within the chart and does not change comparison statistics or request new data.
 5. **Inspect raw observations.** **View data** opens every selected column and recorded row, including in Performance mode. Shared range/count information appears once when histories agree. The dialog scrolls locally, closes with Close or Escape, and restores focus to its trigger.
 
 Selection and an explicitly chosen chart view are shareable:
@@ -177,12 +177,12 @@ curl http://127.0.0.1:5080/api/prices/TICK0001/stats
 
 Tickers are trimmed and uppercased. Invalid or unknown tickers return safe HTTP 404 Problem Details on the price routes. Unexpected request failures return generic 500 Problem Details without raw input or filesystem paths.
 
-Statistics use **percentage points**: `5` displays as `5.00%`, not `500%`. Volatility is the sample standard deviation of consecutive simple returns, without annualization; fewer than three prices give `null`, displayed as **Not enough observations**. Drawdown is a nonnegative loss magnitude. [DESIGN.md](DESIGN.md) specifies the formulas and date-aware edge cases.
+Statistics use **percentage points**: `5` displays as `5.00%`, not `500%`. Volatility is the sample standard deviation of consecutive simple returns, without annualization; fewer than three prices give `null`, displayed as **Not enough observations**. Drawdown is a nonnegative loss magnitude. [DESIGN.md](DESIGN.md) specifies the formulas and insufficient-observation behavior.
 
 ## Testing
 
 - **Backend:** xUnit tests for CSV ingestion, immutable store, startup, HTTP contracts and statistics, including an independent oracle for all supplied tickers.
-- **Frontend:** Vitest, React Testing Library and MSW exercise API validation, Query cancellation/cache/retry behavior, selection, date-aware calculations and error states.
+- **Frontend:** Vitest, React Testing Library and MSW exercise API validation, Query cancellation/cache/retry behavior, selection, full-period comparison and error states.
 - **Browser:** Playwright runs the compiled dashboard against the real API and checks selection, dates, keyboard/touch/focus, URL navigation, raw data and responsive layouts.
 - **Shared packages:** unit tests, executable Storybook scenarios and isolated browser consumers exercise reusable controls and charts.
 

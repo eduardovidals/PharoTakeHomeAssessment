@@ -72,9 +72,6 @@ export function PharoLineChart(props: Props) {
     formatYDetail = formatNumber,
     formatYTable = formatNumber,
     dataTable,
-    selectedTimestamp,
-    onTimestampChange,
-    onTimestampPreview,
     className,
   } = props;
 
@@ -140,21 +137,12 @@ export function PharoLineChart(props: Props) {
 
   const {
     timestamp: inspectedTimestamp,
-    navigationTimestamp,
     onInspect,
-    onNavigationFocus,
     onPointerDown,
     onPointerMove,
     onPointerUp,
     onPointerCancel,
-    onPointerLeave,
-  } = useChartInspection({
-    geometry,
-    timeline,
-    selectedTimestamp,
-    onTimestampChange,
-    onTimestampPreview,
-  });
+  } = useChartInspection({ geometry, timeline });
 
   const details: readonly ChartInspectionDetail[] =
     geometry.kind === 'ready' && inspectedTimestamp !== undefined
@@ -165,10 +153,10 @@ export function PharoLineChart(props: Props) {
       : [];
   const selectedDate = inspectedTimestamp !== undefined ? formatXDetail(inspectedTimestamp) : '';
   const valueText =
-    (navigationTimestamp !== undefined ? formatXAccessible(navigationTimestamp) : '') +
+    (inspectedTimestamp !== undefined ? formatXAccessible(inspectedTimestamp) : '') +
     '; ' +
-    (geometry.kind === 'ready' && navigationTimestamp !== undefined
-      ? inspectTimestamp(geometry.series, navigationTimestamp).map(
+    (geometry.kind === 'ready' && inspectedTimestamp !== undefined
+      ? inspectTimestamp(geometry.series, inspectedTimestamp).map(
           (row) =>
             row.label +
             ': ' +
@@ -243,7 +231,6 @@ export function PharoLineChart(props: Props) {
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerCancel}
-            onPointerLeave={onPointerLeave}
           >
             <title id={titleId}>{label}</title>
             {description ? <desc id={descriptionId}>{description}</desc> : null}
@@ -359,8 +346,6 @@ export function PharoLineChart(props: Props) {
           label={label}
           timeline={timeline}
           timestamp={inspectedTimestamp}
-          navigationTimestamp={navigationTimestamp}
-          onNavigationFocus={onNavigationFocus}
           date={selectedDate}
           valueText={valueText}
           details={details}

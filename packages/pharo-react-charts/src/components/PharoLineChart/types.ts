@@ -59,18 +59,6 @@ export interface PharoLineChartProps extends PharoChartFormatters {
   readonly xTickValues?: readonly number[];
   /** Optional finite reference value included in the numerical domain when observations exist. */
   readonly baselineY?: number;
-  /** Controlled recorded date: null follows latest; omit for local uncontrolled inspection.
-   * A supplied timestamp is preserved exactly, including when no series has that record.
-   */
-  readonly selectedTimestamp?: number | null;
-  /** Explicit pointer click, completed touch tap or native range selection; never hover.
-   * In controlled mode, the consumer updates selectedTimestamp in response.
-   */
-  readonly onTimestampChange?: (timestamp: number) => void;
-  /** Temporary recorded-date hover; null ends preview without changing the committed date.
-   * Notifications come from pointer/focus/commit events, never data reconciliation.
-   */
-  readonly onTimestampPreview?: (timestamp: number | null) => void;
   /** Omit for inline disclosure; external availability is explicitly owned by the consumer. */
   readonly dataTable?: PharoChartDataTableMode;
   /** Old catch-all aliases are rejected, including forwarding through wider objects. */

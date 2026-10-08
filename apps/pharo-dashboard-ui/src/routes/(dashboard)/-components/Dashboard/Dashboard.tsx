@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useRef } from 'react';
 import { PricesApi } from '../../../../api/prices';
 import { getSeriesWindows, toChartSeries } from './adapters/priceSeries';
 import { DashboardToolbar } from './components/DashboardToolbar';
@@ -7,7 +7,6 @@ import { ObservationDialog } from './components/ObservationDialog';
 import { PriceHistory } from './components/PriceHistory';
 import { dashboardStyles } from './styles';
 import { useSeriesAppearances } from './hooks/useSeriesAppearances';
-import { getComparisonTimeline } from './utils';
 import type { DashboardProps as Props } from './types';
 
 /**
@@ -24,11 +23,6 @@ export function Dashboard(props: Props) {
   const selectionId = useId();
   const dataTriggerId = useId();
   const pickerInputRef = useRef<HTMLInputElement>(null);
-  const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
-  const [previewTimestamp, setPreviewTimestamp] = useState<number | null>(null);
-
-  // Clearing every instrument starts the next comparison at Latest; changing mode keeps the pin.
-  if (selectedTickers.length === 0 && selectedTimestamp !== null) setSelectedTimestamp(null);
 
   const appearances = useSeriesAppearances(selectedTickers);
 
@@ -73,14 +67,6 @@ export function Dashboard(props: Props) {
     toChartSeries(ticker, query.data ?? [], appearance),
   );
   const windows = getSeriesWindows(rawSeries);
-  const timeline = getComparisonTimeline(rawSeries);
-
-  if (previewTimestamp !== null && !timeline.includes(previewTimestamp)) setPreviewTimestamp(null);
-
-  const handleTimestampChange = (timestamp: number | null) => {
-    setPreviewTimestamp(null);
-    setSelectedTimestamp(timestamp);
-  };
 
   return (
     <main className={dashboardStyles.page}>
@@ -135,19 +121,9 @@ export function Dashboard(props: Props) {
               resources={priceResources}
               mode={mode}
               externalDataTriggerId={dataTriggerId}
-              selectedTimestamp={selectedTimestamp}
-              onTimestampChange={handleTimestampChange}
-              onTimestampPreview={setPreviewTimestamp}
             />
             <div className={dashboardStyles.details}>
-              <ComparisonMatrix
-                columns={columns}
-                onRemove={removeInstrument}
-                selectedTimestamp={selectedTimestamp}
-                previewTimestamp={previewTimestamp}
-                timeline={timeline}
-                onTimestampChange={handleTimestampChange}
-              />
+              <ComparisonMatrix columns={columns} onRemove={removeInstrument} />
               <ObservationDialog triggerId={dataTriggerId} series={rawSeries} />
             </div>
           </div>

@@ -179,9 +179,6 @@ importers:
 
   apps/pharo-dashboard-ui:
     dependencies:
-      '@internationalized/date':
-        specifier: 3.12.4
-        version: 3.12.4
       '@pharo/react-charts':
         specifier: workspace:*
         version: link:../../packages/pharo-react-charts
