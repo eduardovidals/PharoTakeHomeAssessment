@@ -1,9 +1,14 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { dotnetEnvironment, rootDirectory, runtimePorts } from './runtime.mjs';
+
+const requiredDotnetSdk = JSON.parse(
+  readFileSync(new URL('../global.json', import.meta.url), 'utf8'),
+).sdk.version;
 
 async function assertPortAvailable(port) {
   const listener = createServer();
@@ -47,7 +52,13 @@ export async function startDashboard(options = {}) {
     });
     const record = { child, closed: false, retired: false };
     child.once('error', (error) => {
-      startupError ??= error;
+      startupError ??=
+        command === 'dotnet' && error.code === 'ENOENT'
+          ? new Error(
+              `The .NET SDK ${requiredDotnetSdk} is required. Install it and add dotnet to your PATH; see README.md (Run locally).`,
+              { cause: error },
+            )
+          : error;
     });
     child.once('close', (code, signal) => {
       record.closed = true;

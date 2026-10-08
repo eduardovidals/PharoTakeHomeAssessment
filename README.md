@@ -6,6 +6,15 @@ A local React and ASP.NET Core dashboard for the supplied synthetic historical p
 
 Use **Node.js 24.14.1**, **pnpm 10.33.0** and **.NET SDK 10.0.401**, with `node`, `pnpm` and `dotnet` on your PATH. The repository pins Node in `.nvmrc`, pnpm in `package.json` and the SDK in `global.json` with SDK roll-forward disabled. Dependency downloads require npm and NuGet access.
 
+If you use nvm, activate the pinned Node version from the repository root:
+
+```sh
+nvm install
+nvm use
+```
+
+Install the pinned .NET SDK using Microsoft's [.NET installation instructions](https://learn.microsoft.com/en-us/dotnet/core/install/). If you installed it in `~/.dotnet` on macOS or Linux, add `export PATH="$HOME/.dotnet:$PATH"` to your shell startup file (such as `~/.zshrc`), then open a new terminal. Run `node --version` and `dotnet --version` from the repository root to confirm the pinned versions are selected.
+
 From the repository root:
 
 ```sh
@@ -13,6 +22,8 @@ pnpm install --frozen-lockfile
 pnpm build
 pnpm dev
 ```
+
+After the pnpm install and build steps, `npm run dev` also starts the same launcher.
 
 Open **http://127.0.0.1:5173**. The launcher starts the API on **http://127.0.0.1:5080**, waits for both services, and stops its own processes on Ctrl+C. Vite proxies `/api` to the API; no browser CORS configuration is required. Occupied ports cause a startup error without terminating their existing owners.
 
