@@ -12,6 +12,7 @@ import type { UseSchemaFormOptions, UseSchemaFormResult } from './types';
  * const form = useSchemaForm(z.object({
  *   quantity: z.string().transform((value) => Number(value)),
  * }), { defaultValues: { quantity: '' } });
+ *
  * form.handleSubmit((output) => console.log(output.quantity.toFixed(2)));
  * ```
  */

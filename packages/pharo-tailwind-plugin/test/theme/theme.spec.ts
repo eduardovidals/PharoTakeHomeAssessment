@@ -11,8 +11,11 @@ import type { PreviewServer } from 'vite';
 
 const packageDirectory = fileURLToPath(new URL('../../', import.meta.url));
 const repositoryDirectory = path.resolve(packageDirectory, '../..');
+
 const marker = `PHARO_THEME_PRIVATE_${randomUUID()}`;
+
 const pageFailures = new WeakMap<Page, string[]>();
+
 let fixture: string | undefined;
 let identity: { dev: number; ino: number } | undefined;
 let server: PreviewServer | undefined;
@@ -27,12 +30,14 @@ test.beforeAll(async () => {
     fixture = await mkdtemp(path.join(cache, 'pharo-theme-'));
     identity = await lstat(fixture);
     await cp(path.join(packageDirectory, 'test/fixture'), fixture, { recursive: true });
+
     const installedPackage = path.join(fixture, 'node_modules/@pharo/tailwind-plugin');
     await mkdir(installedPackage, { recursive: true });
     // Copy only the package manifest and its exported CSS, with no workspace source alias.
     for (const file of ['package.json', 'index.css']) {
       await cp(path.join(packageDirectory, file), path.join(installedPackage, file));
     }
+
     const dependencyProbe = path.join(fixture, 'node_modules/@pharo/react-components/dist');
     await mkdir(dependencyProbe, { recursive: true });
     // Generated source-discovery data only; this does not stand in for a real UI component.
@@ -54,6 +59,7 @@ test.beforeAll(async () => {
       logLevel: 'warn',
       build: { outDir: 'dist', sourcemap: false, minify: false },
     });
+
     const assets = path.join(fixture, 'dist/assets');
     for (const file of await readdir(assets)) {
       const source = await readFile(path.join(assets, file), 'utf8');
@@ -62,6 +68,7 @@ test.beforeAll(async () => {
       if (file.endsWith('.css')) compiledCss += source;
     }
     expect(compiledCss.length).toBeGreaterThan(0);
+
     server = await preview({
       root: fixture,
       configFile: false,
@@ -69,9 +76,12 @@ test.beforeAll(async () => {
       logLevel: 'silent',
       preview: { host: '127.0.0.1', port: 0, strictPort: true },
     });
+
     const address = server.httpServer.address();
+
     if (!address || typeof address === 'string')
       throw new Error('Theme preview did not bind a port.');
+
     origin = `http://127.0.0.1:${address.port}`;
   } catch (error) {
     failed = true;
@@ -89,6 +99,7 @@ test.beforeEach(async ({ page }) => {
       failures.push(`Unexpected page request: ${request.url()}`);
     }
   });
+
   await page.goto(origin);
   await expect(
     page.getByRole('heading', { name: 'Clear information, deliberate contrast' }),
@@ -97,6 +108,7 @@ test.beforeEach(async ({ page }) => {
 
 test.afterEach(async ({ page }, testInfo) => {
   if (testInfo.status !== testInfo.expectedStatus) failed = true;
+
   const errors = pageFailures.get(page) ?? [];
   if (errors.length > 0) failed = true;
   expect(errors).toEqual([]);
@@ -197,6 +209,7 @@ test.describe('Use the public Pharo theme independently', () => {
     expect(contrast(grid, 'rgb(255, 255, 255)')).toBeLessThan(
       contrast(baseline, 'rgb(255, 255, 255)'),
     );
+
     await page.screenshot({ path: testInfo.outputPath('theme-default.png'), fullPage: true });
   });
 
@@ -226,9 +239,11 @@ test.describe('Use the public Pharo theme independently', () => {
     await expect(action).toHaveCSS('outline-offset', '3px');
     const focus = await action.evaluate((element) => getComputedStyle(element).outlineColor);
     expect(contrast(focus, 'rgb(255, 255, 255)')).toBeGreaterThanOrEqual(3);
+
     await page.screenshot({ path: testInfo.outputPath('theme-focus.png'), fullPage: true });
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Open theme dialog' })).toBeFocused();
+
     await page.emulateMedia({ forcedColors: 'active' });
     await expect(page.getByRole('button', { name: 'Open theme dialog' })).toHaveCSS(
       'box-shadow',
@@ -254,6 +269,7 @@ test.describe('Use the public Pharo theme independently', () => {
       .evaluate((element) => getComputedStyle(element).fontFamily);
     await expect(text).toHaveCSS('font-family', bodyFont);
     await expect(dialog.locator('..')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+
     await page.screenshot({ path: testInfo.outputPath('theme-portal.png'), fullPage: true });
     await page.getByRole('button', { name: 'Close theme dialog' }).click();
     await expect(dialog).toBeHidden();
@@ -262,6 +278,7 @@ test.describe('Use the public Pharo theme independently', () => {
   test('reduced-motion disables the theme color transition', async ({ page }) => {
     const action = page.getByRole('button', { name: 'Theme action', exact: true });
     await expect(action).toHaveCSS('transition-duration', '0.12s');
+
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(action).toHaveCSS('transition-duration', '0s');
   });
@@ -272,6 +289,7 @@ test.describe('Use the public Pharo theme independently', () => {
     const selected = page.getByRole('button', { name: 'Selected view' });
     await expect(selected).toHaveAttribute('aria-pressed', 'true');
     await expect(selected).toHaveCSS('background-color', 'rgb(0, 61, 135)');
+
     await page.emulateMedia({ forcedColors: 'active' });
     await expect(selected).toHaveCSS('forced-color-adjust', 'none');
     const active = await colors(selected);
@@ -296,6 +314,7 @@ test.describe('Use the public Pharo theme independently', () => {
     const plot = page.getByTestId('responsive-plot');
     const input = page.getByRole('textbox', { name: 'Density input' });
     await expect(plot).toHaveCSS('height', '320px');
+
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(plot).toHaveCSS('height', '256px');
     await expect(input).toHaveCSS('font-size', '16px');
@@ -306,6 +325,7 @@ test.describe('Use the public Pharo theme independently', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       390,
     );
+
     await page.setViewportSize({ width: 1280, height: 900 });
     await expect(plot).toHaveCSS('height', '320px');
   });
@@ -344,11 +364,15 @@ function contrast(first: string, second: string): number {
       return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
     });
     const [red, green, blue] = linear;
+
     if (red === undefined || green === undefined || blue === undefined)
       throw new Error('Missing color channels.');
+
     return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
   };
+
   const a = luminance(first);
   const b = luminance(second);
+
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }

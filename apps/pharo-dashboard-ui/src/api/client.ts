@@ -16,6 +16,7 @@ function validBaseURL(value: string): boolean {
   if (!value || value !== value.trim() || /[\\\\?#\s]/.test(value)) return false;
   if (value.startsWith('/')) return !value.startsWith('//');
   if (!/^https?:\/\//i.test(value)) return false;
+
   try {
     const url = new URL(value);
     return (
@@ -39,17 +40,23 @@ function failure(kind: ApiFailureKind, status?: number): ApiFailure {
 
 function normalizeFailure(error: unknown, signal?: AbortSignal): ApiFailure {
   if (signal?.aborted || axios.isCancel(error)) return failure('cancelled');
+
   if (axios.isAxiosError<unknown>(error)) {
     if (error.code === 'ERR_CANCELED') return failure('cancelled');
+
     const status = error.response?.status;
     if (status !== undefined && (status < 200 || status >= 300)) {
       return failure(status === 404 ? 'not-found' : 'http', status);
     }
+
     if (error.code === 'ETIMEDOUT') return failure('timeout');
     if (error.code === 'ERR_BAD_RESPONSE') return failure('invalid-response', status);
+
     return failure('network', status);
   }
+
   if (error instanceof ZodError) return failure('invalid-response');
+
   return failure('invalid-response');
 }
 
@@ -63,6 +70,7 @@ function normalizeFailure(error: unknown, signal?: AbortSignal): ApiFailure {
  */
 export function createApiClient(config: ApiClientConfig = {}): ApiClient {
   const { baseURL = '/api', timeoutMs = 10000 } = config;
+
   if (
     typeof baseURL !== 'string' ||
     !validBaseURL(baseURL) ||
@@ -71,6 +79,7 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
   ) {
     throw new TypeError('Invalid API client configuration.');
   }
+
   return axios.create({
     baseURL,
     timeout: timeoutMs,
@@ -111,6 +120,7 @@ export async function requestJson<Output>(
 export function isApiFailure(value: unknown): value is ApiFailure {
   if (typeof value !== 'object' || value === null || !('kind' in value) || !('message' in value))
     return false;
+
   const entry = Object.entries(failureMessages).find(([kind]) => kind === value.kind);
   return (
     entry !== undefined &&

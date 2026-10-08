@@ -31,9 +31,11 @@ public static class PriceStatisticsCalculator
 
         var prices = new double[chronologicalPrices.Count];
         DateOnly? previousDate = null;
+
         for (var index = 0; index < prices.Length; index++)
         {
             var observation = chronologicalPrices[index];
+
             if (observation is null || observation.Price <= 0)
             {
                 throw new ArgumentException("Every observation must contain a positive price.", nameof(chronologicalPrices));
@@ -49,8 +51,10 @@ public static class PriceStatisticsCalculator
         }
 
         var totalReturnPercent = RequireFinite(100 * (prices[^1] / prices[0] - 1));
+
         var peak = prices[0];
         var maximumDrawdown = 0.0;
+
         for (var index = 1; index < prices.Length; index++)
         {
             peak = Math.Max(peak, prices[index]);
@@ -59,10 +63,12 @@ public static class PriceStatisticsCalculator
         }
 
         double? dailyVolatilityPercent = null;
+
         if (prices.Length >= 3)
         {
             var returns = new double[prices.Length - 1];
             var returnSum = 0.0;
+
             for (var index = 0; index < returns.Length; index++)
             {
                 returns[index] = RequireFinite(prices[index + 1] / prices[index] - 1);
@@ -71,6 +77,7 @@ public static class PriceStatisticsCalculator
 
             var mean = RequireFinite(returnSum / returns.Length);
             var squaredDeviationSum = 0.0;
+
             foreach (var dailyReturn in returns)
             {
                 var deviation = dailyReturn - mean;

@@ -1,4 +1,5 @@
 import type { DashboardStylePart } from './types';
+
 /** Complete semantic classes for the branded shell and responsive analysis layout. */
 export const dashboardStyles: Record<DashboardStylePart, string> = {
   page: 'mx-auto flex w-full max-w-pharo-workspace flex-col gap-pharo-3 px-pharo-4 pb-pharo-4 sm:px-pharo-6',

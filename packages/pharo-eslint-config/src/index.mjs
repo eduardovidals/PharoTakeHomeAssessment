@@ -1,6 +1,7 @@
 import path from 'node:path';
 import js from '@eslint/js';
 import prettier from '@pharo/prettier-config';
+import stylistic from '@stylistic/eslint-plugin';
 import query from '@tanstack/eslint-plugin-query';
 import accessibility from 'eslint-plugin-jsx-a11y-x';
 import prettierRecommended from 'eslint-plugin-prettier/recommended';
@@ -12,6 +13,22 @@ import typescript from 'typescript-eslint';
 const authoredFiles = ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'];
 const typedFiles = ['**/*.{ts,tsx,mts,cts}'];
 const reactFiles = ['**/*.{jsx,tsx}'];
+
+// Restrict automatic padding to declarations with clear boundaries. Cohesive
+// local variables, assertions, JSX and object members remain a review decision.
+const independentDeclaration = {
+  selector:
+    'Program > :matches(ExportNamedDeclaration, ExportDefaultDeclaration, ExportAllDeclaration, FunctionDeclaration, ClassDeclaration, TSInterfaceDeclaration, TSTypeAliasDeclaration, TSEnumDeclaration)',
+};
+
+const testDeclaration = {
+  selector:
+    'ExpressionStatement[expression.callee.name=/^(beforeAll|beforeEach|afterAll|afterEach|describe|it|test)$/], ExpressionStatement[expression.callee.object.name=/^(test|describe|it)$/][expression.callee.property.name=/^(beforeAll|beforeEach|afterAll|afterEach|describe|only|skip)$/], ExpressionStatement[expression.callee.callee.object.name=/^(test|describe|it)$/][expression.callee.callee.property.name="each"]',
+};
+
+const barrelExport = {
+  selector: 'Program > :matches(ExportNamedDeclaration[declaration=null], ExportAllDeclaration)',
+};
 
 /**
  * Create Pharo's flat ESLint policy for a repository's authored source.
@@ -149,6 +166,23 @@ export function createPharoEslintConfig(options) {
       rules: {
         ...prettierRecommended.rules,
         'prettier/prettier': ['error', prettier, { usePrettierrc: false }],
+      },
+    },
+    {
+      name: 'pharo/logical-spacing',
+      files: authoredFiles,
+      plugins: { '@stylistic': stylistic },
+      rules: {
+        '@stylistic/padding-line-between-statements': [
+          'error',
+          { blankLine: 'always', prev: 'import', next: '*' },
+          { blankLine: 'any', prev: 'import', next: 'import' },
+          { blankLine: 'always', prev: '*', next: independentDeclaration },
+          { blankLine: 'always', prev: independentDeclaration, next: '*' },
+          { blankLine: 'always', prev: '*', next: testDeclaration },
+          { blankLine: 'always', prev: testDeclaration, next: '*' },
+          { blankLine: 'any', prev: barrelExport, next: barrelExport },
+        ],
       },
     },
   ];

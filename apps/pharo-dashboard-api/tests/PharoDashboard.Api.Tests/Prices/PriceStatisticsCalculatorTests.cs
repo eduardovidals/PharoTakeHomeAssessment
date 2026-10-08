@@ -28,6 +28,7 @@ public sealed class PriceStatisticsCalculatorTests
         decimal[] prices, double totalReturn, double volatility, double drawdown)
     {
         var result = PriceStatisticsCalculator.Calculate(Points(prices));
+
         Close(totalReturn, result.TotalReturnPercent);
         Close(volatility, Assert.IsType<double>(result.DailyVolatilityPercent));
         Close(drawdown, result.MaxDrawdownPercent);
@@ -37,6 +38,7 @@ public sealed class PriceStatisticsCalculatorTests
     public void OneObservationHasDefinedReturnAndDrawdownButInsufficientSampleVolatility()
     {
         var result = PriceStatisticsCalculator.Calculate(Points(75.25m));
+
         Assert.Equal(0d, result.TotalReturnPercent);
         Assert.Null(result.DailyVolatilityPercent);
         Assert.Equal(0d, result.MaxDrawdownPercent);
@@ -50,6 +52,7 @@ public sealed class PriceStatisticsCalculatorTests
         int first, int last, double totalReturn, double drawdown)
     {
         var result = PriceStatisticsCalculator.Calculate(Points(first, last));
+
         Close(totalReturn, result.TotalReturnPercent);
         Assert.Null(result.DailyVolatilityPercent);
         Close(drawdown, result.MaxDrawdownPercent);
@@ -59,6 +62,7 @@ public sealed class PriceStatisticsCalculatorTests
     public void ANewFuturePeakCannotBePairedWithAnEarlierTrough()
     {
         var result = PriceStatisticsCalculator.Calculate(Points(100m, 80m, 120m));
+
         Close(20d, result.TotalReturnPercent);
         Close(20d, result.MaxDrawdownPercent);
         Close(49.497474683058327d, Assert.IsType<double>(result.DailyVolatilityPercent));
@@ -68,6 +72,7 @@ public sealed class PriceStatisticsCalculatorTests
     public void SubCentChangesRetainPrecisionUntilPresentation()
     {
         var result = PriceStatisticsCalculator.Calculate(Points(100m, 100.000001m, 100.000003m));
+
         Assert.InRange(result.TotalReturnPercent, 0.000003d - 1e-12, 0.000003d + 1e-12);
         var volatility = Assert.IsType<double>(result.DailyVolatilityPercent);
         Assert.InRange(volatility, 0.000000707106767044412d - 1e-12, 0.000000707106767044412d + 1e-12);
@@ -80,6 +85,7 @@ public sealed class PriceStatisticsCalculatorTests
     {
         const decimal smallest = 0.0000000000000000000000000001m;
         var result = PriceStatisticsCalculator.Calculate(Points(smallest, decimal.MaxValue, smallest));
+
         Assert.Equal(0d, result.TotalReturnPercent);
         var volatility = Assert.IsType<double>(result.DailyVolatilityPercent);
         Assert.True(double.IsFinite(volatility));
@@ -87,6 +93,7 @@ public sealed class PriceStatisticsCalculatorTests
         Assert.Equal(100d, result.MaxDrawdownPercent);
 
         var flat = PriceStatisticsCalculator.Calculate(Points(decimal.MaxValue, decimal.MaxValue, decimal.MaxValue));
+
         Assert.Equal(0d, flat.TotalReturnPercent);
         Assert.Equal(0d, Assert.IsType<double>(flat.DailyVolatilityPercent));
         Assert.Equal(0d, flat.MaxDrawdownPercent);
@@ -97,7 +104,9 @@ public sealed class PriceStatisticsCalculatorTests
     {
         var points = Points(100m, 80m, 120m, 90m);
         var snapshot = points.ToArray();
+
         _ = PriceStatisticsCalculator.Calculate(points);
+
         Assert.Equal(snapshot, points);
     }
 
@@ -121,6 +130,7 @@ public sealed class PriceStatisticsCalculatorTests
     {
         var points = Points(100m, 110m, 120m);
         points[1] = null!;
+
         Assert.ThrowsAny<ArgumentException>(() => PriceStatisticsCalculator.Calculate(points));
     }
 
@@ -130,6 +140,7 @@ public sealed class PriceStatisticsCalculatorTests
         var sorted = Points(100m, 110m, 120m);
         PricePoint[] reversed = [sorted[2], sorted[1], sorted[0]];
         PricePoint[] duplicate = [sorted[0], sorted[1] with { Date = sorted[0].Date }, sorted[2]];
+
         Assert.ThrowsAny<ArgumentException>(() => PriceStatisticsCalculator.Calculate(reversed));
         Assert.ThrowsAny<ArgumentException>(() => PriceStatisticsCalculator.Calculate(duplicate));
     }
@@ -142,6 +153,7 @@ public sealed class PriceStatisticsCalculatorTests
         var result = PriceStatisticsCalculator.Calculate(Points(100m, 110m).Take(count).ToArray());
         var json = JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         using var document = JsonDocument.Parse(json);
+
         Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("dailyVolatilityPercent").ValueKind);
         Assert.True(double.IsFinite(document.RootElement.GetProperty("totalReturnPercent").GetDouble()));
         Assert.True(double.IsFinite(document.RootElement.GetProperty("maxDrawdownPercent").GetDouble()));
@@ -153,6 +165,7 @@ public sealed class PriceStatisticsCalculatorTests
         var result = PriceStatisticsCalculator.Calculate(Points(0.0000000000000000000000000001m, decimal.MaxValue, 1m));
         var json = JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         using var document = JsonDocument.Parse(json);
+
         foreach (var property in document.RootElement.EnumerateObject())
         {
             Assert.Equal(JsonValueKind.Number, property.Value.ValueKind);

@@ -21,13 +21,17 @@ import type { DashboardProps as Props } from './types';
  */
 export function Dashboard(props: Props) {
   const { apiClient, selectedTickers, selectionNotice, mode, onAction } = props;
+
   const selectionId = useId();
   const dataTriggerId = useId();
   const pickerInputRef = useRef<HTMLInputElement>(null);
   const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
+
   // Clearing every instrument starts the next comparison at Latest; changing mode keeps the pin.
   if (selectedTickers.length === 0 && selectedTimestamp !== null) setSelectedTimestamp(null);
+
   const appearances = useSeriesAppearances(selectedTickers);
+
   // Start both resource families together, independent of instrument-list availability.
   const prices = useQueries({
     queries: selectedTickers.map((ticker) => pricesQueryOptions(apiClient, ticker)),
@@ -35,6 +39,7 @@ export function Dashboard(props: Props) {
   const statistics = useQueries({
     queries: selectedTickers.map((ticker) => priceStatsQueryOptions(apiClient, ticker)),
   });
+
   const priceResources = selectedTickers.flatMap((ticker, index) => {
     const query = prices[index];
     return query ? [{ ticker, query, appearance: appearances.get(ticker) }] : [];
@@ -43,6 +48,7 @@ export function Dashboard(props: Props) {
   const columns = selectedTickers.flatMap((ticker, index) => {
     const priceQuery = prices[index];
     const statsQuery = statistics[index];
+
     return priceQuery && statsQuery
       ? [
           {
@@ -54,8 +60,10 @@ export function Dashboard(props: Props) {
         ]
       : [];
   });
+
   const removeInstrument = async (ticker: string) => {
     const outcome = await onAction({ type: 'remove', tickers: [ticker] });
+
     if (outcome === 'committed') pickerInputRef.current?.focus();
   };
 

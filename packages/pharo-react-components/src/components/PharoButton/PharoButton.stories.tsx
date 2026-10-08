@@ -14,31 +14,43 @@ const meta = {
     size: { control: 'select', options: ['sm', 'md'] },
   },
 } satisfies Meta<typeof PharoButton>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: 'Save changes' });
+
     button.focus();
     await userEvent.keyboard('{Enter}');
+
     await expect(args.onPress).toHaveBeenCalledTimes(1);
     await expect(button).toHaveFocus();
   },
 };
+
 export const Secondary: Story = { args: { variant: 'secondary' } };
+
 export const Quiet: Story = { args: { variant: 'quiet' } };
+
 export const Small: Story = { args: { size: 'sm' } };
+
 export const Disabled: Story = {
   args: { isDisabled: true, onPress: fn() },
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: 'Save changes' });
+
     await userEvent.click(button);
+
     await expect(button).toBeDisabled();
     await expect(args.onPress).not.toHaveBeenCalled();
   },
 };
+
 export const Pending: Story = { args: { isPending: true, children: 'Saving changes' } };
+
 export const LongLabel: Story = {
   args: { children: 'Save the complete set of presentation preferences' },
   decorators: [

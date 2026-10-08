@@ -18,10 +18,12 @@ import { server } from '../../../../../../test/mocks/server';
 import { ComparisonMatrix } from './ComparisonMatrix';
 
 const base = 'http://localhost/api';
+
 const history = [
   { date: '2026-08-03', price: 100.123456 },
   { date: '2026-08-04', price: 110.255678 },
 ];
+
 const stats = {
   totalReturnPercent: 1.23456,
   dailyVolatilityPercent: 2.3456,
@@ -33,15 +35,19 @@ const stats = {
 class MatrixResizeObserver implements ResizeObserver {
   static readonly active = new Set<MatrixResizeObserver>();
   readonly targets = new Set<Element>();
+
   constructor(readonly callback: ResizeObserverCallback) {
     MatrixResizeObserver.active.add(this);
   }
+
   observe(target: Element) {
     this.targets.add(target);
   }
+
   unobserve(target: Element) {
     this.targets.delete(target);
   }
+
   disconnect() {
     this.targets.clear();
     MatrixResizeObserver.active.delete(this);
@@ -49,12 +55,14 @@ class MatrixResizeObserver implements ResizeObserver {
 }
 
 const resizeObserverDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
+
 beforeAll(() => {
   Object.defineProperty(globalThis, 'ResizeObserver', {
     configurable: true,
     value: MatrixResizeObserver,
   });
 });
+
 afterAll(() => {
   if (resizeObserverDescriptor) {
     Object.defineProperty(globalThis, 'ResizeObserver', resizeObserverDescriptor);
@@ -120,11 +128,13 @@ async function withMatrix(
   const cache = createAppQueryClient();
   cache.setDefaultOptions({ queries: { ...cache.getDefaultOptions().queries, retryDelay: 0 } });
   const client = createApiClient({ baseURL: base });
+
   const view = render(
     <QueryClientProvider client={cache}>
       <Harness client={client} tickers={tickers} onRemove={onRemove} />
     </QueryClientProvider>,
   );
+
   let selectedTimestamp: number | null = null;
   let currentTickers = tickers;
   const failures: unknown[] = [];
@@ -194,17 +204,20 @@ describe('ComparisonMatrix', () => {
     defaultResponses();
     await withMatrix(async () => {
       await waitFor(() => expect(metric('Latest close', 2)).toHaveTextContent('110.26'));
+
       const scroll = screen.getByRole('region', { name: 'Comparison table scroll area' });
       const table = screen.getByRole('table', { name: 'Comparison' });
       const observer = [...MatrixResizeObserver.active].find((owner) => owner.targets.has(scroll));
       if (!observer) throw new Error('Comparison resize owner is missing.');
       expect(observer.targets.has(table)).toBe(true);
       expect(scroll).not.toHaveAttribute('aria-describedby');
+
       Object.defineProperties(scroll, {
         clientWidth: { configurable: true, value: 290 },
         scrollWidth: { configurable: true, value: 440 },
       });
       act(() => observer.callback([], observer));
+
       expect(scroll).toHaveAccessibleDescription('3 instruments · Swipe or scroll to compare.');
       expect(screen.getByText(/3 instruments · Swipe or scroll to compare/)).toBeVisible();
       expect(
@@ -213,14 +226,18 @@ describe('ComparisonMatrix', () => {
           .map((cell) => cell.textContent),
       ).toEqual(['Metric', 'A', 'B', 'C']);
       expect(within(table).getAllByRole('rowheader')).toHaveLength(4);
+
       scroll.focus();
+
       expect(scroll).toHaveFocus();
 
       Object.defineProperty(scroll, 'clientWidth', { configurable: true, value: 440 });
       act(() => observer.callback([], observer));
+
       expect(screen.queryByText(/Swipe or scroll/)).not.toBeInTheDocument();
       expect(scroll).not.toHaveAttribute('aria-describedby');
     }, ['A', 'B', 'C']);
+
     expect(MatrixResizeObserver.active.size).toBe(0);
   });
 
@@ -252,7 +269,9 @@ describe('ComparisonMatrix', () => {
         expect(screen.getByRole('table', { name: 'Comparison' })).toHaveAccessibleDescription(
           'Metrics cover each instrument’s full supplied window.',
         );
+
         await userEvent.click(screen.getByText('About these metrics'));
+
         expect(screen.getByText(/sample deviation of daily returns/)).toBeVisible();
       });
     },
@@ -291,7 +310,9 @@ describe('ComparisonMatrix', () => {
             .getAllByRole('columnheader')
             .map((header) => header.textContent),
         ).toEqual(['Metric', 'B', 'A', 'C']);
+
         show(['C']);
+
         await waitFor(() =>
           expect(
             within(screen.getByRole('table', { name: 'Comparison' })).getAllByRole('columnheader'),
@@ -328,7 +349,9 @@ describe('ComparisonMatrix', () => {
           'Loading statistics…',
         );
         expect(screen.getAllByRole('status')).toHaveLength(1);
+
         release.resolve();
+
         await waitFor(() => expect(metric('Total return')).toHaveTextContent('+1.23%'));
       } finally {
         release.resolve();
@@ -354,16 +377,21 @@ describe('ComparisonMatrix', () => {
     await withMatrix(
       async () => {
         const action = await screen.findByRole('button', { name: 'Remove A from comparison' });
+
         await waitFor(() => expect(metric('Total return')).toHaveTextContent('Unavailable'));
         expect(screen.getAllByText('Not in this dataset')).toHaveLength(1);
         expect(screen.queryByRole('button', { name: /Retry/ })).not.toBeInTheDocument();
         expect(screen.queryByText(/RAW_RESPONSE/)).not.toBeInTheDocument();
+
         await userEvent.click(action);
+
         expect(screen.getByRole('status')).toHaveTextContent(
           'Unable to remove this instrument. Please try again.',
         );
         expect(screen.queryByText(/PRIVATE_NAVIGATION/)).not.toBeInTheDocument();
+
         await userEvent.click(action);
+
         expect(remove.mock.calls).toEqual([['A'], ['A']]);
         expect(screen.getByRole('status')).not.toHaveTextContent('Unable to remove');
       },
@@ -401,13 +429,18 @@ describe('ComparisonMatrix', () => {
     await withMatrix(async () => {
       try {
         const button = await screen.findByRole('button', { name: 'Retry A statistics' });
+
         expect(metric('Latest close')).toHaveTextContent('110.26');
         expect(metric('Total return', 1)).toHaveTextContent('+1.23%');
+
         await userEvent.click(button);
+
         expect(await screen.findByRole('button', { name: 'Retrying A statistics' })).toHaveFocus();
         expect(button).toHaveAttribute('data-pending');
         expect(requests).toEqual({ prices: 1, statistics: 4, peer: 1 });
+
         release.resolve();
+
         await waitFor(() => expect(metric('Total return')).toHaveTextContent('+1.23%'));
         await waitFor(() =>
           expect(
@@ -445,18 +478,25 @@ describe('ComparisonMatrix', () => {
     await withMatrix(async ({ cache }) => {
       try {
         await waitFor(() => expect(metric('Total return')).toHaveTextContent('+1.23%'));
+
         await act(async () => {
           await cache.refetchQueries({ queryKey: priceStatsKey('A') });
         });
+
         const button = await screen.findByRole('button', { name: 'Retry A statistics' });
+
         expect(metric('Total return')).toHaveTextContent('+1.23%');
+
         await userEvent.click(button);
+
         expect(await screen.findByRole('button', { name: 'Retrying A statistics' })).toHaveFocus();
         expect(metric('Total return')).toHaveTextContent('+1.23%');
         expect(cache.getQueryState(priceStatsKey('A'))?.status).toBe('error');
         expect(cache.getQueryState(priceStatsKey('A'))?.fetchStatus).toBe('fetching');
+
         await userEvent.click(screen.getByRole('button', { name: 'Elsewhere' }));
         release.resolve();
+
         await waitFor(() => expect(metric('Total return')).toHaveTextContent('+5.00%'));
         expect(screen.getByRole('button', { name: 'Elsewhere' })).toHaveFocus();
         expect(screen.queryByText(/PRIVATE_OWNED/)).not.toBeInTheDocument();
@@ -479,6 +519,7 @@ describe('ComparisonMatrix', () => {
     );
     await withMatrix(async () => {
       await userEvent.click(await screen.findByRole('button', { name: 'Retry A statistics' }));
+
       expect(await screen.findByRole('button', { name: 'Remove A from comparison' })).toBeVisible();
       expect(screen.queryByRole('button', { name: /Retry.*A statistics/ })).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Comparison' })).toHaveFocus();
@@ -510,12 +551,17 @@ describe('ComparisonMatrix', () => {
     await withMatrix(async ({ show }) => {
       try {
         await started.promise;
+
         await waitFor(() => expect(metric('Latest close')).toHaveTextContent('110.26'));
+
         show(['B']);
+
         await waitFor(() => expect(metric('Total return')).toHaveTextContent('+22.00%'));
         await waitFor(() => expect(abort).toHaveBeenCalledOnce());
+
         release.resolve();
         await done.promise;
+
         expect(screen.queryByRole('columnheader', { name: 'A' })).not.toBeInTheDocument();
         expect(screen.queryByText('+11.00%')).not.toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -554,7 +600,9 @@ describe('ComparisonMatrix', () => {
     );
     await withMatrix(async ({ pin, cache }) => {
       await waitFor(() => expect(metric('Total return')).toHaveTextContent('+1.23%'));
+
       pin(Date.parse('2026-08-03'));
+
       expect(metric('Closing price')).toHaveTextContent('100.12');
       expect(metric('Total return')).toHaveTextContent('0.00%');
       expect(metric('Daily volatility')).toHaveTextContent('Not enough observations');
@@ -563,11 +611,15 @@ describe('ComparisonMatrix', () => {
         /Pinned Aug 3, 2026.*inclusive.*1 observation/,
       );
       expect(screen.getByRole('status')).toHaveTextContent('Comparison pinned to Aug 3, 2026');
+
       pin(Date.parse('2026-08-04'));
+
       expect(metric('Closing price')).toHaveTextContent('110.26');
       expect(metric('Total return')).toHaveTextContent('+10.12%');
       expect(metric('Daily volatility')).toHaveTextContent('Not enough observations');
+
       pin(null);
+
       expect(metric('Total return')).toHaveTextContent('+1.23%');
       expect(metric('Latest close')).toHaveTextContent('110.26');
       expect(requests).toBe(1);
@@ -581,11 +633,14 @@ describe('ComparisonMatrix', () => {
     await withMatrix(async ({ pin }) => {
       await screen.findByRole('button', { name: 'Retry A statistics' });
       pin(Date.parse('2026-08-04'));
+
       expect(metric('Total return')).toHaveTextContent('+10.12%');
       expect(screen.queryByRole('button', { name: /Retry/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('rowheader', { name: 'Resources' })).not.toBeInTheDocument();
       expect(screen.getByRole('status')).not.toHaveTextContent('unavailable');
+
       pin(null);
+
       expect(screen.getByRole('button', { name: 'Retry A statistics' })).toBeVisible();
       expect(metric('Total return')).toHaveTextContent('Unavailable');
     });
@@ -600,11 +655,15 @@ describe('ComparisonMatrix', () => {
     await withMatrix(
       async ({ pin }) => {
         await waitFor(() => expect(metric('Latest close', 2)).toHaveTextContent('300.00'));
+
         pin(Date.parse('2026-08-03'));
+
         expect(metric('Closing price', 1)).toHaveTextContent('No observation');
         expect(metric('Total return', 1)).toHaveTextContent('Unavailable');
         expect(screen.getByText('B: No observations in this period.')).toBeVisible();
+
         pin(Date.parse('2026-08-04'));
+
         expect(metric('Closing price', 2)).toHaveTextContent('No observation');
         expect(metric('Total return', 2)).toHaveTextContent('0.00%');
         expect(metric('Closing price', 1)).toHaveTextContent('200.00');
@@ -622,7 +681,9 @@ describe('ComparisonMatrix', () => {
     await withMatrix(
       async ({ pin }) => {
         await waitFor(() => expect(metric('Latest close', 2)).toHaveTextContent('110.26'));
+
         pin(Date.parse('2026-08-04'));
+
         expect(screen.getAllByText('Aug 3 – Aug 4, 2026 · 2 observations')).toHaveLength(1);
         expect(metric('Closing price', 2)).toHaveTextContent('110.26');
       },

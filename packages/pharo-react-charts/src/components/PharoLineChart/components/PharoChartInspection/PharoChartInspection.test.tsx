@@ -16,11 +16,14 @@ it('uses the complete spoken date, exact recorded callbacks and canonical machin
     />,
   );
   const slider = screen.getByRole('slider', { name: 'Inspect Sensor readings' });
+
   expect(slider).toHaveValue('1');
   expect(slider).toHaveAccessibleDescription(/Home and End/);
   expect(slider).toHaveAttribute('aria-valuetext', 'Friday, January 2, 1970; Sensor: unavailable');
   expect(screen.getByText('Jan 2')).toHaveAttribute('datetime', '1970-01-02T00:00:00.000Z');
+
   fireEvent.change(slider, { target: { value: '0' } });
+
   expect(onInspect).toHaveBeenCalledExactlyOnceWith(0);
   expect(view.container.querySelector('[aria-live]')).toBeNull();
 });
@@ -37,6 +40,7 @@ it('keeps singleton values readable without an inert range control', () => {
       onInspect={vi.fn()}
     />,
   );
+
   expect(screen.queryByRole('slider')).not.toBeInTheDocument();
   expect(screen.getByRole('region', { name: 'Details for Single sample' })).toHaveTextContent(
     'Sensor5',

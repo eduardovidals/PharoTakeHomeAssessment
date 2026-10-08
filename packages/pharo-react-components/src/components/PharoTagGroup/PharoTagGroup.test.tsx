@@ -13,6 +13,7 @@ const initial: readonly PharoTagItem[] = [
 
 function ControlledTags() {
   const [items, setItems] = useState(initial);
+
   return (
     <PharoTagGroup
       label="Selected categories"
@@ -27,9 +28,12 @@ describe('PharoTagGroup', () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
     render(<PharoTagGroup label="Selected categories" items={initial} onRemove={onRemove} />);
+
     expect(screen.getByRole('grid', { name: 'Selected categories' })).toBeVisible();
     expect(screen.getByText('Unknown choice')).toBeVisible();
+
     await user.click(screen.getByRole('button', { name: 'Remove Seven' }));
+
     expect(onRemove).toHaveBeenCalledWith([7]);
     expect(screen.getByText('Seven')).toBeVisible();
   });
@@ -37,11 +41,15 @@ describe('PharoTagGroup', () => {
   test('deletes with native keyboard behavior and keeps the next surviving tag focused', async () => {
     const user = userEvent.setup();
     render(<ControlledTags />);
+
     await user.tab();
     await user.keyboard('{Delete}');
+
     await waitFor(() => expect(screen.queryByText('Alpha')).not.toBeInTheDocument());
     expect(screen.getByRole('row', { name: /Seven/ })).toHaveFocus();
+
     await user.keyboard('{Backspace}');
+
     await waitFor(() => expect(screen.queryByText('Seven')).not.toBeInTheDocument());
     expect(screen.getByRole('row', { name: /Unknown choice/ })).toHaveFocus();
   });
@@ -50,16 +58,24 @@ describe('PharoTagGroup', () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
     const { rerender } = render(<PharoTagGroup label="Selected categories" items={initial} />);
+
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+
     await user.tab();
     await user.keyboard('{Delete}');
+
     expect(screen.getByText('Alpha')).toBeVisible();
+
     rerender(
       <PharoTagGroup label="Selected categories" items={initial} onRemove={onRemove} isDisabled />,
     );
+
     const remove = screen.getByRole('button', { name: 'Remove Alpha' });
+
     expect(remove).toBeDisabled();
+
     await user.click(remove);
+
     expect(onRemove).not.toHaveBeenCalled();
   });
 
@@ -72,6 +88,7 @@ describe('PharoTagGroup', () => {
         removeLabel={(item) => `Discard category ${item.text}`}
       />,
     );
+
     expect(screen.getByRole('button', { name: 'Discard category Alpha' })).toBeVisible();
   });
 
@@ -83,10 +100,14 @@ describe('PharoTagGroup', () => {
       .mockResolvedValue(undefined);
     render(<PharoTagGroup label="Selected categories" items={initial} onRemove={onRemove} />);
     const remove = screen.getByRole('button', { name: 'Remove Alpha' });
+
     await user.click(remove);
+
     expect(screen.getByText('Alpha')).toBeVisible();
     expect(screen.queryByText('Internal details')).not.toBeInTheDocument();
+
     await user.click(remove);
+
     expect(onRemove).toHaveBeenCalledTimes(2);
   });
 });

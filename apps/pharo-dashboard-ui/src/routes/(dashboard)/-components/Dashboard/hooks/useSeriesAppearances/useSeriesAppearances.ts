@@ -14,10 +14,13 @@ export function useSeriesAppearances(
       selectedIds,
     ),
   );
+
   if (state.configuration !== configuration) {
     const next = allocateSeriesAppearances(state, selectedIds);
     setState(next);
+
     return next.active;
   }
+
   return state.active;
 }

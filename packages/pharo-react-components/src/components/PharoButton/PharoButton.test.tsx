@@ -9,9 +9,13 @@ describe('PharoButton', () => {
     const onPress = vi.fn();
     render(<PharoButton onPress={onPress}>Continue</PharoButton>);
     const button = screen.getByRole('button', { name: 'Continue' });
+
     await user.tab();
+
     expect(button).toHaveFocus();
+
     await user.keyboard('{Enter}');
+
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
@@ -20,11 +24,13 @@ describe('PharoButton', () => {
     (variant) => {
       if (variant !== 'primary' && variant !== 'secondary' && variant !== 'quiet')
         throw new Error('Invalid fixture.');
+
       render(
         <PharoButton variant={variant} className="consumer-action">
           A named action
         </PharoButton>,
       );
+
       expect(screen.getByRole('button', { name: 'A named action' })).toHaveClass('consumer-action');
     },
   );
@@ -39,10 +45,14 @@ describe('PharoButton', () => {
       </PharoButton>,
     );
     const button = screen.getByRole('button', { name: 'Ready action' });
+
     await user.pointer({ target: button, keys: '[MouseLeft>]' });
+
     expect(button).toHaveAccessibleName('Pressed action');
     expect(button).toHaveClass('consumer-pressed');
+
     await user.pointer('[/MouseLeft]');
+
     expect(button).toHaveAccessibleName('Ready action');
   });
 
@@ -59,8 +69,10 @@ describe('PharoButton', () => {
         </PharoButton>
       </>,
     );
+
     await user.click(screen.getByRole('button', { name: 'Disabled' }));
     await user.click(screen.getByRole('button', { name: 'Pending' }));
+
     expect(screen.getByRole('button', { name: 'Disabled' })).toBeDisabled();
     expect(onPress).not.toHaveBeenCalled();
   });

@@ -3,19 +3,27 @@ import { utcFormat } from 'd3-time-format';
 import type { ChartInspectionRow, ChartRecords, PharoChartPoint, PharoChartSeries } from '../types';
 
 const dateLimit = 8_640_000_000_000_000;
+
 const appearances = new Set(['primary', 'secondary', 'tertiary']);
+
 const pointInsertion = bisector<PharoChartPoint, number>((point) => point.x).left;
+
 const utcDate = utcFormat('%Y-%m-%d');
+
 const shortDate = utcFormat('%b %-d');
+
 const shortDateWithYear = utcFormat('%b %-d, %Y');
 
 /** Validate and copy actual records independently of any plot size or numeric domain. */
 export function prepareChartRecords(series: readonly PharoChartSeries[]): ChartRecords {
   const invalid: ChartRecords = { kind: 'invalid', message: 'Chart data is invalid.' };
+
   if (!Array.isArray(series) || series.length > 3) return invalid;
+
   const ids = new Set<string>();
   const explicitAppearances = new Set<string>();
   const ordered: PharoChartSeries[] = [];
+
   for (const item of series) {
     if (
       !item ||
@@ -27,14 +35,19 @@ export function prepareChartRecords(series: readonly PharoChartSeries[]): ChartR
       !Array.isArray(item.points)
     )
       return invalid;
+
     ids.add(item.id);
+
     if (item.appearance !== undefined) {
       if (!appearances.has(item.appearance) || explicitAppearances.has(item.appearance))
         return invalid;
+
       explicitAppearances.add(item.appearance);
     }
+
     const timestamps = new Set<number>();
     const points: PharoChartPoint[] = [];
+
     for (const point of item.points) {
       if (
         !point ||
@@ -44,9 +57,11 @@ export function prepareChartRecords(series: readonly PharoChartSeries[]): ChartR
         timestamps.has(point.x)
       )
         return invalid;
+
       timestamps.add(point.x);
       points.push({ x: point.x, y: point.y });
     }
+
     points.sort((first, second) => first.x - second.x);
     ordered.push({
       id: item.id,
@@ -55,6 +70,7 @@ export function prepareChartRecords(series: readonly PharoChartSeries[]): ChartR
       ...(item.appearance === undefined ? {} : { appearance: item.appearance }),
     });
   }
+
   return { kind: 'ready', series: ordered };
 }
 
@@ -74,8 +90,11 @@ export function inspectTimestamp(
     const index = pointInsertion(item.points, timestamp);
     const point = item.points[index];
     const identity = { id: item.id, label: item.label };
+
     if (!point || point.x !== timestamp) return { ...identity, kind: 'absent', value: null };
+
     if (point.y === null) return { ...identity, kind: 'missing', value: null };
+
     return { ...identity, kind: 'available', value: point.y };
   });
 }
@@ -84,6 +103,7 @@ export function inspectTimestamp(
 export function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
   const year = date.getUTCFullYear();
+
   return year < 0 || year > 9999 ? (date.toISOString().split('T')[0] ?? '') : utcDate(date);
 }
 
@@ -91,7 +111,9 @@ export function formatDate(timestamp: number): string {
 export function formatAxisDate(timestamp: number, includeYear = false): string {
   const date = new Date(timestamp);
   const year = date.getUTCFullYear();
+
   if (year < 0 || year > 9999) return formatDate(timestamp);
+
   return (includeYear ? shortDateWithYear : shortDate)(date);
 }
 

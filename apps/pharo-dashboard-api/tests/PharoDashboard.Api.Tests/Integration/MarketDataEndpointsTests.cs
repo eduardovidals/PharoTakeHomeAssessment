@@ -22,8 +22,11 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
     {
         using var client = application.CreateClient();
         var body = await GetJson(client, "/api/instruments");
+
         Assert.Equal(JsonValueKind.Array, body.ValueKind);
+
         var tickers = body.EnumerateArray().Select(value => value.GetString()).ToArray();
+
         Assert.Equal(200, tickers.Length);
         Assert.Equal(200, tickers.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(ReadExpectedStatistics().Select(item => item.Ticker).Order(StringComparer.Ordinal), tickers);
@@ -36,11 +39,14 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
     public async Task PricesAndStatisticsMatchSourceObservationsAndIndependentConstants(string ticker)
     {
         using var client = application.CreateClient();
+
         var prices = await GetJson(client, $"/api/prices/{ticker}");
         var expectedPrices = ReadSourcePrices(ticker);
+
         Assert.Equal(JsonValueKind.Array, prices.ValueKind);
         Assert.Equal(30, prices.GetArrayLength());
         Assert.Equal(expectedPrices.Count, prices.GetArrayLength());
+
         for (var index = 0; index < expectedPrices.Count; index++)
         {
             Assert.Equal(new[] { "date", "price" }, PropertyNames(prices[index]));
@@ -49,6 +55,7 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
         }
 
         var statistics = await GetJson(client, $"/api/prices/{ticker}/stats");
+
         Assert.Equal(new[] { "dailyVolatilityPercent", "maxDrawdownPercent", "totalReturnPercent" }, PropertyNames(statistics));
         var expected = Assert.Single(ReadExpectedStatistics(), item => item.Ticker == ticker);
         Close(expected.TotalReturnPercent, statistics.GetProperty("totalReturnPercent").GetDouble());
@@ -63,6 +70,7 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
     public async Task BothTickerRoutesNormalizeCaseAndSurroundingWhitespace(string ticker)
     {
         using var client = application.CreateClient();
+
         foreach (var suffix in new[] { "", "/stats" })
         {
             var canonical = await GetBody(client, "/api/prices/TICK0001" + suffix);
@@ -74,6 +82,7 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
     public async Task UnrelatedQueryParametersDoNotChangeAnyResource()
     {
         using var client = application.CreateClient();
+
         foreach (var path in new[] { "/api/instruments", "/api/prices/TICK0001", "/api/prices/TICK0001/stats" })
         {
             var baseline = await GetBody(client, path);
@@ -89,6 +98,7 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
             .SelectMany(ticker => new[] { $"/api/prices/{ticker}", $"/api/prices/{ticker}/stats" })
             .Append("/api/instruments").ToArray();
         var baselines = new Dictionary<string, string>(StringComparer.Ordinal);
+
         foreach (var path in paths) baselines.Add(path, await GetBody(client, path));
 
         await Task.WhenAll(Enumerable.Range(0, 8).SelectMany(_ => paths.Select(async path =>
@@ -104,14 +114,17 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
         var directory = Directory.CreateTempSubdirectory("pharo-http-data-");
         var dataPath = Path.Combine(directory.FullName, "market.csv");
         File.WriteAllText(dataPath, "date,ticker,price\n2026-06-23,ONE,100\n2026-06-23,TWO,100\n2026-06-24,TWO,80\n");
+
         try
         {
             var loads = 0;
             var precomputations = 0;
+
             using var shortApplication = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             {
                 builder.ConfigureAppConfiguration((_, configuration) =>
                     configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["MarketData:Path"] = dataPath }));
+
                 builder.ConfigureTestServices(services =>
                 {
                     CountSingletonCreation<MarketDataStore>(services, () => Interlocked.Increment(ref loads));
@@ -119,9 +132,11 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
                 });
             });
             using var client = shortApplication.CreateClient();
+
             // The real host must initialize both services before its first HTTP request.
             Assert.Equal(1, Volatile.Read(ref loads));
             Assert.Equal(1, Volatile.Read(ref precomputations));
+
             var originalService = shortApplication.Services.GetRequiredService<PricesService>();
             File.Delete(dataPath);
 
@@ -129,14 +144,17 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
             {
                 var instruments = await GetJson(client, "/api/instruments");
                 Assert.Equal(new[] { "ONE", "TWO" }, instruments.EnumerateArray().Select(value => value.GetString()));
+
                 var prices = await GetJson(client, $"/api/prices/{ticker}");
                 Assert.Equal(expectedCount, prices.GetArrayLength());
                 Assert.Equal(100m, prices[0].GetProperty("price").GetDecimal());
                 if (expectedCount == 2) Assert.Equal(80m, prices[1].GetProperty("price").GetDecimal());
+
                 var statistics = await GetJson(client, $"/api/prices/{ticker}/stats");
                 Assert.Equal(JsonValueKind.Null, statistics.GetProperty("dailyVolatilityPercent").ValueKind);
                 Close(totalReturn, statistics.GetProperty("totalReturnPercent").GetDouble());
                 Close(drawdown, statistics.GetProperty("maxDrawdownPercent").GetDouble());
+
                 using var scope = shortApplication.Services.CreateScope();
                 Assert.Same(originalService, scope.ServiceProvider.GetRequiredService<PricesService>());
             }));
@@ -154,8 +172,10 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
     {
         var original = Assert.Single(services, service => service.ServiceType == typeof(T));
         Assert.Equal(ServiceLifetime.Singleton, original.Lifetime);
+
         var create = original.ImplementationFactory ?? (provider => ActivatorUtilities.CreateInstance(provider,
             original.ImplementationType ?? throw new InvalidOperationException("Expected a startup-created singleton.")));
+
         services.RemoveAll<T>();
         services.AddSingleton(provider =>
         {
@@ -167,14 +187,17 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
     private static async Task<string> GetBody(HttpClient client, string path)
     {
         using var response = await client.GetAsync(path);
+
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+
         return await response.Content.ReadAsStringAsync();
     }
 
     private static async Task<JsonElement> GetJson(HttpClient client, string path)
     {
         using var document = JsonDocument.Parse(await GetBody(client, path));
+
         return document.RootElement.Clone();
     }
 
@@ -186,15 +209,19 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
         // Decode the supplied source directly rather than deriving expected HTTP rows from the store.
         using var reader = File.OpenText(Path.Combine(AppContext.BaseDirectory, "Data", "market_data.csv"));
         using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+
         Assert.True(csv.Read());
         csv.ReadHeader();
+
         var prices = new List<SourcePrice>();
+
         while (csv.Read())
         {
             if (csv.GetField("ticker") == ticker)
                 prices.Add(new SourcePrice(csv.GetField("date") ?? throw new InvalidDataException("Missing source date."),
                     csv.GetField<decimal>("price")));
         }
+
         return prices.OrderBy(point => point.Date, StringComparer.Ordinal).ToList();
     }
 
@@ -210,5 +237,6 @@ public sealed class MarketDataEndpointsTests(WebApplicationFactory<Program> appl
     }
 
     private sealed record SourcePrice(string Date, decimal Price);
+
     private sealed record ExpectedStatistics(string Ticker, double TotalReturnPercent, double DailyVolatilityPercent, double MaxDrawdownPercent);
 }

@@ -36,6 +36,7 @@ function deferredNavigation() {
 
 async function mount(initial = '/') {
   const app = await renderApp({ initialEntries: [initial] });
+
   const hook = renderHook(() => useDashboardActions(app.router));
   return { ...app, ...hook };
 }
@@ -51,6 +52,7 @@ describe('one serialized route intention queue', () => {
       await release.promise;
       return navigate(options);
     });
+
     await act(async () => {
       const first = app.result.current({ type: 'add', ticker: 'AAA' });
       const second = app.result.current({ type: 'add', ticker: 'BBB' });
@@ -67,6 +69,7 @@ describe('one serialized route intention queue', () => {
         'committed',
       ]);
     });
+
     expect(validateDashboardSearch(app.router.latestLocation.search)).toEqual({
       tickers: 'AAA,BBB',
       view: 'price',
@@ -83,11 +86,13 @@ describe('one serialized route intention queue', () => {
         app.result.current({ type: 'add', ticker: 'AAA' }),
         app.result.current({ type: 'add', ticker: 'BBB' }),
       ]);
+
       expect(results).toEqual([
         { status: 'rejected', reason: failure },
         { status: 'fulfilled', value: 'committed' },
       ]);
     });
+
     expect(validateDashboardSearch(app.router.latestLocation.search)).toEqual({ tickers: 'BBB' });
   });
 
@@ -105,6 +110,7 @@ describe('one serialized route intention queue', () => {
         ]),
       ).toEqual(['unchanged', 'committed']);
     });
+
     expect(validateDashboardSearch(app.router.latestLocation.search)).toEqual({
       tickers: 'CCC,BBB',
       view: 'performance',
@@ -113,49 +119,62 @@ describe('one serialized route intention queue', () => {
 
   it('retains explicit mode through history and last removal, and Clear removes both fields', async () => {
     const app = await mount('/?tickers=AAA,BBB&view=price');
+
     expect(getEffectiveChartMode(validateDashboardSearch(app.router.latestLocation.search))).toBe(
       'price',
     );
+
     await act(async () => {
       await app.result.current({ type: 'set-view', view: 'performance' });
       await app.result.current({ type: 'remove', tickers: ['AAA', 'BBB'] });
     });
+
     expect(validateDashboardSearch(app.router.latestLocation.search)).toEqual({
       view: 'performance',
     });
+
     await act(async () => {
       await app.result.current({ type: 'clear' });
     });
+
     expect(app.history.location.search).toBe('');
+
     await act(async () => {
       app.history.back();
     });
+
     await waitFor(() =>
       expect(validateDashboardSearch(app.router.latestLocation.search)).toEqual({
         view: 'performance',
       }),
     );
+
     await act(async () => {
       app.history.back();
     });
+
     await waitFor(() =>
       expect(validateDashboardSearch(app.router.latestLocation.search)).toEqual({
         tickers: 'AAA,BBB',
         view: 'performance',
       }),
     );
+
     await act(async () => {
       app.history.back();
     });
+
     await waitFor(() =>
       expect(validateDashboardSearch(app.router.latestLocation.search)).toEqual({
         tickers: 'AAA,BBB',
         view: 'price',
       }),
     );
+
     await act(async () => {
       app.history.forward();
     });
+
     await waitFor(() =>
       expect(validateDashboardSearch(app.router.latestLocation.search).view).toBe('performance'),
     );
@@ -164,12 +183,14 @@ describe('one serialized route intention queue', () => {
   it('does not navigate for duplicates, fourth selections, unknown removals or unchanged views', async () => {
     const app = await mount('/?tickers=AAA,BBB,CCC&view=price');
     const navigate = vi.spyOn(app.router, 'navigate');
+
     await act(async () => {
       expect(await app.result.current({ type: 'add', ticker: 'AAA' })).toBe('unchanged');
       expect(await app.result.current({ type: 'add', ticker: 'DDD' })).toBe('limit');
       expect(await app.result.current({ type: 'remove', tickers: ['UNKNOWN'] })).toBe('unchanged');
       expect(await app.result.current({ type: 'set-view', view: 'price' })).toBe('unchanged');
     });
+
     expect(navigate).not.toHaveBeenCalled();
   });
 });

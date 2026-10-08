@@ -38,6 +38,7 @@ const meta = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const table = canvas.getByRole('table', { name: args.caption });
+
     await expect(table).toBeVisible();
     await expect(canvas.getByRole('region', { name: args.caption })).toHaveAttribute(
       'tabindex',
@@ -46,18 +47,22 @@ const meta = {
     await expect(within(table).getAllByRole('columnheader')).toHaveLength(args.series.length + 1);
   },
 } satisfies Meta<typeof PharoChartDataTableDocs>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
 export const RecordedRows: Story = {
   play: async (context) => {
     await meta.play(context);
+
     await expect(within(context.canvasElement).getAllByRole('rowheader')).toHaveLength(3);
     await expect(
       within(context.canvasElement).getByRole('cell', { name: '1.23456789' }),
     ).toBeVisible();
   },
 };
+
 export const MissingObservations: Story = {
   args: {
     series: [
@@ -66,20 +71,24 @@ export const MissingObservations: Story = {
   },
   play: async (context) => {
     await meta.play(context);
+
     await expect(
       within(context.canvasElement).getByRole('cell', { name: 'Unavailable' }),
     ).toBeVisible();
   },
 };
+
 export const Empty: Story = {
   args: { series: [] },
   play: async (context) => {
     await meta.play(context);
+
     await expect(
       within(context.canvasElement).getByText('No recorded observations.'),
     ).toBeVisible();
   },
 };
+
 export const LongLabels: Story = {
   args: {
     series: [

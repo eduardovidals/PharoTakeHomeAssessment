@@ -6,5 +6,7 @@ const result = spawnSync('dotnet', process.argv.slice(2), {
   stdio: 'inherit',
   env: dotnetEnvironment(),
 });
+
 if (result.error) console.error(result.error.message);
+
 process.exit(result.status ?? 1);

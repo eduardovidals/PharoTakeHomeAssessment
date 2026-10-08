@@ -57,12 +57,15 @@ export function PharoMultiComboBox<Item extends object>(props: Props<Item>) {
     selectionActions: actions,
     renderItem,
   } = props;
+
   validateSelectionLimit(maxSelected);
+
   const fieldRef = useRef<HTMLInputElement>(null);
   useImperativeHandle<HTMLInputElement | null, HTMLInputElement | null>(
     inputRef,
     () => fieldRef.current,
   );
+
   const { changeInput, perform, failed, limited } = useSelectionActions({
     selectedKeys,
     inputValue,
@@ -74,10 +77,12 @@ export function PharoMultiComboBox<Item extends object>(props: Props<Item>) {
     inputRef: fieldRef,
   });
   const atLimit = maxSelected !== undefined && selectedKeys.length >= maxSelected;
+
   const handleSelection = (keys: Key[]) => {
     for (const action of selectionActions(selectedKeys, keys, items.map(itemKey)))
       void perform(action);
   };
+
   const handleRemove = (keys: readonly Key[]) => perform({ kind: 'remove', keys });
 
   return (

@@ -8,6 +8,7 @@ import { canonicalTickerSchema, instrumentsSchema, normalizeTicker } from './sch
 import type { Instruments } from './types';
 
 const endpoint = 'http://localhost/api/instruments';
+
 const client = () => createApiClient({ baseURL: 'http://localhost/api' });
 
 test.each([
@@ -52,11 +53,14 @@ test('retrieves the exact sorted instruments route and readonly data', async () 
     }),
   );
   const result = await getInstruments(client());
+
   expect(result).toEqual(['123', 'ABC.1', 'TRUE']);
   expect(requests).toBe(1);
   expect(Object.isFrozen(result)).toBe(true);
+
   expectTypeOf(result).toEqualTypeOf<Instruments>();
   expectTypeOf(result).toEqualTypeOf<readonly string[]>();
+
   expect(instrumentsKey).toEqual(['instruments']);
 });
 
@@ -64,6 +68,7 @@ test.for([['ABC', 'abc'], ['ABC', 'ABC'], ['B', 'A'], [' ABC'], ['$ABC'], { tick
   'rejects incorrect instrument response %#',
   async (payload) => {
     server.use(http.get(endpoint, () => HttpResponse.json(payload)));
+
     await expect(getInstruments(client())).rejects.toMatchObject({ kind: 'invalid-response' });
   },
 );
@@ -83,6 +88,7 @@ test('forwards an already aborted signal without requesting the collection', asy
   );
   const controller = new AbortController();
   controller.abort();
+
   await expect(getInstruments(client(), controller.signal)).rejects.toEqual({
     kind: 'cancelled',
     message: 'Request cancelled.',

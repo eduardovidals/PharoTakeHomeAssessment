@@ -52,6 +52,8 @@ test('mounts its file route with the router cache and isolates application insta
   expect(second.queryClient.getQueryData(['isolation-witness'])).toBeUndefined();
 
   await first.dispose();
+
   expect(second.view.getByRole('heading', { name: 'Instrument Analytics' })).toBeVisible();
+
   await second.dispose();
 });

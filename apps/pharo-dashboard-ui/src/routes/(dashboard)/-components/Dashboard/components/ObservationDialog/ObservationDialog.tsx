@@ -20,7 +20,9 @@ import { getObservationWindowGroups } from './utils';
  */
 export function ObservationDialog(props: Props) {
   const { triggerId, series } = props;
+
   const [isOpen, setIsOpen] = useState(false);
+
   const windows = getObservationWindowGroups(series);
 
   return (

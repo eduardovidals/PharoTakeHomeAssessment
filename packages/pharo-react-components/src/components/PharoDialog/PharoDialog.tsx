@@ -28,6 +28,7 @@ export function PharoDialog(props: Props) {
     isDismissable = true,
     className,
   } = props;
+
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <PharoButton id={triggerId} variant="secondary" isDisabled={triggerDisabled}>

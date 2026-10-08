@@ -39,10 +39,13 @@ describe('the comma-separated selection contract', () => {
   ])('validates %s without another selection owner', (raw, tickers, noticeKind) => {
     if (typeof raw !== 'string') throw new Error('Expected raw URL fixture');
     const search = validateDashboardSearch(parseDashboardSearch(raw));
+
     expect(getSelectedTickers(search)).toEqual(tickers);
     expect(getSelectionNotice(raw)?.kind).toBe(noticeKind);
+
     const canonical = stringifyDashboardSearch({ ...search });
     const reparsed = validateDashboardSearch(parseDashboardSearch(canonical));
+
     expect(reparsed).toEqual(search);
     expect(stringifyDashboardSearch({ ...reparsed })).toBe(canonical);
     expect(getSelectionNotice(canonical)).toBeUndefined();
@@ -73,6 +76,7 @@ describe('the comma-separated selection contract', () => {
 
   test('adds, removes and clears without mutation, reordering, silent eviction or fake defaults', () => {
     const original = Object.freeze({ tickers: 'AAA,BBB' });
+
     expect(addSelectedTicker(original, ' ccc ')).toEqual({
       search: { tickers: 'AAA,BBB,CCC' },
       outcome: 'added',
@@ -81,7 +85,9 @@ describe('the comma-separated selection contract', () => {
       search: original,
       outcome: 'already-selected',
     });
+
     const full = Object.freeze({ tickers: 'AAA,BBB,CCC' });
+
     expect(addSelectedTicker(full, 'DDD')).toEqual({ search: full, outcome: 'limit' });
     expect(removeSelectedTicker(full, ' bbb ')).toEqual({ tickers: 'AAA,CCC' });
     expect(removeSelectedTicker({ tickers: 'AAA' }, 'AAA')).toEqual({});
@@ -118,10 +124,13 @@ describe('independent explicit chart view and route intentions', () => {
   ])('validates and round-trips %s independently', (raw, expected, mode, notice) => {
     if (typeof raw !== 'string') throw new Error('Expected raw URL fixture.');
     const search = validateDashboardSearch(parseDashboardSearch(raw));
+
     expect(search).toEqual(expected);
     expect(getEffectiveChartMode(search)).toBe(mode);
     expect(getSelectionNotice(raw)?.kind).toBe(notice);
+
     const encoded = stringifyDashboardSearch({ ...search });
+
     expect(validateDashboardSearch(parseDashboardSearch(encoded))).toEqual(search);
     expect(getSelectionNotice(encoded)).toBeUndefined();
   });
@@ -166,6 +175,7 @@ describe('independent explicit chart view and route intentions', () => {
     (view) => {
       const initial = Object.freeze({ tickers: 'AAA', view });
       const added = addSelectedTicker(initial, 'BBB');
+
       expect(added).toEqual({ search: { tickers: 'AAA,BBB', view }, outcome: 'added' });
       expect(removeSelectedTicker(added.search, 'AAA')).toEqual({ tickers: 'BBB', view });
       expect(removeSelectedTicker(initial, 'AAA')).toEqual({ view });
@@ -189,7 +199,9 @@ describe('independent explicit chart view and route intentions', () => {
       search: { view: 'price' },
       outcome: 'committed',
     });
+
     const full = Object.freeze({ tickers: 'AAA,BBB,CCC', view: 'price' as const });
+
     expect(applyDashboardAction(full, { type: 'set-view', view: 'price' })).toEqual({
       search: full,
       outcome: 'unchanged',

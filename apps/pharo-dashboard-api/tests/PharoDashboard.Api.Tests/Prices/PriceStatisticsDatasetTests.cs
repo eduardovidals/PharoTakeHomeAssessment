@@ -16,16 +16,21 @@ public sealed class PriceStatisticsDatasetTests
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "price-statistics.expected.json");
         var fixture = JsonSerializer.Deserialize<ExpectedStatistics[]>(File.ReadAllText(fixturePath),
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
         Assert.NotNull(fixture);
         Assert.Equal(200, fixture.Length);
         Assert.Equal(200, fixture.Select(item => item.Ticker).Distinct(StringComparer.Ordinal).Count());
 
         var store = CsvMarketDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "Data", "market_data.csv"));
+
         Assert.Equal(store.Tickers, fixture.Select(item => item.Ticker).Order(StringComparer.Ordinal));
+
         foreach (var expected in fixture)
         {
             Assert.True(store.TryGetPrices(expected.Ticker, out var prices), expected.Ticker);
+
             var actual = PriceStatisticsCalculator.Calculate(prices);
+
             Close(expected.Ticker, nameof(actual.TotalReturnPercent), expected.TotalReturnPercent, actual.TotalReturnPercent);
             Close(expected.Ticker, nameof(actual.DailyVolatilityPercent),
                 Assert.IsType<double>(expected.DailyVolatilityPercent), Assert.IsType<double>(actual.DailyVolatilityPercent));

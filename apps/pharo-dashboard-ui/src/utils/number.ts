@@ -1,17 +1,21 @@
 type NumericValue = number | null | undefined;
+
 const fixed = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
 const signed = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
   signDisplay: 'exceptZero',
 });
+
 const axis = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 17 });
 
 function displayValue(value: NumericValue): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+
   return Math.abs(value) < 0.005 ? 0 : value;
 }
 

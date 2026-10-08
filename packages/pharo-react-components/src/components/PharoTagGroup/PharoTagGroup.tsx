@@ -16,8 +16,10 @@ import type { PharoTagGroupProps as Props } from './types';
 export function PharoTagGroup(props: Props) {
   const { label, items, onRemove, removeLabel, isDisabled, className } = props;
   const groupId = useId();
+
   const handleRemove = async (keys: Set<Key>) => {
     if (isDisabled || !onRemove) return;
+
     try {
       await onRemove([...keys]);
     } catch {
@@ -39,6 +41,7 @@ export function PharoTagGroup(props: Props) {
       >
         {(item) => {
           const removeId = `${groupId}-remove-${typeof item.id}-${encodeURIComponent(String(item.id))}`;
+
           return (
             <Tag
               id={item.id}

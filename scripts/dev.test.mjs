@@ -11,8 +11,10 @@ async function listener(port = 0) {
   const server = createServer();
   server.listen(port, '127.0.0.1');
   await once(server, 'listening');
+
   const address = server.address();
   assert(address && typeof address === 'object');
+
   return {
     port: address.port,
     close: () => new Promise((resolve) => server.close(resolve)),
@@ -23,6 +25,7 @@ async function listener(port = 0) {
 async function availablePorts() {
   const api = await listener();
   let ui;
+
   try {
     ui = await listener();
     return { PHARO_API_PORT: String(api.port), PHARO_UI_PORT: String(ui.port) };
@@ -47,10 +50,12 @@ test('validates distinct usable loopback ports', () => {
 test('an already cancelled launch does not start a listener', async () => {
   const environment = await availablePorts();
   const reason = new Error('Cancelled before startup');
+
   await assert.rejects(
     startDashboard({ preview: true, environment, signal: AbortSignal.abort(reason) }),
     (error) => error === reason,
   );
+
   await assertReleased(environment);
 });
 
@@ -58,36 +63,43 @@ test('either occupied port blocks startup and leaves the unrelated owner alive',
   for (const variable of ['PHARO_API_PORT', 'PHARO_UI_PORT']) {
     const environment = await availablePorts();
     const occupied = await listener(Number(environment[variable]));
+
     try {
       await assert.rejects(startDashboard({ preview: true, environment }), /already in use/);
       assert.equal(occupied.server.listening, true);
     } finally {
       await occupied.close();
     }
+
     await assertReleased(environment);
   }
 });
 
 test('a permission error is not reported as another server', async (context) => {
   const denied = Object.assign(new Error('Permission denied'), { code: 'EPERM' });
+
   context.mock.method(Server.prototype, 'listen', function () {
     queueMicrotask(() => this.emit('error', denied));
     return this;
   });
+
   await assert.rejects(startDashboard(), (error) => {
     assert.match(error.message, /EPERM.*permissions/);
     assert.doesNotMatch(error.message, /already in use|existing process/);
     assert.strictEqual(error.cause, denied);
+
     return true;
   });
 });
 
 test('missing dotnet fails before either host starts', async () => {
   const environment = await availablePorts();
+
   await assert.rejects(
     startDashboard({ environment: { ...environment, PATH: '', Path: '' } }),
     /\.NET SDK .* required.*PATH/,
   );
+
   await assertReleased(environment);
 });
 
@@ -97,6 +109,7 @@ test(
   async () => {
     const environment = await availablePorts();
     const host = await startDashboard({ preview: true, environment, stdio: 'ignore' });
+
     try {
       const readiness = await fetch(host.uiUrl + '/health');
       assert.deepEqual(await readiness.json(), { status: 'ready' });
@@ -104,6 +117,7 @@ test(
         await (await fetch(host.uiUrl)).text(),
         /<title>Pharo \| Instrument Analytics<\/title>/,
       );
+
       const duplicate = spawnSync(
         process.execPath,
         [
@@ -116,6 +130,7 @@ test(
         ],
         { cwd: rootDirectory, encoding: 'utf8', timeout: 10000 },
       );
+
       assert.equal(duplicate.status, 1, duplicate.stderr);
       assert.match(duplicate.stderr, /already in use.*existing process was left running/);
       assert.deepEqual(await (await fetch(host.uiUrl + '/health')).json(), { status: 'ready' });
@@ -124,6 +139,7 @@ test(
       assert.strictEqual(host.stop(), firstStop);
       await firstStop;
     }
+
     await assertReleased(environment);
   },
 );
@@ -133,6 +149,7 @@ test(
   { timeout: 60000, skip: process.platform === 'win32' },
   async () => {
     const environment = await availablePorts();
+
     const child = spawn(
       process.execPath,
       [
@@ -145,27 +162,35 @@ test(
       ],
       { cwd: rootDirectory, stdio: ['ignore', 'pipe', 'pipe'] },
     );
+
     const exited = once(child, 'close');
     let output = '';
     child.stdout.on('data', (data) => (output += data));
     child.stderr.on('data', (data) => (output += data));
+
     try {
       const deadline = Date.now() + 30000;
+
       while (!output.includes(`UI:  http://127.0.0.1:${environment.PHARO_UI_PORT}`)) {
         assert.equal(child.exitCode, null, output);
         assert(Date.now() < deadline, output);
         await delay(50);
       }
+
       child.kill('SIGHUP');
       const [code] = await exited;
+
       assert.equal(code, 0, output);
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
       await exited;
     }
+
     await assertReleased(environment);
+
     const restarted = await startDashboard({ preview: true, environment, stdio: 'ignore' });
     await restarted.stop();
+
     await assertReleased(environment);
   },
 );
@@ -176,6 +201,7 @@ test(
   async () => {
     const environment = await availablePorts();
     const host = await startDashboard({ preview: false, environment, stdio: 'ignore' });
+
     try {
       const readiness = await fetch(host.uiUrl + '/health');
       assert.deepEqual(await readiness.json(), { status: 'ready' });
@@ -186,6 +212,7 @@ test(
     } finally {
       await host.stop();
     }
+
     await assertReleased(environment);
   },
 );
@@ -203,16 +230,20 @@ test(
     let rejectedUiProbe = false;
     let repeatedApiProbe = false;
     let host;
+
     const probe = context.mock.method(globalThis, 'fetch', async (url, options) => {
       if (url === apiUrl && apiReady) {
         repeatedApiProbe = true;
         throw new Error('The already-ready API need not pass again beside a later UI probe.');
       }
+
       if (url === uiUrl && !apiReady) {
         throw new Error('Hold UI readiness until the API has passed independently.');
       }
+
       const response = await nativeFetch(url, options);
       if (url === apiUrl && response.ok) apiReady = true;
+
       if (response.body) {
         const cancel = response.body.cancel.bind(response.body);
         context.mock.method(response.body, 'cancel', async () => {
@@ -220,18 +251,23 @@ test(
           await cancel();
         });
       }
+
       if (url === uiUrl && response.ok && !rejectedUiProbe) {
         rejectedUiProbe = true;
         // Keep the real response stream but make one completed probe unsuccessful.
         context.mock.getter(response, 'ok', () => false);
       }
+
       return response;
     });
+
     try {
       host = await startDashboard({ preview: true, environment, stdio: 'ignore' });
+
       assert.equal(repeatedApiProbe, false);
       assert.equal(rejectedUiProbe, true);
       assert.deepEqual(released, [apiUrl, uiUrl, uiUrl]);
+
       probe.mock.restore();
       assert.deepEqual(await (await nativeFetch(host.uiUrl + '/health')).json(), {
         status: 'ready',
@@ -240,6 +276,7 @@ test(
       probe.mock.restore();
       await host?.stop();
     }
+
     await assertReleased(environment);
   },
 );
@@ -253,12 +290,14 @@ test('cancellation after readiness retires both actual hosts', { timeout: 45000 
     stdio: 'ignore',
     signal: cancellation.signal,
   });
+
   try {
     cancellation.abort(new Error('Requested shutdown'));
     await host.exited;
   } finally {
     await host.stop();
   }
+
   await assertReleased(environment);
 });
 
@@ -276,12 +315,14 @@ test(
       signal: cancellation.signal,
     });
     const abort = setTimeout(() => cancellation.abort(reason), 10);
+
     try {
       // If unusually fast hosts are ready already, the same signal still owns cleanup.
       const host = await starting.catch((error) => {
         assert.strictEqual(error, reason);
         return undefined;
       });
+
       if (host) {
         cancellation.abort(reason);
         await host.stop();
@@ -289,6 +330,7 @@ test(
     } finally {
       clearTimeout(abort);
     }
+
     await assertReleased(environment);
   },
 );
@@ -300,12 +342,14 @@ test(
     const environment = await availablePorts();
     const unrelated = await listener();
     let host;
+
     try {
       host = await startDashboard({ preview: true, environment, stdio: 'ignore' });
       assert.equal(typeof host.processIds.ui, 'number');
       process.kill(host.processIds.ui, 'SIGTERM');
       await host.exited;
       await host.stop();
+
       await assertReleased(environment);
       assert.equal(unrelated.server.listening, true);
     } finally {
@@ -326,14 +370,17 @@ test(
     const originalKill = process.kill;
     const attempts = [];
     let rejectedTerm = false;
+
     const kill = context.mock.method(process, 'kill', (pid, signal) => {
       attempts.push({ pid, signal });
       if (pid === -host.processIds.api && signal === 'SIGTERM' && !rejectedTerm) {
         rejectedTerm = true;
         throw Object.assign(new Error('Injected termination failure'), { code: 'EPERM' });
       }
+
       return originalKill.call(process, pid, signal);
     });
+
     try {
       await assert.rejects(host.stop(), AggregateError);
       assert(
@@ -346,6 +393,7 @@ test(
       kill.mock.restore();
       await host.stop().catch(() => {});
     }
+
     await assertReleased(environment);
   },
 );

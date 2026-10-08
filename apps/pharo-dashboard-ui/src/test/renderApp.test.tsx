@@ -12,6 +12,7 @@ beforeEach(() => {
 test('awaits query cancellation, clears its cache, and leaves an unrelated view mounted', async () => {
   const unrelated = render(<p>Unrelated application</p>);
   const app = await renderApp();
+
   let started = false;
   let aborted = false;
   const work = app.queryClient
@@ -33,8 +34,11 @@ test('awaits query cancellation, clears its cache, and leaves an unrelated view 
     .catch((error: unknown) => error);
 
   expect(started).toBe(true);
+
   const disposal = app.dispose();
+
   expect(app.dispose()).toBe(disposal);
+
   await disposal;
   await work;
 
@@ -42,11 +46,13 @@ test('awaits query cancellation, clears its cache, and leaves an unrelated view 
   expect(app.queryClient.getQueryCache().getAll()).toHaveLength(0);
   expect(app.container.isConnected).toBe(false);
   expect(unrelated.getByText('Unrelated application')).toBeVisible();
+
   unrelated.unmount();
 });
 
 test('cleans a partially rendered graph when its real router wrapper throws', async () => {
   const unrelated = render(<p>Unrelated startup view</p>);
+
   const primaryError = new Error('Provider startup failed');
   let acquired: AppTest | undefined;
   function FailedWrapper(): never {
@@ -79,6 +85,7 @@ test('cleans a partially rendered graph when its real router wrapper throws', as
   expect(acquired.queryClient.getQueryCache().getAll()).toHaveLength(0);
   expect(acquired.container.isConnected).toBe(false);
   expect(unrelated.getByText('Unrelated startup view')).toBeVisible();
+
   unrelated.unmount();
 });
 
@@ -108,6 +115,7 @@ test('preserves the primary startup error together with cleanup failures', async
   }
   expect(rejection.cause).toBe(primaryError);
   expect(rejection.errors[0]).toBe(primaryError);
+
   const cleanupFailure: unknown = rejection.errors[1];
   if (!(cleanupFailure instanceof AggregateError)) {
     throw new Error('Expected the original cleanup failure group');
@@ -156,7 +164,9 @@ test('attempts every independent release once and shares the terminal cleanup fa
   });
 
   const disposal = app.dispose();
+
   expect(app.dispose()).toBe(disposal);
+
   let rejection: unknown;
   try {
     await disposal;
@@ -176,6 +186,7 @@ test('attempts every independent release once and shares the terminal cleanup fa
   expect(app.container.isConnected).toBe(false);
   expect(unrelated.getByText('Unrelated cleanup view')).toBeVisible();
   await expect(app.dispose()).rejects.toBe(rejection);
+
   unrelated.unmount();
 });
 
@@ -189,6 +200,7 @@ test('uses the setup-owned MSW interceptor with an actual QueryClient request', 
     }),
   );
   const app = await renderApp();
+
   const value = await app.queryClient.fetchQuery({
     queryKey: ['network-harness-witness', endpoint],
     queryFn: async ({ signal }) => {
@@ -199,8 +211,10 @@ test('uses the setup-owned MSW interceptor with an actual QueryClient request', 
       return response.text();
     },
   });
+
   expect(value).toBe('handled by the test server');
   expect(requests).toBe(1);
   expect(app.queryClient.getQueryData(['network-harness-witness', endpoint])).toBe(value);
+
   await app.dispose();
 });

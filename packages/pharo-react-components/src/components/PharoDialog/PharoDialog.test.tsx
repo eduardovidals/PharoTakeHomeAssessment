@@ -11,6 +11,7 @@ interface ControlledDialogProps {
 
 function ControlledDialog(props: ControlledDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+
   return (
     <PharoDialog
       triggerId="details-trigger"
@@ -34,14 +35,20 @@ describe('PharoDialog', () => {
     const onChange = vi.fn();
     render(<ControlledDialog onChange={onChange} />);
     const trigger = screen.getByRole('button', { name: 'View details' });
+
     expect(trigger).toHaveAttribute('id', 'details-trigger');
+
     await user.click(trigger);
+
     const dialog = await screen.findByRole('dialog', { name: 'Collection details' });
+
     expect(within(dialog).getByText('Content owned by the consumer.')).toBeVisible();
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus(),
     );
+
     await user.keyboard('{Escape}');
+
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(trigger).toHaveFocus());
     expect(onChange.mock.calls).toEqual([[true], [false]]);
@@ -50,8 +57,10 @@ describe('PharoDialog', () => {
   it('lets the visible close action update controlled open state', async () => {
     const user = userEvent.setup();
     render(<ControlledDialog onChange={vi.fn()} />);
+
     await user.click(screen.getByRole('button', { name: 'View details' }));
     await user.click(await screen.findByRole('button', { name: 'Close' }));
+
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -71,7 +80,9 @@ describe('PharoDialog', () => {
       </PharoDialog>,
     );
     const trigger = screen.getByRole('button', { name: 'Unavailable details' });
+
     await user.click(trigger);
+
     expect(trigger).toBeDisabled();
     expect(onOpenChange).not.toHaveBeenCalled();
   });

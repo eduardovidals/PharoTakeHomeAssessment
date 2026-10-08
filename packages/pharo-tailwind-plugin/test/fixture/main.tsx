@@ -3,6 +3,7 @@ import { Button, Dialog, DialogTrigger, Popover, ToggleButton } from 'react-aria
 import './styles.css';
 
 const root = document.getElementById('root');
+
 if (!root) throw new Error('Theme fixture root is missing.');
 
 const actionClasses =

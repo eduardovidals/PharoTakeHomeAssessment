@@ -10,12 +10,14 @@ export function useComparisonOverflow(): ComparisonOverflow {
   useEffect(() => {
     const scroll = scrollRef.current;
     const table = tableRef.current;
+
     if (!scroll || !table) return;
 
     const measure = () => setIsOverflowing(scroll.scrollWidth > scroll.clientWidth + 1);
     const observer = new ResizeObserver(measure);
     observer.observe(scroll);
     observer.observe(table);
+
     return () => observer.disconnect();
   }, []);
 

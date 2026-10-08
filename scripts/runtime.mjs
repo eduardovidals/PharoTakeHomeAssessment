@@ -3,6 +3,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 export const rootDirectory = path.resolve(import.meta.dirname, '..');
+
 const portSchema = z.coerce.number().int().min(1024).max(65535);
 
 /** Install and run browsers from the same cache, with an optional CI override. */
@@ -19,7 +20,9 @@ export function browserEnvironment() {
 export function runtimePorts(environment = process.env, preview = false) {
   const apiPort = portSchema.parse(environment.PHARO_API_PORT ?? 5080);
   const uiPort = portSchema.parse(environment.PHARO_UI_PORT ?? (preview ? 4173 : 5173));
+
   if (apiPort === uiPort) throw new Error('API and UI ports must differ.');
+
   return { apiPort, uiPort };
 }
 
@@ -27,6 +30,7 @@ export function runtimePorts(environment = process.env, preview = false) {
 export function dotnetEnvironment(environment = process.env) {
   const cache = path.join(rootDirectory, 'node_modules/.cache/dotnet');
   mkdirSync(cache, { recursive: true });
+
   return {
     ...environment,
     DOTNET_CLI_HOME: cache,

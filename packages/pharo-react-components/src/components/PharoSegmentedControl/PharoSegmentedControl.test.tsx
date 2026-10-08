@@ -9,10 +9,12 @@ const options = [
   { value: 'unavailable', label: 'Unavailable', isDisabled: true },
   { value: 'detail', label: 'Detail' },
 ] as const;
+
 type Choice = (typeof options)[number]['value'];
 
 function ControlledChoice() {
   const [value, setValue] = useState<Choice>('summary');
+
   return (
     <PharoSegmentedControl
       label="Presentation"
@@ -30,14 +32,21 @@ describe('PharoSegmentedControl', () => {
     const group = screen.getByRole('radiogroup', { name: 'Presentation' });
     const summary = within(group).getByRole('radio', { name: 'Summary' });
     const detail = within(group).getByRole('radio', { name: 'Detail' });
+
     expect(summary).toBeChecked();
+
     await user.tab();
+
     expect(summary).toHaveFocus();
+
     await user.keyboard('{ArrowRight}');
+
     expect(detail).toBeChecked();
     expect(detail).toHaveFocus();
     expect(summary).not.toBeChecked();
+
     await user.keyboard('{ArrowLeft}');
+
     expect(summary).toBeChecked();
     expect(within(group).getAllByRole('radio', { checked: true })).toHaveLength(1);
   });
@@ -53,9 +62,12 @@ describe('PharoSegmentedControl', () => {
         onChange={onChange}
       />,
     );
+
     await user.click(screen.getByRole('radio', { name: 'Detail' }));
+
     expect(onChange).toHaveBeenCalledWith('detail');
     expect(screen.getByRole('radio', { name: 'Summary' })).toBeChecked();
+
     rerender(
       <PharoSegmentedControl
         label="Presentation"
@@ -64,6 +76,7 @@ describe('PharoSegmentedControl', () => {
         onChange={onChange}
       />,
     );
+
     expect(screen.getByRole('radio', { name: 'Detail' })).toBeChecked();
   });
 
@@ -80,11 +93,15 @@ describe('PharoSegmentedControl', () => {
         className="gap-pharo-4"
       />,
     );
+
     expect(screen.getByRole('radiogroup')).toHaveClass('gap-pharo-4');
     expect(screen.getByRole('radiogroup')).not.toHaveClass('gap-pharo-2');
     expect(screen.getByRole('radio', { name: 'Summary' })).toBeChecked();
+
     for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
+
     await user.click(screen.getByRole('radio', { name: 'Detail' }));
+
     expect(onChange).not.toHaveBeenCalled();
   });
 });

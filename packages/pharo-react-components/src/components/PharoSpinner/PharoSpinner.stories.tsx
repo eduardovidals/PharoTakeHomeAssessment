@@ -22,18 +22,24 @@ const meta = {
     'aria-labelledby': { control: false, table: { disable: true } },
   },
 } satisfies Meta<typeof PharoSpinner>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const progress = within(canvasElement).getByRole('progressbar', { name: 'Loading' });
+
     await expect(progress).toBeVisible();
     await expect(progress).not.toHaveAttribute('aria-valuenow');
   },
 };
+
 export const Small: Story = { args: { size: 'sm' } };
+
 export const Updating: Story = { args: { label: 'Updating your preferences' } };
+
 export const LongLabel: Story = {
   args: { label: 'Loading the complete collection of presentation preferences' },
 };

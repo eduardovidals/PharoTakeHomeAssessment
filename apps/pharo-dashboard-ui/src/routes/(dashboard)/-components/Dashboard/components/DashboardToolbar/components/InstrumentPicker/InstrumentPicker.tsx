@@ -18,45 +18,62 @@ import type { InstrumentPickerProps as Props } from './types';
  */
 export function InstrumentPicker(props: Props) {
   const { apiClient, selectedTickers, appearances, onAction, inputRef: externalInputRef } = props;
+
   const instruments = useQuery(instrumentsQueryOptions(apiClient));
+
   const [query, setQuery] = useState('');
   const [navigationFailed, setNavigationFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
   useImperativeHandle<HTMLInputElement | null, HTMLInputElement | null>(
     externalInputRef,
     () => inputRef.current,
   );
   useInstrumentShortcut({ inputRef });
+
   const known = instruments.data ?? [];
   const items = rankInstruments(known, query);
+
   const listFailure = instruments.isError && instruments.error.kind !== 'cancelled';
+
   const handleInput = (value: string) => {
     setQuery(value);
     setNavigationFailed(false);
   };
+
   const handleSelection = async (selection: PharoSelectionAction) => {
     const action = toDashboardAction(selection, known);
     if (!action) return 'unchanged' as const;
+
     try {
       const outcome = await onAction(action);
+
       setNavigationFailed(false);
+
       return outcome;
     } catch (error) {
       setNavigationFailed(true);
+
       throw error;
     }
   };
+
   const handleClearSearch = () => {
     setQuery('');
+
     inputRef.current?.focus();
   };
+
   const handleRetry = () => {
     void instruments.refetch();
+
     inputRef.current?.focus();
   };
+
   const handleClearSelection = async () => {
     try {
       const outcome = await onAction({ type: 'clear' });
+
       setNavigationFailed(false);
       if (outcome !== 'limit') inputRef.current?.focus();
     } catch {

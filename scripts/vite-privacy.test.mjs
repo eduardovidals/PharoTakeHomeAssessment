@@ -8,6 +8,7 @@ import { createServer, normalizePath } from 'vite';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const ui = path.join(root, 'apps/pharo-dashboard-ui');
+
 const protectedPaths = [
   '.env',
   '.env.local',
@@ -26,6 +27,7 @@ const protectedPaths = [
 test('Actual UI Vite configuration serves public HTML and denies private fixture bytes', async () => {
   const cache = path.join(ui, 'node_modules/.cache');
   await mkdir(cache, { recursive: true });
+
   const fixture = await mkdtemp(path.join(cache, 'pharo-ui-privacy-'));
   const identity = await lstat(fixture);
   const sentinel = `pharo-private-check-${randomUUID()}`;
@@ -41,6 +43,7 @@ test('Actual UI Vite configuration serves public HTML and denies private fixture
       await mkdir(path.dirname(destination), { recursive: true });
       await writeFile(destination, sentinel);
     }
+
     await writeFile(path.join(fixture, 'public-control.txt'), publicControl);
 
     server = await createServer({
@@ -51,15 +54,20 @@ test('Actual UI Vite configuration serves public HTML and denies private fixture
       logLevel: 'silent',
       server: { host: '127.0.0.1', port: 0, strictPort: true },
     });
+
     await server.listen();
+
     const address = server.httpServer.address();
     assert.ok(address && typeof address === 'object');
+
     const base = `http://127.0.0.1:${address.port}`;
     const request = (url) => fetch(`${base}${url}`, { signal: AbortSignal.timeout(5000) });
 
     const index = await request('/');
     assert.equal(index.status, 200);
+
     const html = await index.text();
+
     assert.match(html, /<div\s+id="root"/);
     assert.match(html, /\/src\/main\.tsx/);
     assert.match(html, /@vite\/client/);
@@ -85,18 +93,21 @@ test('Actual UI Vite configuration serves public HTML and denies private fixture
   } catch (error) {
     failures.push(error);
   }
+
   if (failures.length === 0) {
     try {
       const current = await lstat(fixture);
       assert.ok(current.isDirectory() && !current.isSymbolicLink());
       assert.equal(current.dev, identity.dev, 'Fixture device ownership changed');
       assert.equal(current.ino, identity.ino, 'Fixture directory ownership changed');
+
       // Vite may finish a dependency-cache rename just after close resolves.
       await rm(fixture, { recursive: true, maxRetries: 3, retryDelay: 50 });
     } catch (error) {
       failures.push(error);
     }
   }
+
   if (failures.length > 0) {
     throw new AggregateError(failures, `UI privacy fixture failed; inspect ${fixture}`);
   }

@@ -15,8 +15,11 @@ export function findPointerTimestamp(
     bounds.width <= 0
   )
     return undefined;
+
   const proportion = (clientX - bounds.left) / bounds.width;
+
   if (!Number.isFinite(proportion)) return undefined;
+
   const svgX = Math.max(0, Math.min(1, proportion)) * geometry.width;
   const plotProportion = Math.max(
     0,
@@ -24,5 +27,6 @@ export function findPointerTimestamp(
   );
   const candidate =
     (1 - plotProportion) * geometry.xDomain[0] + plotProportion * geometry.xDomain[1];
+
   return findNearestTimestamp(timeline, candidate);
 }

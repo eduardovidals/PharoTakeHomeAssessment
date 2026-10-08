@@ -9,11 +9,13 @@ import type { PricePoint, PriceSeries, PriceStats } from './types';
 
 const base = 'http://localhost/api';
 const client = () => createApiClient({ baseURL: base });
+
 const history = [
   { date: '0001-01-01', price: 100.123456789 },
   { date: '0099-12-31', price: 101 },
   { date: '2024-02-29', price: 102 },
 ];
+
 const statistics = {
   totalReturnPercent: 1.87654321,
   dailyVolatilityPercent: null,
@@ -36,15 +38,18 @@ test('requests canonical encoded history and stats paths with unrounded readonly
     getPrices(client(), ' abc.1_- '),
     getPriceStats(client(), 'abc.1_-'),
   ]);
+
   expect(paths.sort()).toEqual(['/api/prices/ABC.1_-', '/api/prices/ABC.1_-/stats']);
   expect(prices).toEqual(history);
   expect(stats).toEqual(statistics);
   expect(Object.isFrozen(prices)).toBe(true);
   expect(Object.isFrozen(prices[0])).toBe(true);
   expect(Object.isFrozen(stats)).toBe(true);
+
   expectTypeOf(prices).toEqualTypeOf<PriceSeries>();
   expectTypeOf(stats).toEqualTypeOf<PriceStats>();
   expectTypeOf<PricePoint>().toEqualTypeOf<Readonly<{ date: string; price: number }>>();
+
   expect(pricesKey(' abc ')).toEqual(['prices', 'ABC']);
   expect(priceStatsKey('abc')).toEqual(['price-stats', 'ABC']);
 });
@@ -69,6 +74,7 @@ test.each([
   ],
 ])('rejects invalid historical JSON %#', async (...payload) => {
   server.use(http.get(base + '/prices/ABC', () => HttpResponse.json(payload)));
+
   await expect(getPrices(client(), 'ABC')).rejects.toMatchObject({ kind: 'invalid-response' });
 });
 
@@ -94,6 +100,7 @@ test.each([
   { ...statistics, extra: 'raw' },
 ])('rejects invalid statistic JSON %#', async (payload) => {
   server.use(http.get(base + '/prices/ABC/stats', () => HttpResponse.json(payload)));
+
   await expect(getPriceStats(client(), 'ABC')).rejects.toMatchObject({ kind: 'invalid-response' });
 });
 
@@ -139,6 +146,7 @@ test('keeps both unknown resource errors as actual404 failures', async () => {
 test('forwards cancellation for both resource functions without an empty success', async () => {
   const controller = new AbortController();
   controller.abort();
+
   await expect(getPrices(client(), 'ABC', controller.signal)).rejects.toMatchObject({
     kind: 'cancelled',
   });

@@ -43,7 +43,9 @@ test('mounts isolated real provider/router graphs and retires only its own insta
     expect(first.app.apiClient).not.toBe(second.app.apiClient);
     expect(first.app.queryClient).not.toBe(second.app.queryClient);
     expect(first.app.history).not.toBe(second.app.history);
+
     await act(() => first.app.dispose());
+
     expect(first.element).toBeEmptyDOMElement();
     expect(
       within(second.element).getByRole('heading', { name: 'Instrument Analytics' }),
@@ -93,14 +95,17 @@ test('shares pending disposal and awaits consumed cancellation before clearing o
     .catch((error: unknown) => error);
   try {
     const disposal = app.dispose();
+
     expect(app.dispose()).toBe(disposal);
     await waitFor(() => expect(cancelled).toHaveBeenCalledOnce());
     expect(element).toBeEmptyDOMElement();
     expect(clear).not.toHaveBeenCalled();
     expect(destroy).not.toHaveBeenCalled();
+
     releaseCancellation();
     await disposal;
     await pending;
+
     expect(aborted).toBe(true);
     expect(clear).toHaveBeenCalledOnce();
     expect(destroy).toHaveBeenCalledOnce();
@@ -139,6 +144,7 @@ test('preserves startup failure and still releases acquired resources when clean
   if (!(failure instanceof AggregateError)) throw new Error('Expected both failures');
   expect(failure.cause).toBe(primary);
   expect(failure.errors[0]).toBe(primary);
+
   const cleanup: unknown = failure.errors[1];
   if (!(cleanup instanceof AggregateError)) throw new Error('Expected cleanup failure');
   expect(cleanup.errors).toEqual([secondary]);
@@ -150,6 +156,7 @@ test('preserves startup failure and still releases acquired resources when clean
 test('owns injected history before configuration validation can fail', async () => {
   const history = createMemoryHistory({ initialEntries: ['/'] });
   const destroy = vi.spyOn(history, 'destroy');
+
   await expect(
     bootstrapApplication(document.createElement('div'), { history, apiConfig: { timeoutMs: 0 } }),
   ).rejects.toBeInstanceOf(TypeError);
@@ -186,8 +193,11 @@ test('attempts all independent releases and preserves one terminal disposal fail
   });
   try {
     const disposal = app.dispose();
+
     expect(app.dispose()).toBe(disposal);
+
     let failure: unknown;
+
     await act(async () => {
       try {
         await disposal;

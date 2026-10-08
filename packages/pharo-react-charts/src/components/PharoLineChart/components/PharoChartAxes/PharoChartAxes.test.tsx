@@ -22,7 +22,9 @@ it('places enlarged labels within scaled gutters and preserves their full descri
     undefined,
     24,
   );
+
   if (geometry.kind !== 'ready') throw new Error('Expected usable enlarged geometry.');
+
   const xLabels = prepareXLabels(geometry.xTicks, (value) => `Day ${value}`, geometry.plot, 24);
   render(
     <svg role="img" aria-label="Enlarged axes">
@@ -36,10 +38,12 @@ it('places enlarged labels within scaled gutters and preserves their full descri
     </svg>,
   );
   const svg = screen.getByRole('img', { name: 'Enlarged axes' });
+
   expect(svg.firstElementChild).toHaveAttribute('font-size', '24');
   expect(
     within(svg).getByRole('group', { name: 'UTC time axis' }).querySelector('text'),
   ).toHaveAttribute('y', '264');
+
   const labels = [...svg.querySelectorAll('text')];
   const yTitle = labels.find(
     (element) => element.querySelector('title')?.textContent === 'Temperature in degrees',
@@ -47,6 +51,7 @@ it('places enlarged labels within scaled gutters and preserves their full descri
   const xTitle = labels.find(
     (element) => element.querySelector('title')?.textContent === 'Recorded UTC dates',
   );
+
   expect(yTitle).toHaveAttribute('y', '24');
   expect(xTitle).toHaveAttribute('y', '304');
   expect(yTitle).toHaveTextContent('Temperature in degrees');
@@ -69,7 +74,9 @@ it('renders prepared UTC coordinates and keeps complete numerical titles without
     240,
     [0, 100],
   );
+
   if (geometry.kind !== 'ready') throw new Error('Fixture must produce usable geometry.');
+
   const xLabels = prepareXLabels(geometry.xTicks, (value) => `Day ${value}`, geometry.plot);
   render(
     <svg role="img" aria-label="Axes">
@@ -82,6 +89,7 @@ it('renders prepared UTC coordinates and keeps complete numerical titles without
   );
   const svg = screen.getByRole('img', { name: 'Axes' });
   const x = within(svg).getByRole('group', { name: 'UTC time axis' });
+
   expect([...x.querySelectorAll('text')].map((node) => node.getAttribute('x'))).toEqual([
     '56',
     '304',

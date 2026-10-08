@@ -30,6 +30,7 @@ export function toDashboardAction(
       ? { type: 'add', ticker: action.key }
       : undefined;
   }
+
   const tickers = action.keys.filter((key): key is string => typeof key === 'string');
   return tickers.length === action.keys.length ? { type: 'remove', tickers } : undefined;
 }

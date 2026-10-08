@@ -8,5 +8,7 @@ const result = spawnSync(
   [path.join(rootDirectory, 'node_modules/playwright/cli.js'), ...process.argv.slice(2)],
   { stdio: 'inherit', env: browserEnvironment() },
 );
+
 if (result.error) console.error(result.error.message);
+
 process.exit(result.status ?? 1);

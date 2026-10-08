@@ -4,6 +4,7 @@ import { rankInstruments, toDashboardAction } from './utils';
 describe('instrument option ranking and route intention adaptation', () => {
   test('ranks exact, prefix and contains by canonical ordinal key without mutating the list', () => {
     const tickers = ['ZA', 'AB', 'BA', 'AA', 'A', 'OTHER'];
+
     expect(rankInstruments(tickers, '  a  ').map((item) => item.ticker)).toEqual([
       'A',
       'AA',
@@ -22,14 +23,17 @@ describe('instrument option ranking and route intention adaptation', () => {
     ]);
     expect(rankInstruments(tickers, 'missing')).toEqual([]);
   });
+
   test('does not truncate candidates to a page', () => {
     const tickers = Array.from(
       { length: 200 },
       (_, index) => `TICK${String(index + 1).padStart(4, '0')}`,
     );
+
     expect(rankInstruments(tickers, '')).toHaveLength(200);
     expect(rankInstruments(tickers, '').at(-1)).toEqual({ ticker: 'TICK0200' });
   });
+
   test('accepts only known exact string additions while unknown committed tags remain removable', () => {
     expect(toDashboardAction({ kind: 'add', key: 'A' }, ['A'])).toEqual({
       type: 'add',

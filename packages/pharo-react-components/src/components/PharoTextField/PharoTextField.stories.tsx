@@ -17,18 +17,24 @@ const meta = {
     ),
   ],
 } satisfies Meta<typeof PharoTextField>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvasElement, args }) => {
     const input = within(canvasElement).getByRole('textbox', { name: 'Display name' });
+
     await userEvent.type(input, 'Ada');
+
     await expect(input).toHaveValue('Ada');
     await expect(args.onChange).toHaveBeenLastCalledWith('Ada');
   },
 };
+
 export const WithHelp: Story = { args: { description: 'Shown next to your contributions.' } };
+
 export const Invalid: Story = {
   args: {
     isInvalid: true,
@@ -37,18 +43,23 @@ export const Invalid: Story = {
   },
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByRole('textbox', { name: 'Display name' });
+
     await expect(input).toHaveAttribute('aria-invalid', 'true');
     await expect(input).toHaveAccessibleDescription(/Enter a display name\./);
   },
 };
+
 export const Disabled: Story = { args: { isDisabled: true, defaultValue: 'Unavailable' } };
+
 export const ReadOnly: Story = { args: { isReadOnly: true, defaultValue: 'Published name' } };
+
 export const NativeHints: Story = {
   args: {
     label: 'Email address',
     inputProps: { autoComplete: 'email', inputMode: 'email', placeholder: 'name@example.test' },
   },
 };
+
 export const LongContent: Story = {
   args: {
     label: 'The full display name that appears on shared presentation materials',

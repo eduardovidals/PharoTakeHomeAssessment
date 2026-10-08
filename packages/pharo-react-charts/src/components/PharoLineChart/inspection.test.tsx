@@ -27,6 +27,7 @@ const series: readonly PreparedChartSeries[] = Object.freeze([
 describe('recorded chart observation inspection', () => {
   it('creates a sorted unique union including explicit null dates without mutating input', () => {
     const before = JSON.stringify(series);
+
     expect(createInspectionTimeline(series)).toEqual([0, 10, 20, 30]);
     expect(createInspectionTimeline([...series].reverse())).toEqual([0, 10, 20, 30]);
     expect(JSON.stringify(series)).toBe(before);
@@ -64,9 +65,11 @@ describe('recorded chart observation inspection', () => {
   it('returns no selection for empty timelines or nonfinite candidates', () => {
     expect(createInspectionTimeline([])).toEqual([]);
     expect(findNearestTimestamp([], 0)).toBeUndefined();
+
     for (const candidate of [NaN, Infinity, -Infinity]) {
       expect(findNearestTimestamp([0, 10], candidate)).toBeUndefined();
     }
+
     expect(inspectTimestamp([], 0)).toEqual([]);
   });
 

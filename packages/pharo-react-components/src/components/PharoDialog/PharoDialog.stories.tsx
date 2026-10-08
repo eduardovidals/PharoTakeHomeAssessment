@@ -6,6 +6,7 @@ import { PharoDialog as PharoDialogDocs } from './PharoDialog';
 
 function DialogExample(props: PharoDialogProps) {
   const [isOpen, setIsOpen] = useState(props.isOpen);
+
   return (
     <PharoDialog
       {...props}
@@ -36,20 +37,27 @@ const meta = {
     ),
   },
 } satisfies Meta<typeof PharoDialog>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
 export const KeyboardAndDismissal: Story = {
   play: async ({ canvasElement }) => {
     const trigger = within(canvasElement).getByRole('button', { name: 'View details' });
+
     trigger.focus();
     await userEvent.keyboard('{Enter}');
+
     const body = within(canvasElement.ownerDocument.body);
     const dialog = await body.findByRole('dialog', { name: 'Collection details' });
+
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus(),
     );
+
     await userEvent.keyboard('{Escape}');
+
     await waitFor(() => expect(body.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(trigger).toHaveFocus());
   },
@@ -79,10 +87,13 @@ export const LongContent: Story = {
   },
   play: async ({ canvasElement }) => {
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'View details' }));
+
     const dialog = await within(canvasElement.ownerDocument.body).findByRole('dialog', {
       name: 'Collection details',
     });
+
     await expect(within(dialog).getByRole('button', { name: 'Close' })).toBeVisible();
+
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
   },
 };

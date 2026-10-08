@@ -26,6 +26,7 @@ export function getResourceFeedback(
     error?.kind === 'network' ||
     error?.kind === 'timeout' ||
     (error?.kind === 'http' && error.status !== undefined && error.status >= 500);
+
   if (retrying) return { canRetry: true, notFound: false };
   if (query.isFetching)
     return {
@@ -33,6 +34,7 @@ export function getResourceFeedback(
       canRetry,
       notFound: false,
     };
+
   if (error?.kind === 'not-found') return { canRetry: false, notFound: true };
   if (error && error.kind !== 'cancelled')
     return {
@@ -40,8 +42,10 @@ export function getResourceFeedback(
       canRetry,
       notFound: false,
     };
+
   if (resource === 'prices' && Array.isArray(query.data) && query.data.length === 0)
     return { message: 'No recorded prices.', canRetry: false, notFound: false };
+
   return { canRetry: false, notFound: false };
 }
 
@@ -60,6 +64,7 @@ export function getComparisonRows(
       ? { data: statistics.data, isPending: statistics.isPending }
       : { data: snapshots[index]?.statistics, isPending: prices.isPending },
   );
+
   return [
     {
       label: selectedTimestamp === null ? 'Latest close' : 'Closing price',
@@ -89,6 +94,7 @@ export function getComparisonRows(
           : text.startsWith('-')
             ? 'negative'
             : 'neutral';
+
         return { text, tone };
       }),
     },
@@ -129,10 +135,12 @@ export function getComparisonAnnouncement(
   const failed = queries.filter(
     (query) => query.isError && query.error.kind !== 'cancelled',
   ).length;
+
   if (fetching > 0)
     return `Updating ${fetching} comparison ${fetching === 1 ? 'resource' : 'resources'}.`;
   if (failed > 0)
     return `${failed} comparison ${failed === 1 ? 'resource is' : 'resources are'} unavailable.`;
+
   return selectedTimestamp === null
     ? 'Comparison data ready.'
     : `Comparison pinned to ${formatDateTable(selectedTimestamp)}. Statistics include observations through this date.`;
@@ -145,8 +153,10 @@ export function getComparisonPeriods(
 ): readonly ComparisonPeriod[] {
   const periods = columns.map(({ ticker, prices }) => {
     const data = prices.data;
+
     if (data === undefined)
       return { ticker, text: prices.isPending ? 'Loading period…' : 'Period unavailable.' };
+
     const included =
       selectedTimestamp === null
         ? data
@@ -159,6 +169,7 @@ export function getComparisonPeriods(
       lastTimestamp: lastIncluded ? toUtcTimestamp(lastIncluded.date) : undefined,
     };
     if (snapshot.observationCount === 0) return { ticker, text: 'No observations in this period.' };
+
     const through = selectedTimestamp ?? snapshot.lastTimestamp;
     const range = formatDateRange(snapshot.firstTimestamp, through);
     const count = `${snapshot.observationCount} ${snapshot.observationCount === 1 ? 'observation' : 'observations'}`;
@@ -166,6 +177,7 @@ export function getComparisonPeriods(
       selectedTimestamp !== null && snapshot.lastTimestamp !== selectedTimestamp
         ? ` · Last recorded ${formatDateTable(snapshot.lastTimestamp)}`
         : '';
+
     return { ticker, text: `${range} · ${count}${missing}` };
   });
   const shared = periods[0]?.text;

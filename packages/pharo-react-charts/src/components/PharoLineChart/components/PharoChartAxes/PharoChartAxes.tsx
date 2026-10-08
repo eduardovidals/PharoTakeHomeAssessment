@@ -12,6 +12,7 @@ import type { PharoChartAxesProps as Props } from './types';
 export function PharoChartAxes(props: Props) {
   const { geometry, xLabels, formatYAxis, xAxisLabel, yAxisLabel } = props;
   const fontScale = geometry.axisFontSize / 12;
+
   return (
     <g fontSize={geometry.axisFontSize}>
       <path
@@ -35,6 +36,7 @@ export function PharoChartAxes(props: Props) {
       <g className={styles.axis} role="group" aria-label="Value axis">
         {geometry.yTicks.map((tick) => {
           const label = formatYAxis(tick.value);
+
           return (
             <text
               key={tick.value}

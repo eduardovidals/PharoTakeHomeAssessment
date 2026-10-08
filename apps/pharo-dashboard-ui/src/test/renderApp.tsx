@@ -40,6 +40,7 @@ export async function renderApp(options: RenderAppOptions = {}): Promise<AppTest
   function dispose(): Promise<void> {
     disposal ??= Promise.resolve().then(async () => {
       const failures: unknown[] = [];
+
       async function attempt(release: () => void | Promise<void>) {
         try {
           await release();
@@ -55,27 +56,34 @@ export async function renderApp(options: RenderAppOptions = {}): Promise<AppTest
       await attempt(() => history?.destroy());
       await attempt(() => container?.remove());
       activeDisposals.delete(dispose);
+
       if (failures.length > 0) {
         throw new AggregateError(failures, 'Application test cleanup failed');
       }
     });
+
     return disposal;
   }
 
   // Register before acquiring anything that may throw or await.
   activeDisposals.add(dispose);
+
   try {
     const apiClient = createApiClient({ baseURL: 'http://localhost/api', ...options.apiConfig });
     queryClient = createAppQueryClient();
     history = createMemoryHistory({ initialEntries: options.initialEntries ?? ['/'] });
     const router = createAppRouter({ queryClient, apiClient }, history);
+
     container = document.createElement('div');
     document.body.append(container);
     view = render(null, { container, baseElement: container, queries });
+
     const app = { apiClient, queryClient, history, router, container, view, dispose };
     await options.configure?.(app);
+
     await router.load();
     view.rerender(<AppProviders router={router} />);
+
     return app;
   } catch (primaryError) {
     const [cleanupResult] = await Promise.allSettled([dispose()]);
@@ -86,6 +94,7 @@ export async function renderApp(options: RenderAppOptions = {}): Promise<AppTest
         { cause: primaryError },
       );
     }
+
     throw primaryError;
   }
 }
@@ -96,6 +105,7 @@ export async function cleanupAppTests(): Promise<void> {
   const failures = results.flatMap((result) =>
     result.status === 'rejected' ? [result.reason] : [],
   );
+
   if (failures.length > 0) {
     throw new AggregateError(failures, 'Application test suite cleanup failed');
   }

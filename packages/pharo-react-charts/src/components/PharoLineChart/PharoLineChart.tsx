@@ -76,19 +76,24 @@ export function PharoLineChart(props: Props) {
     onTimestampChange,
     className,
   } = props;
+
   const { ref, width, height, fontSize } = useChartSize();
+
   const externalTrigger =
     dataTable?.mode === 'external' &&
     typeof dataTable.triggerId === 'string' &&
     dataTable.triggerId.trim()
       ? dataTable.triggerId
       : undefined;
+
   const uniqueId = useId();
   const titleId = uniqueId + '-title';
   const descriptionId = uniqueId + '-description';
   const clipId = uniqueId + '-clip';
   const tableId = uniqueId + '-table';
+
   const [tableOpen, setTableOpen] = useState(false);
+
   const configuration = identityConfiguration(series);
   const [identityState, setIdentityState] = useState<ChartIdentityState>(() =>
     resolveIdentities(
@@ -103,10 +108,12 @@ export function PharoLineChart(props: Props) {
     ),
   );
   let identities = identityState;
+
   if (identityState.configuration !== configuration) {
     identities = resolveIdentities(identityState, series, configuration);
     setIdentityState(identities);
   }
+
   const prepared = prepareChartGeometry(series, width, height, xTickValues, baselineY, fontSize);
   const geometry: ChartGeometry =
     identities.valid || prepared.kind === 'invalid'
@@ -116,8 +123,10 @@ export function PharoLineChart(props: Props) {
           reason: 'PHARO-CHART-DATA',
           message: 'Chart appearances conflict.',
         };
+
   const records = prepareChartRecords(series);
   const timeline = records.kind === 'ready' ? createInspectionTimeline(records.series) : [];
+
   const includeYear =
     geometry.kind === 'ready' &&
     new Date(geometry.xDomain[0]).getUTCFullYear() !==
@@ -127,6 +136,7 @@ export function PharoLineChart(props: Props) {
     geometry.kind === 'ready'
       ? prepareXLabels(geometry.xTicks, axisDate, geometry.plot, fontSize)
       : [];
+
   const {
     timestamp: inspectedTimestamp,
     navigationTimestamp,
@@ -138,6 +148,7 @@ export function PharoLineChart(props: Props) {
     onPointerCancel,
     onPointerLeave,
   } = useChartInspection({ geometry, timeline, selectedTimestamp, onTimestampChange });
+
   const details: readonly ChartInspectionDetail[] =
     geometry.kind === 'ready' && inspectedTimestamp !== undefined
       ? inspectTimestamp(geometry.series, inspectedTimestamp).map((row) => ({
@@ -158,6 +169,7 @@ export function PharoLineChart(props: Props) {
         )
       : []
     ).join('; ');
+
   const crosshairX =
     geometry.kind === 'ready' &&
     inspectedTimestamp !== undefined &&
@@ -174,7 +186,9 @@ export function PharoLineChart(props: Props) {
         <ul aria-label={`Legend for ${label}`} className={legendStyles}>
           {geometry.series.map((item) => {
             const appearance = identities.active.get(item.id);
+
             if (!appearance) return null;
+
             return (
               <li key={item.id} className={legendItemStyles}>
                 <svg
@@ -258,7 +272,9 @@ export function PharoLineChart(props: Props) {
             <g>
               {geometry.series.map((item) => {
                 const appearance = identities.active.get(item.id);
+
                 if (!appearance) return null;
+
                 return (
                   <g key={item.id} data-series-id={item.id} data-appearance={appearance}>
                     <title>{item.label}</title>
@@ -302,12 +318,15 @@ export function PharoLineChart(props: Props) {
                 />
                 {details.map((row) => {
                   const appearance = identities.active.get(row.id);
+
                   if (row.kind !== 'available' || !appearance) return null;
+
                   const y =
                     geometry.plot.bottom -
                     ((row.value - geometry.yDomain[0]) /
                       (geometry.yDomain[1] - geometry.yDomain[0])) *
                       (geometry.plot.bottom - geometry.plot.top);
+
                   return (
                     <g
                       key={row.id}

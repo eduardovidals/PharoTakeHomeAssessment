@@ -10,6 +10,7 @@ import type { AppProvidersProps as Props } from './types';
  */
 export function AppProviders(props: Props) {
   const { router } = props;
+
   return (
     <QueryClientProvider client={router.options.context.queryClient}>
       <RouterProvider router={router} />

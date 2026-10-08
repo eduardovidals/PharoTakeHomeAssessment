@@ -11,17 +11,21 @@ const items = [
   { id: 8, name: 'Maple' },
   { id: 9, name: 'Orchid' },
 ];
+
 interface Item {
   id: number;
   name: string;
 }
+
 interface HarnessProps extends Partial<PharoMultiComboBoxProps<Item>> {
   initialKeys?: readonly Key[];
 }
+
 function Harness(props: HarnessProps) {
   const { initialKeys = [], ...overrides } = props;
   const [keys, setKeys] = useState<readonly Key[]>(initialKeys);
   const [query, setQuery] = useState('');
+
   const handleAction = (action: PharoSelectionAction) => {
     setKeys((previous) =>
       action.kind === 'add'
@@ -30,8 +34,10 @@ function Harness(props: HarnessProps) {
           ? []
           : previous.filter((key) => !action.keys.includes(key)),
     );
+
     return 'committed' as const;
   };
+
   return (
     <PharoMultiComboBox
       label="Plants"
@@ -59,21 +65,29 @@ describe('PharoMultiComboBox', () => {
       </form>,
     );
     const input = screen.getByRole('combobox', { name: 'Plants' });
+
     await user.click(input);
     await user.type(input, 'Ma');
+
     const option = await screen.findByRole('option', { name: 'Maple' });
+
     await waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', option.id));
+
     await user.keyboard('{Enter}');
     await user.keyboard('{Escape}');
+
     expect(await screen.findByRole('button', { name: 'Remove Maple' })).toBeVisible();
     expect(input).toHaveValue('');
     expect(submitted).not.toHaveBeenCalled();
+
     await user.type(input, 'Or');
     await user.keyboard('{Escape}');
+
     expect(input).toHaveValue('Or');
     expect(input).toHaveFocus();
     expect(input).toHaveAttribute('aria-expanded', 'false');
   });
+
   it('shows decorative input and popup spinners with one accessible loading announcement', async () => {
     const user = userEvent.setup();
     const action = vi.fn();
@@ -81,6 +95,7 @@ describe('PharoMultiComboBox', () => {
       <Harness items={[]} isLoading loadingMessage="Loading plants…" onSelectionAction={action} />,
     );
     const input = screen.getByRole('combobox');
+
     expect(input).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('status')).toHaveTextContent('Loading plants…');
     expect(
@@ -90,43 +105,64 @@ describe('PharoMultiComboBox', () => {
     ).toBeInTheDocument();
     expect(screen.queryAllByRole('progressbar')).toHaveLength(0);
     expect(input).not.toHaveAccessibleDescription(/Loading plants/);
+
     await user.click(input);
+
     const list = await screen.findByRole('listbox');
+
     expect(within(list).getByRole('status')).toHaveTextContent('Loading plants…');
     expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.queryAllByRole('option', { selected: false })).toHaveLength(0);
     expect(input).not.toHaveAttribute('aria-activedescendant');
     expect(screen.getAllByRole('progressbar', { hidden: true })).toHaveLength(2);
+
     await user.keyboard('{ArrowDown}{Enter}');
+
     expect(action).not.toHaveBeenCalled();
+
     await user.click(screen.getByRole('button', { name: 'Show options Plants' }));
     rerender(<Harness items={[]} loadingMessage="Loading plants…" onSelectionAction={action} />);
+
     expect(await screen.findByText('No options found.')).toBeVisible();
     expect(screen.queryByText('Loading plants…')).not.toBeInTheDocument();
     expect(screen.queryAllByRole('progressbar', { hidden: true })).toHaveLength(0);
     expect(input).toHaveAttribute('aria-busy', 'false');
+
     rerender(<Harness onSelectionAction={action} />);
+
     const fern = await screen.findByRole('option', { name: 'Fern' });
+
     await waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', fern.id));
+
     await user.keyboard('{Enter}');
+
     expect(action).toHaveBeenCalledExactlyOnceWith({ kind: 'add', key: 7 });
+
     await user.keyboard('{Escape}');
+
     expect(input).toHaveFocus();
   });
+
   it('retains available options and selected tags when its owner marks the collection loading', async () => {
     const user = userEvent.setup();
     render(<Harness isLoading initialKeys={[7]} />);
     const input = screen.getByRole('combobox');
+
     expect(screen.getByRole('button', { name: 'Remove Fern' })).toBeVisible();
+
     await user.click(input);
+
     expect(await screen.findByRole('option', { name: 'Maple' })).toBeVisible();
     expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.getByRole('status')).toHaveTextContent('Loading options…');
     expect(input).not.toHaveAccessibleDescription(/Loading options/);
+
     await user.keyboard('{Escape}');
+
     expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Remove Fern' })).toBeVisible();
   });
+
   it('preserves disabled and read-only semantics during loading', async () => {
     const user = userEvent.setup();
     const action = vi.fn();
@@ -142,10 +178,14 @@ describe('PharoMultiComboBox', () => {
       />,
     );
     const input = screen.getByRole('combobox');
+
     expect(input).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Show options Plants' })).toBeDisabled();
+
     await user.click(input);
+
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
     rerender(
       <Harness
         items={[]}
@@ -157,22 +197,29 @@ describe('PharoMultiComboBox', () => {
       />,
     );
     await user.type(input, 'Map');
+
     expect(input).toHaveAttribute('readonly');
     expect(input).toHaveFocus();
     expect(screen.queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
     expect(action).not.toHaveBeenCalled();
     expect(changed).not.toHaveBeenCalled();
   });
+
   it('preserves unknown controlled tags through filtering, pending and failed collections', async () => {
     const user = userEvent.setup();
     const { rerender } = render(<Harness initialKeys={['retired', 7]} />);
     const input = screen.getByRole('combobox');
+
     await user.type(input, 'Map');
+
     expect(screen.getByText('Unknown retired')).toBeVisible();
     expect(screen.getByText('Fern')).toBeVisible();
+
     rerender(<Harness initialKeys={['retired', 7]} items={[]} isLoading />);
+
     expect(await screen.findByText('Loading options…')).toBeVisible();
     expect(screen.queryAllByRole('option', { selected: false })).toHaveLength(0);
+
     rerender(
       <Harness
         initialKeys={['retired', 7]}
@@ -181,37 +228,53 @@ describe('PharoMultiComboBox', () => {
         errorMessage="Collection unavailable. Retry later."
       />,
     );
+
     expect(input).toHaveAccessibleDescription(/Collection unavailable/);
+
     await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Remove Unknown retired' }));
+
     expect(
       screen.queryByRole('button', { name: 'Remove Unknown retired' }),
     ).not.toBeInTheDocument();
   });
+
   it('disables only additional choices at the configurable limit and restores input after final removal', async () => {
     const user = userEvent.setup();
     render(<Harness initialKeys={[7]} maxSelected={1} />);
     const input = screen.getByRole('combobox');
+
     await user.click(input);
+
     const disabledOption = await screen.findByRole('option', { name: 'Maple' });
+
     expect(disabledOption).toHaveAttribute('aria-disabled', 'true');
     expect(disabledOption).toHaveTextContent('Limit reached');
     expect(screen.getByRole('option', { name: 'Fern' })).not.toHaveAttribute('aria-disabled');
+
     await user.click(disabledOption);
+
     expect(screen.queryByRole('button', { name: 'Remove Maple' })).not.toBeInTheDocument();
     expect(input).not.toBeDisabled();
     expect(input).toHaveAccessibleDescription(/1\/1.*Selection limit/);
+
     await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Remove Fern' }));
+
     await waitFor(() => expect(input).toHaveFocus());
     expect(screen.queryByRole('button', { name: 'Remove Fern' })).not.toBeInTheDocument();
+
     const availableOption = await screen.findByRole('option', { name: 'Maple' });
+
     expect(availableOption).not.toHaveAttribute('aria-disabled');
     expect(availableOption).not.toHaveTextContent('Limit reached');
+
     await user.click(availableOption);
     await user.keyboard('{Escape}');
+
     expect(await screen.findByRole('button', { name: 'Remove Maple' })).toBeVisible();
   });
+
   it('keeps read-only values readable and suppresses every mutation', async () => {
     const user = userEvent.setup();
     const action = vi.fn();
@@ -220,45 +283,59 @@ describe('PharoMultiComboBox', () => {
       <Harness initialKeys={[7]} isReadOnly onSelectionAction={action} onInputChange={changed} />,
     );
     const input = screen.getByRole('combobox');
+
     await user.type(input, 'Map');
+
     expect(input).toHaveAttribute('readonly');
     expect(input).toHaveFocus();
     expect(screen.queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
     expect(screen.getByText('Fern')).toBeVisible();
     expect(action).not.toHaveBeenCalled();
     expect(changed).not.toHaveBeenCalled();
+
     rerender(<Harness initialKeys={[7]} isDisabled />);
+
     expect(input).toBeDisabled();
   });
+
   it('updates native selection and tags when its parent changes keys while open', async () => {
     const user = userEvent.setup();
     const action = vi.fn();
     const { rerender } = render(<Harness selectedKeys={[7]} onSelectionAction={action} />);
+
     await user.click(screen.getByRole('combobox'));
     rerender(<Harness selectedKeys={[8, 'unlisted']} onSelectionAction={action} />);
+
     expect(await screen.findByRole('option', { name: 'Maple' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
+
     await user.keyboard('{Escape}');
+
     expect(screen.getByRole('button', { name: 'Remove Unknown unlisted' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Remove Fern' })).not.toBeInTheDocument();
     expect(action).not.toHaveBeenCalled();
   });
+
   it('preserves IME composing Enter without making a selection', async () => {
     const user = userEvent.setup();
     const action = vi.fn().mockReturnValue('committed');
     render(<Harness onSelectionAction={action} />);
     const input = screen.getByRole('combobox');
+
     await user.click(input);
     fireEvent.compositionStart(input);
     fireEvent.change(input, { target: { value: 'Ma' } });
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', isComposing: true });
     fireEvent.keyUp(input, { key: 'Enter', code: 'Enter', isComposing: true });
+
     expect(action).not.toHaveBeenCalled();
     expect(input).toHaveValue('Ma');
+
     fireEvent.compositionEnd(input);
   });
+
   it('exposes safe rejection text and recovers on a later interaction', async () => {
     const user = userEvent.setup();
     const action = vi
@@ -267,42 +344,59 @@ describe('PharoMultiComboBox', () => {
       .mockResolvedValueOnce('committed');
     render(<Harness onSelectionAction={action} errorMessage="Could not update. Try again." />);
     const input = screen.getByRole('combobox');
+
     await user.type(input, 'Ma');
     await user.click(await screen.findByRole('option', { name: 'Maple' }));
+
     await waitFor(() => expect(input).toHaveAccessibleDescription(/Could not update/));
     expect(input).toHaveValue('Ma');
     expect(screen.queryByText(/SECRET/)).not.toBeInTheDocument();
+
     await user.click(await screen.findByRole('option', { name: 'Maple' }));
+
     await waitFor(() => expect(input).toHaveValue(''));
     expect(action).toHaveBeenCalledTimes(2);
   });
+
   it('forwards the real input ref and leaves empty text inert', async () => {
     const user = userEvent.setup();
     const ref = createRef<HTMLInputElement>();
     const action = vi.fn();
     render(<Harness items={[]} inputRef={ref} onSelectionAction={action} />);
+
     await user.click(screen.getByRole('combobox'));
+
     expect(ref.current).toBe(screen.getByRole('combobox'));
+
     await user.click(await screen.findByText('No options found.'));
+
     expect(screen.queryAllByRole('option')).toHaveLength(0);
     expect(action).not.toHaveBeenCalled();
+
     await user.type(screen.getByRole('combobox'), 'No matching value');
     await user.keyboard('{Enter}');
+
     expect(action).not.toHaveBeenCalled();
     expect(screen.getByRole('combobox')).toHaveValue('No matching value');
   });
+
   it('preserves a newer draft while a native option addition awaits its owner', async () => {
     const user = userEvent.setup();
+
     let complete: (value: PharoSelectionOutcome) => void = () => undefined;
+
     const pending = new Promise<PharoSelectionOutcome>((resolve) => {
       complete = resolve;
     });
     const action = vi.fn().mockReturnValue(pending);
     const { rerender } = render(<Harness onSelectionAction={action} />);
     const input = screen.getByRole('combobox');
+
     await user.type(input, 'Ma');
     await user.click(await screen.findByRole('option', { name: 'Maple' }));
+
     expect(input).toHaveValue('Ma');
+
     await user.clear(input);
     await user.type(input, 'Or');
     rerender(<Harness selectedKeys={[8]} onSelectionAction={action} />);
@@ -310,6 +404,7 @@ describe('PharoMultiComboBox', () => {
       complete('committed');
       await pending;
     });
+
     expect(input).toHaveValue('Or');
     expect(action).toHaveBeenCalledExactlyOnceWith({ kind: 'add', key: 8 });
   });

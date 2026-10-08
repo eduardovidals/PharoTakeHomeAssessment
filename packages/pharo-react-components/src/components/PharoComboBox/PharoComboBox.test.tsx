@@ -10,7 +10,9 @@ const plants = [
   { id: 'fern', name: 'Fern' },
   { id: 'maple', name: 'Maple' },
 ];
+
 const itemKey = (item: { id: string; name: string }) => item.id;
+
 const itemText = (item: { id: string; name: string }) => item.name;
 
 describe('PharoComboBox', () => {
@@ -18,9 +20,11 @@ describe('PharoComboBox', () => {
     const user = userEvent.setup();
     const selected = vi.fn();
     const changed = vi.fn();
+
     function ControlledChoice() {
       const [input, setInput] = useState('');
       const [key, setKey] = useState<Key | null>(null);
+
       return (
         <>
           <PharoComboBox
@@ -45,11 +49,16 @@ describe('PharoComboBox', () => {
         </>
       );
     }
+
     render(<ControlledChoice />);
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     await user.type(input, 'Fer');
+
     expect(changed).toHaveBeenLastCalledWith('Fer');
+
     await user.click(await screen.findByRole('option', { name: 'Fern' }));
+
     expect(selected).toHaveBeenLastCalledWith('fern');
     expect(screen.getByLabelText('Selected key')).toHaveTextContent('fern');
     expect(input).toHaveValue('Fern');
@@ -61,10 +70,14 @@ describe('PharoComboBox', () => {
       <PharoComboBox label="Plant" defaultItems={plants} itemKey={itemKey} itemText={itemText} />,
     );
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     await user.type(input, 'map');
+
     expect(await screen.findByRole('option', { name: 'Maple' })).toBeVisible();
     expect(screen.queryByRole('option', { name: 'Fern' })).not.toBeInTheDocument();
+
     await user.keyboard('{Escape}');
+
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     expect(input).toHaveFocus();
   });
@@ -81,11 +94,16 @@ describe('PharoComboBox', () => {
         onSelectionChange={selected}
       />,
     );
+
     await user.click(screen.getByRole('button'));
+
     const placeholder = await screen.findByText('No options found.');
+
     expect(placeholder).toBeVisible();
+
     await user.click(placeholder);
     await user.keyboard('{ArrowDown}{Enter}');
+
     expect(selected).not.toHaveBeenCalled();
     expect(screen.getByRole('combobox', { name: 'Plant' })).toHaveValue('');
   });
@@ -106,6 +124,7 @@ describe('PharoComboBox', () => {
       />,
     );
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     expect(ref.current).toBe(input);
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveAccessibleDescription(/Choose a plant\./);
@@ -124,7 +143,9 @@ describe('PharoComboBox', () => {
         isDisabled
       />,
     );
+
     expect(screen.getByRole('combobox', { name: 'Plant' })).toBeDisabled();
+
     rerender(
       <PharoComboBox
         label="Plant"
@@ -135,8 +156,11 @@ describe('PharoComboBox', () => {
         defaultSelectedKey="fern"
       />,
     );
+
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     await user.type(input, 'orchid');
+
     expect(input).toHaveAttribute('readonly');
     expect(input).not.toHaveValue('orchid');
   });
@@ -157,14 +181,20 @@ describe('PharoComboBox', () => {
       />,
     );
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     await user.click(input);
     await user.keyboard('{ArrowDown}');
+
     const fern = await screen.findByRole('option', { name: 'Fern' });
+
     expect(fern).toHaveAttribute('aria-disabled', 'true');
     expect(input.closest('.consumer-open')).not.toBeNull();
     expect(input).toHaveClass('consumer-focused');
+
     await user.click(fern);
+
     expect(selected).not.toHaveBeenCalled();
+
     await user.keyboard('{Escape}');
   });
 
@@ -181,6 +211,7 @@ describe('PharoComboBox', () => {
     'aria-invalid',
   ])('rejects an untyped owned %s input prop even when undefined', (key) => {
     const inputProps: Record<string, unknown> = { [key]: undefined };
+
     expect(() =>
       render(
         <PharoComboBox

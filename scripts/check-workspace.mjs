@@ -12,15 +12,19 @@ const packages = [
   'eslint-config',
   'prettier-config',
 ];
+
 for (const name of packages) {
   const manifest = JSON.parse(readFileSync(`packages/pharo-${name}/package.json`, 'utf8'));
   assert.equal(manifest.name, `@pharo/${name}`);
 }
+
 const nxScript = path.join(rootDirectory, 'scripts/nx.mjs');
 const result = spawnSync(process.execPath, [nxScript, 'show', 'projects', '--json'], {
   encoding: 'utf8',
 });
+
 assert.equal(result.status, 0, result.stderr || result.error?.message);
+
 const actual = JSON.parse(result.stdout);
 assert.deepEqual(
   actual.toSorted(),
@@ -31,6 +35,7 @@ assert.deepEqual(
   ].toSorted(),
   'Project discovery must contain exactly the eight public owners',
 );
+
 console.log('Workspace contains exactly the eight public projects.');
 
 // run-many skips missing targets; assert each currently required lane before running it.
@@ -74,15 +79,19 @@ const requiredTargets = {
     'storybook:build',
   ],
 };
+
 for (const [project, names] of Object.entries(requiredTargets)) {
   const inspected = spawnSync(process.execPath, [nxScript, 'show', 'project', project, '--json'], {
     encoding: 'utf8',
   });
+
   assert.equal(inspected.status, 0, inspected.stderr || inspected.error?.message);
+
   const { targets } = JSON.parse(inspected.stdout);
   for (const name of names) {
     const target = targets?.[name];
     assert.ok(target?.executor || target?.command, `${project}:${name} must be executable`);
   }
 }
+
 console.log('Every required validation and catalog target is executable.');

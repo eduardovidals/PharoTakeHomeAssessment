@@ -12,6 +12,7 @@ const apiPort = z.coerce
   .min(1024)
   .max(65535)
   .parse(process.env.PHARO_API_PORT ?? 5080);
+
 const proxy = { '/api': `http://127.0.0.1:${apiPort}`, '/health': `http://127.0.0.1:${apiPort}` };
 
 export default defineConfig({

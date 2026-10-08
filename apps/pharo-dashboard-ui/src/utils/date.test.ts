@@ -38,6 +38,7 @@ describe('UTC presentation', () => {
 
   test('separates concise axis, complete inspection, table and spoken dates', () => {
     const timestamp = toUtcTimestamp('2026-06-23');
+
     expect(formatDateAxis(timestamp)).toBe('Jun 23');
     expect(formatDateAxis(timestamp, true)).toBe('Jun 23, 2026');
     expect(formatDateDetail(timestamp)).toBe('Tue, Jun 23, 2026');
@@ -50,6 +51,7 @@ describe('UTC presentation', () => {
   test('formats same-year, cross-year and single-record ranges honestly', () => {
     const first = toUtcTimestamp('2026-06-23');
     const last = toUtcTimestamp('2026-08-03');
+
     expect(formatDateRange(first, last)).toBe('Jun 23 – Aug 3, 2026');
     expect(formatDateRange(toUtcTimestamp('2026-12-22'), toUtcTimestamp('2027-01-12'))).toBe(
       'Dec 22, 2026 – Jan 12, 2027',

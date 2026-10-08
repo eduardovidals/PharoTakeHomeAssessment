@@ -7,6 +7,7 @@ import { PharoTagGroup as PharoTagGroupDocs } from './PharoTagGroup';
 
 function ControlledStory(props: PharoTagGroupProps) {
   const [items, setItems] = useState(props.items);
+
   return (
     <PharoTagGroup
       {...props}
@@ -36,20 +37,27 @@ const meta = {
     onRemove: fn(),
   },
 } satisfies Meta<typeof PharoTagGroup>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
 export const Removable: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+
     await userEvent.click(canvas.getByRole('button', { name: 'Remove Seven' }));
+
     await expect(args.onRemove).toHaveBeenCalledWith([7]);
     await expect(canvas.queryByText('Seven')).not.toBeInTheDocument();
     await expect(canvas.getByText('Alpha')).toBeVisible();
   },
 };
+
 export const ReadOnly: Story = { args: { onRemove: undefined } };
+
 export const Disabled: Story = { args: { isDisabled: true } };
+
 export const LongLabels: Story = {
   args: {
     items: [{ id: 'long', text: 'A long category label remains readable in a narrow collection' }],

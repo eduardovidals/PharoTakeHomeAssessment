@@ -13,8 +13,10 @@ import type { PharoSegmentedControlProps as Props } from './types';
  */
 export function PharoSegmentedControl<Value extends string>(props: Props<Value>) {
   const { label, options, value, onChange, isDisabled, className } = props;
+
   const handleChange = (next: string) => {
     const option = options.find((candidate) => candidate.value === next);
+
     if (option && !option.isDisabled && !isDisabled) onChange(option.value);
   };
 

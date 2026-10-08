@@ -15,11 +15,16 @@ describe('PharoIconButton', () => {
       />,
     );
     const button = screen.getByRole('button', { name: 'Close observations' });
+
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+
     await user.tab();
+
     expect(button).toHaveFocus();
+
     await user.keyboard('{Enter}');
     await user.keyboard(' ');
+
     expect(onPress).toHaveBeenCalledTimes(2);
   });
 
@@ -33,9 +38,13 @@ describe('PharoIconButton', () => {
       />,
     );
     const button = screen.getByRole('button', { name: 'Close observations' });
+
     await user.pointer({ target: button, keys: '[MouseLeft>]' });
+
     expect(button).toHaveClass('consumer-pressed');
+
     await user.pointer('[/MouseLeft]');
+
     expect(button).toHaveClass('consumer-rest');
   });
 
@@ -50,10 +59,12 @@ describe('PharoIconButton', () => {
     );
     const disabled = screen.getByRole('button', { name: 'Disabled action' });
     const pending = screen.getByRole('button', { name: 'Pending action' });
+
     await user.click(disabled);
     await user.click(pending);
     pending.focus();
     await user.keyboard('{Enter}');
+
     expect(disabled).toBeDisabled();
     expect(onPress).not.toHaveBeenCalled();
   });

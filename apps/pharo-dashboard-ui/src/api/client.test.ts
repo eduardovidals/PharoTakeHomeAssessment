@@ -6,6 +6,7 @@ import { server } from '../test/mocks/server';
 import { createApiClient, isApiFailure, requestJson } from './client';
 
 const endpoint = 'http://localhost/api/client-witness';
+
 const schema = z.strictObject({ value: z.number() });
 
 function deferred() {
@@ -22,6 +23,7 @@ test('constructs an isolated strict JSON client with production defaults', () =>
   const priorBase = axios.defaults.baseURL;
   const first = createApiClient();
   const second = createApiClient();
+
   expect(first).not.toBe(second);
   expect(first.defaults.baseURL).toBe('/api');
   expect(first.defaults.timeout).toBe(10000);
@@ -55,6 +57,7 @@ test.each([0, -1, NaN, Infinity])('rejects invalid timeout %s', (timeoutMs) => {
 
 test('validates unknown response JSON before returning data', async () => {
   server.use(http.get(endpoint, () => HttpResponse.json({ value: 7 })));
+
   await expect(
     requestJson(createApiClient({ baseURL: 'http://localhost/api' }), '/client-witness', schema),
   ).resolves.toEqual({ value: 7 });
@@ -82,6 +85,7 @@ test.each([
       '/client-witness',
       schema,
     ).catch((failure: unknown) => failure);
+
     expect(error).toEqual({ kind, status, message });
     expect(isApiFailure(error)).toBe(true);
     expect(JSON.stringify(error)).not.toContain('secret-body');
@@ -103,6 +107,7 @@ test('rejects malformed successful JSON with safe plain metadata', async () => {
     '/client-witness',
     schema,
   ).catch((failure: unknown) => failure);
+
   expect(error).toEqual({
     kind: 'invalid-response',
     status: 200,
@@ -114,6 +119,7 @@ test('rejects malformed successful JSON with safe plain metadata', async () => {
 
 test('rejects successful JSON with an incorrect schema', async () => {
   server.use(http.get(endpoint, () => HttpResponse.json({ value: '7', extra: true })));
+
   await expect(
     requestJson(createApiClient({ baseURL: 'http://localhost/api' }), '/client-witness', schema),
   ).rejects.toEqual({
@@ -124,6 +130,7 @@ test('rejects successful JSON with an incorrect schema', async () => {
 
 test('distinguishes an intentional network failure', async () => {
   server.use(http.get(endpoint, () => HttpResponse.error()));
+
   await expect(
     requestJson(createApiClient({ baseURL: 'http://localhost/api' }), '/client-witness', schema),
   ).rejects.toEqual({ kind: 'network', message: 'The service could not be reached.' });
@@ -162,8 +169,11 @@ test('consumes the actual signal and drains its held request after cancellation'
   );
   try {
     await started.promise;
+
     expect(capturedSignal).toBe(controller.signal);
+
     controller.abort();
+
     await expect(outcome).resolves.toEqual({ kind: 'cancelled', message: 'Request cancelled.' });
     expect(aborted).toBe(true);
     // MSW's XHR bridge omits Request.signal; this spy calls the real XHR abort.
@@ -200,6 +210,7 @@ test('distinguishes an actual clarified timeout and drains its held handler', as
   const outcome = requestJson(client, '/client-witness', schema).catch((error: unknown) => error);
   try {
     await started.promise;
+
     await expect(outcome).resolves.toEqual({ kind: 'timeout', message: 'The request timed out.' });
   } finally {
     release.resolve();

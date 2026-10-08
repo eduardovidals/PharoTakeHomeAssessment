@@ -15,6 +15,7 @@ describe('PharoTextField', () => {
       />,
     );
     const input = screen.getByRole('textbox', { name: 'Display name' });
+
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveAccessibleDescription(/Shown with your work\./);
     expect(input).toHaveAccessibleDescription(/Enter a display name\./);
@@ -24,8 +25,10 @@ describe('PharoTextField', () => {
     const user = userEvent.setup();
     const change = vi.fn();
     const blur = vi.fn();
+
     function ControlledField() {
       const [value, setValue] = useState('Ada');
+
       return (
         <PharoTextField
           label="Name"
@@ -39,10 +42,13 @@ describe('PharoTextField', () => {
         />
       );
     }
+
     render(<ControlledField />);
     const input = screen.getByRole('textbox', { name: 'Name' });
+
     await user.type(input, ' Lovelace');
     await user.tab();
+
     expect(input).toHaveValue('Ada Lovelace');
     expect(input).toHaveAttribute('name', 'name');
     expect(change).toHaveBeenLastCalledWith('Ada Lovelace');
@@ -66,6 +72,7 @@ describe('PharoTextField', () => {
       />,
     );
     const input = screen.getByRole('textbox', { name: 'Email' });
+
     expect(ref.current).toBe(input);
     expect(input).toHaveValue('hello@example.test');
     expect(input).toHaveAttribute('autocomplete', 'email');
@@ -85,9 +92,13 @@ describe('PharoTextField', () => {
     );
     const disabled = screen.getByRole('textbox', { name: 'Disabled name' });
     const readOnly = screen.getByRole('textbox', { name: 'Read-only name' });
+
     await user.tab();
+
     expect(readOnly).toHaveFocus();
+
     await user.type(readOnly, ' changed');
+
     expect(readOnly).toHaveValue('Saved');
     expect(readOnly).not.toBeDisabled();
     expect(disabled).toBeDisabled();
@@ -104,7 +115,9 @@ describe('PharoTextField', () => {
       />,
     );
     const input = screen.getByRole('textbox', { name: 'Name' });
+
     await user.click(input);
+
     expect(input).toHaveClass('consumer-focused');
     expect(input.closest('.consumer-invalid')).not.toBeNull();
   });
@@ -128,6 +141,7 @@ describe('PharoTextField', () => {
     'aria-errormessage',
   ])('rejects an untyped owned %s input prop even when undefined', (key) => {
     const inputProps: Record<string, unknown> = { [key]: undefined };
+
     expect(() => render(<PharoTextField label="Protected" inputProps={inputProps} />)).toThrow();
   });
 });

@@ -6,7 +6,9 @@ import type { PriceSeries, PriceStats } from './types';
 
 function encodedTicker(ticker: string): string {
   const canonical = normalizeTicker(ticker);
+
   if (canonical === undefined) throw new TypeError('Invalid instrument identifier.');
+
   return encodeURIComponent(canonical);
 }
 

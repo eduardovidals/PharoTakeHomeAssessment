@@ -11,10 +11,12 @@ import { z } from 'zod';
 import { PharoFormTextField as PharoFormTextFieldDocs } from './PharoFormTextField';
 
 type Values = { name: string };
+
 type StoryArgs = Pick<
   PharoFormTextFieldProps<Values>,
   'label' | 'description' | 'isDisabled' | 'isReadOnly' | 'inputProps'
 >;
+
 const meta = {
   title: 'Forms/PharoFormTextField',
   // Source supplies docgen metadata; the live form renders built public exports.
@@ -28,6 +30,7 @@ const meta = {
       },
     );
     const [submitted, setSubmitted] = useState('Not submitted');
+
     return (
       <form
         noValidate
@@ -60,38 +63,53 @@ const meta = {
     validationBehavior: { control: false, table: { disable: true } },
   },
 } satisfies Meta<typeof PharoFormTextField<Values>>;
+
 export default meta;
+
 type Story = StoryObj<StoryArgs>;
 
 export const KeyboardSubmit: Story = {
   args: { label: 'Display name' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+
     await userEvent.type(canvas.getByRole('textbox', { name: 'Display name' }), 'Grace{Enter}');
+
     await expect(await canvas.findByText('Submitted: Grace')).toBeVisible();
   },
 };
+
 export const ValidationError: Story = {
   args: { label: 'Display name' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+
     await userEvent.click(canvas.getByRole('button', { name: 'Submit name' }));
+
     await expect(await canvas.findByText('Enter at least two characters.')).toBeVisible();
+
     const input = canvas.getByRole('textbox', { name: 'Display name' });
+
     await waitFor(() => expect(input).toHaveFocus());
     await expect(input).toHaveAccessibleDescription(/Enter at least two characters\./);
   },
 };
+
 export const Disabled: Story = {
   args: { label: 'Display name', isDisabled: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+
     await expect(canvas.getByRole('textbox', { name: 'Display name' })).toBeDisabled();
+
     await userEvent.click(canvas.getByRole('button', { name: 'Submit name' }));
+
     await expect(await canvas.findByText('Submitted: omitted')).toBeVisible();
   },
 };
+
 export const ReadOnly: Story = { args: { label: 'Published name', isReadOnly: true } };
+
 export const LongContent: Story = {
   args: {
     label: 'The full display name shown on your shared presentation materials',

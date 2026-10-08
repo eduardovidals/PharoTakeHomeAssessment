@@ -34,6 +34,7 @@ import type { PharoComboBoxProps as Props } from './types';
  * @example
  * ```tsx
  * const options = [{ id: 'alpha', label: 'Alpha' }];
+ *
  * <PharoComboBox
  *   label="Choose an option"
  *   defaultItems={options}
@@ -56,6 +57,7 @@ export function PharoComboBox<T extends object>(props: Props<T>) {
     className,
     ...rest
   } = props;
+
   assertFieldInputProps(inputProps);
 
   return (
@@ -97,6 +99,7 @@ export function PharoComboBox<T extends object>(props: Props<T>) {
         >
           {(item) => {
             const text = itemText(item);
+
             return (
               <ListBoxItem id={itemKey(item)} textValue={text} className={optionStyles}>
                 {({ isSelected }) => (

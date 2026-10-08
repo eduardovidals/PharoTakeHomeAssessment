@@ -4,6 +4,7 @@ import type {
   PharoChartSeries,
   PharoChartAppearance,
 } from '../../types';
+
 export type { PharoChartPoint, PharoChartSeries, PharoChartAppearance } from '../../types';
 
 /** Independent formatter contexts preserve readable axis, detail, table and spoken labels. */

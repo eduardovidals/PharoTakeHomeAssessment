@@ -14,6 +14,7 @@ import type { PharoFormTextFieldProps as Props } from './types';
  * const form = useSchemaForm(z.object({ search: z.string() }), {
  *   defaultValues: { search: '' },
  * });
+ *
  * <PharoFormTextField control={form.control} name="search" label="Search" />;
  * ```
  */
@@ -23,6 +24,7 @@ export function PharoFormTextField<
   Context = unknown,
 >(props: Props<Input, Output, Context>) {
   assertManagedFormProps(props, managedTextFieldKeys, 'PHARO-FORMS-TEXT-PROPS');
+
   const { control, name, isDisabled, ...rest } = props;
   const { disabled: formDisabled } = useFormState<Input, Output>({ control });
 

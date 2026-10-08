@@ -23,6 +23,7 @@ describe('historical statistics parity with the backend contract', () => {
     'matches independently specified financial results for %j',
     (prices, total, volatility, drawdown) => {
       const result = calculatePriceStatistics(points(prices));
+
       expect(result?.totalReturnPercent).toBeCloseTo(total, 10);
       expect(result?.dailyVolatilityPercent).toBeCloseTo(volatility, 10);
       expect(result?.maxDrawdownPercent).toBeCloseTo(drawdown, 10);
@@ -35,6 +36,7 @@ describe('historical statistics parity with the backend contract', () => {
     { prices: [80, 100], total: 25, drawdown: 0 },
   ])('has null sample volatility for $prices', ({ prices, total, drawdown }) => {
     const result = calculatePriceStatistics(points(prices));
+
     expect(result?.totalReturnPercent).toBeCloseTo(total, 10);
     expect(result?.dailyVolatilityPercent).toBeNull();
     expect(result?.maxDrawdownPercent).toBeCloseTo(drawdown, 10);
@@ -46,12 +48,15 @@ describe('historical statistics parity with the backend contract', () => {
     );
     const snapshot = structuredClone(history);
     const result = calculatePriceStatistics(history);
+
     expect(result?.totalReturnPercent).toBeCloseTo(0.000003, 12);
     expect(result?.dailyVolatilityPercent).toBeCloseTo(0.000000707106767044412, 12);
     expect(history).toEqual(snapshot);
+
     const extreme = calculatePriceStatistics(
       points([1e-28, Number('79228162514264337593543950335'), 1e-28]),
     );
+
     expect(extreme?.totalReturnPercent).toBe(0);
     expect(extreme?.dailyVolatilityPercent).toBeGreaterThan(1e58);
     expect(extreme?.maxDrawdownPercent).toBe(100);
@@ -77,12 +82,15 @@ describe('historical statistics parity with the backend contract', () => {
       { date: '2026-06-04', price: 120 },
     ];
     const before = getHistoricalComparison(history, Date.parse('2026-05-31'));
+
     expect(before).toMatchObject({
       observationCount: 0,
       closingPrice: undefined,
       statistics: undefined,
     });
+
     const first = getHistoricalComparison(history, Date.parse('2026-06-01'));
+
     expect(first).toMatchObject({
       closingPrice: 100,
       observationCount: 1,
@@ -92,11 +100,15 @@ describe('historical statistics parity with the backend contract', () => {
         maxDrawdownPercent: 0,
       },
     });
+
     const gap = getHistoricalComparison(history, Date.parse('2026-06-02'));
+
     expect(gap.closingPrice).toBeUndefined();
     expect(gap.statistics).toEqual(first.statistics);
     expect(gap.lastTimestamp).toBe(Date.parse('2026-06-01'));
+
     const cutoff = getHistoricalComparison(history, Date.parse('2026-06-03'));
+
     expect(cutoff.observationCount).toBe(2);
     expect(cutoff.closingPrice).toBe(80);
     expect(cutoff.statistics?.maxDrawdownPercent).toBeCloseTo(20, 10);

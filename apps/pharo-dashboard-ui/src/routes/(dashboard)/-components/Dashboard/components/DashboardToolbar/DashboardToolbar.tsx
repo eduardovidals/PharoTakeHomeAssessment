@@ -18,9 +18,12 @@ import type { DashboardToolbarProps as Props } from './types';
 export function DashboardToolbar(props: Props) {
   const { apiClient, selectedTickers, mode, appearances, windows, onAction, pickerInputRef } =
     props;
+
   const [viewChangeFailed, setViewChangeFailed] = useState(false);
+
   const firstWindow = windows.at(0);
   const mismatched = haveMismatchedWindows(windows);
+
   const handleViewChange = async (view: ChartMode) => {
     try {
       await onAction({ type: 'set-view', view });

@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 });
 
 builder.Services.AddControllers();
+
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -23,11 +24,13 @@ builder.Services.AddProblemDetails(options =>
         }
     };
 });
+
 builder.Services.AddSingleton(services =>
 {
     var configuration = services.GetRequiredService<IConfiguration>();
     var environment = services.GetRequiredService<IHostEnvironment>();
     var configuredPath = configuration["MarketData:Path"];
+
     if (string.IsNullOrWhiteSpace(configuredPath))
     {
         throw new InvalidOperationException("MarketData:Path must identify the market data CSV.");
@@ -35,6 +38,7 @@ builder.Services.AddSingleton(services =>
 
     return CsvMarketDataLoader.Load(Path.GetFullPath(configuredPath, environment.ContentRootPath));
 });
+
 builder.Services.AddSingleton<InstrumentsService>();
 builder.Services.AddSingleton<PricesService>();
 

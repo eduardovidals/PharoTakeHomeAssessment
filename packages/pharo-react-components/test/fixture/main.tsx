@@ -19,23 +19,29 @@ const plants = [
   { id: 'maple', name: 'Maple' },
   { id: 'long', name: 'A particularly long botanical variety name that should wrap comfortably' },
 ];
+
 const plantKey = (plant: (typeof plants)[number]) => plant.id;
+
 const plantText = (plant: (typeof plants)[number]) => plant.name;
 
 const varieties = Array.from({ length: 24 }, (_, index) => ({
   id: index + 1,
   name: `Variety ${String(index + 1).padStart(2, '0')}`,
 }));
+
 function MultipleChoices() {
   const [keys, setKeys] = useState<readonly Key[]>(['retired']);
   const [query, setQuery] = useState('');
   const [submissions, setSubmissions] = useState(0);
   const [failNext, setFailNext] = useState(false);
+
   const handleAction = async (action: PharoSelectionAction) => {
     if (failNext) {
       setFailNext(false);
+
       throw new Error('Private fixture rejection');
     }
+
     setKeys((previous) =>
       action.kind === 'add'
         ? [...previous, action.key]
@@ -43,8 +49,10 @@ function MultipleChoices() {
           ? []
           : previous.filter((key) => !action.keys.includes(key)),
     );
+
     return 'committed' as const;
   };
+
   return (
     <section
       aria-label="Multiple choices"
@@ -95,6 +103,7 @@ function Consumer() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [layout, setLayout] = useState<'list' | 'grid' | 'map'>('list');
   const inputRef = useRef<HTMLInputElement>(null);
+
   return (
     <main className="mx-auto max-w-3xl space-y-pharo-8 p-pharo-6 font-pharo-body text-pharo-base text-pharo-foreground">
       <header>
@@ -232,5 +241,7 @@ function Consumer() {
 }
 
 const root = document.getElementById('root');
+
 if (!root) throw new Error('Consumer root is missing.');
+
 createRoot(root).render(<Consumer />);

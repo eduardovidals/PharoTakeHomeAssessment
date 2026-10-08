@@ -8,16 +8,21 @@ const march10 = Date.UTC(2024, 2, 10);
 const march11 = Date.UTC(2024, 2, 11);
 const march12 = Date.UTC(2024, 2, 12);
 const march13 = Date.UTC(2024, 2, 13);
+
 const recordedDates = [10, 11, 13, 14, 18, 19, 21, 25].map((date) => Date.UTC(2024, 2, date));
+
 const fullDate = (value: number) =>
   `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight Coordinated Universal Time`;
+
 const fullValue = (value: number) =>
   `Reading ${value.toString()} in fully described measurement units`;
+
 const shortDate = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
   timeZone: 'UTC',
 });
+
 const unequalSeries: readonly PharoChartSeries[] = [
   {
     id: 'unequal-north',
@@ -37,6 +42,7 @@ const unequalSeries: readonly PharoChartSeries[] = [
     ],
   },
 ];
+
 const north: PharoChartSeries = {
   id: 'north',
   label: 'North greenhouse',
@@ -46,6 +52,7 @@ const north: PharoChartSeries = {
     { x: march12, y: 20 },
   ],
 };
+
 const south: PharoChartSeries = {
   id: 'south',
   label: 'South greenhouse',
@@ -55,6 +62,7 @@ const south: PharoChartSeries = {
     { x: march12, y: 10 },
   ],
 };
+
 const east: PharoChartSeries = {
   id: 'east',
   label: 'East greenhouse',
@@ -73,6 +81,7 @@ function App() {
   const [baselineVisible, setBaselineVisible] = useState(true);
   const [tall, setTall] = useState(false);
   const [series, setSeries] = useState<readonly PharoChartSeries[]>([north, south]);
+
   return (
     <main className="mx-auto max-w-6xl space-y-pharo-8 p-pharo-4">
       <header className="space-y-pharo-2">
@@ -338,5 +347,7 @@ function App() {
 }
 
 const container = document.getElementById('root');
+
 if (!container) throw new Error('The chart fixture root is missing.');
+
 createRoot(container).render(<App />);

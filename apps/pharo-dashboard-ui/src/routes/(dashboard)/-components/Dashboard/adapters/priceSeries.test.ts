@@ -18,6 +18,7 @@ describe('price history chart adapter', () => {
     ]);
     const before = JSON.stringify(input);
     const result = toChartSeries('A.B-1', input);
+
     expect(result).toEqual({
       id: 'A.B-1',
       label: 'A.B-1',
@@ -63,10 +64,13 @@ describe('rebased price change', () => {
       points: prices.map((y, x) => ({ x, y })),
     };
     const result = toPerformanceSeries(series);
+
     expect(result.kind).toBe('ready');
+
     result.series.points.forEach((point, index) =>
       expect(point.y).toBeCloseTo(expected[index] ?? NaN, 12),
     );
+
     expect(result.series).toMatchObject({ id: 'A', label: 'A', appearance: 'secondary' });
     expect(result.series.points.map((point) => point.x)).toEqual(
       series.points.map((point) => point.x),
@@ -87,6 +91,7 @@ describe('rebased price change', () => {
     });
     const original = JSON.stringify(series);
     const result = toPerformanceSeries(series);
+
     expect(result.kind).toBe('ready');
     if (result.kind !== 'ready') throw new Error('Expected a valid price-change base.');
     expect(result.baseTimestamp).toBe(2);
@@ -116,6 +121,7 @@ describe('rebased price change', () => {
         label: 'A',
         points: values.map((y, x) => ({ x, y })),
       });
+
       expect(result).toMatchObject({
         kind: 'unavailable',
         reason,
@@ -134,6 +140,7 @@ describe('rebased price change', () => {
       ],
       'secondary',
     );
+
     expect(raw.appearance).toBe('secondary');
     expect(haveMismatchedWindows(getSeriesWindows([raw, { ...raw, id: 'B' }]))).toBe(false);
     expect(
@@ -145,7 +152,9 @@ describe('rebased price change', () => {
       ),
     ).toBe(true);
     expect(getSeriesWindows([{ id: 'pending', label: 'Pending', points: [] }])).toEqual([]);
+
     const windows = getSeriesWindows([raw]);
+
     expect(windows[0]).toMatchObject({
       id: 'A',
       firstTimestamp: 1704067200000,

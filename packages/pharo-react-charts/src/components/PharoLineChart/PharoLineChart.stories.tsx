@@ -59,11 +59,14 @@ const meta = {
   },
   play: async ({ canvasElement, args }) => {
     const chart = await within(canvasElement).findByRole('img', { name: args.label });
+
     await expect(chart).toBeVisible();
     await expect(chart).toHaveAccessibleDescription(args.description);
   },
 } satisfies Meta<typeof PharoLineChart>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
@@ -75,6 +78,7 @@ export const Default: Story = {
 function ExternalExample(props: PharoLineChartProps) {
   const [open, setOpen] = useState(false);
   const id = useId();
+
   return (
     <div>
       <button
@@ -96,28 +100,34 @@ function ExternalExample(props: PharoLineChartProps) {
     </div>
   );
 }
+
 export const ExternalData: Story = {
   render: (args) => <ExternalExample {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const chart = await canvas.findByRole('img', { name: args.label });
     const trigger = canvas.getByRole('button', { name: 'View external data' });
+
     await expect(chart).toHaveAttribute('aria-details', trigger.id);
     await expect(
       canvas.queryByRole('button', { name: `Show data table for ${args.label}` }),
     ).not.toBeInTheDocument();
+
     await userEvent.click(trigger);
+
     await expect(canvas.getByRole('table', { name: 'External source records' })).toBeVisible();
     await expect(chart).toHaveAttribute('height', '320');
   },
 };
 
 const candidateDates = [10, 11, 13, 18, 21, 25].map((date) => Date.UTC(2024, 2, date));
+
 const shortDate = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
   timeZone: 'UTC',
 });
+
 export const RecordedCandidates: Story = {
   args: {
     label: 'Recorded candidate dates',
@@ -137,13 +147,17 @@ export const RecordedCandidates: Story = {
     const chart = await canvas.findByRole('img', { name: args.label });
     const axis = within(chart).getByLabelText('UTC time axis');
     const labels = [...axis.querySelectorAll('title')].map((title) => title.textContent);
+
     await expect(labels[0]).toBe('Mar 10');
     await expect(labels.at(-1)).toBe('Mar 25');
     await expect(axis.querySelector('[textLength]')).toBeNull();
+
     await userEvent.click(
       canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
     );
+
     const table = canvas.getByRole('table', { name: `Data for ${args.label}` });
+
     await expect(within(table).getByRole('rowheader', { name: '2024-03-13' })).toBeVisible();
     await expect(within(table).getAllByRole('rowheader')).toHaveLength(candidateDates.length);
   },
@@ -165,13 +179,16 @@ export const ReferenceBaseline: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const chart = await canvas.findByRole('img', { name: args.label });
+
     await expect(chart.querySelector('[data-chart-baseline="0"]')).toBeVisible();
     await expect(
       canvas.getByRole('region', { name: `Details for ${args.label}` }),
     ).toHaveTextContent('10');
+
     await userEvent.click(
       canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
     );
+
     await expect(
       canvas.getByRole('table', { name: `Data for ${args.label}` }).querySelectorAll('tbody tr'),
     ).toHaveLength(3);
@@ -258,6 +275,7 @@ export const Empty: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+
     await expect(await canvas.findByRole('status', { name: args.label })).toHaveTextContent(
       'No observations to display.',
     );
@@ -288,6 +306,7 @@ export const InvalidData: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+
     await expect(await canvas.findByRole('status', { name: args.label })).toHaveTextContent(
       'Chart data is invalid.',
     );
@@ -335,6 +354,7 @@ export const UnequalDates: Story = {
     const chart = await canvas.findByRole('img', { name: args.label });
     const bounds = chart.getBoundingClientRect();
     const width = Number(chart.getAttribute('width'));
+
     // Exercise the pointer handler at the recorded third date. Native range key
     // defaults and real touch gestures are verified by the public Playwright fixture.
     await userEvent.pointer({
@@ -344,17 +364,22 @@ export const UnequalDates: Story = {
         clientY: bounds.top + 60,
       },
     });
+
     const details = canvas.getByRole('region', { name: `Details for ${args.label}` });
+
     await expect(details).toHaveTextContent('2024-03-12');
     await expect(details).toHaveTextContent('Sensor A');
     await expect(details).toHaveTextContent('Unavailable');
     await expect(details).toHaveTextContent('Sensor B');
     await expect(within(details).getByText('30', { exact: true })).toBeVisible();
     await expect(canvas.getByRole('slider', { name: `Inspect ${args.label}` })).toHaveValue('2');
+
     await userEvent.click(
       canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
     );
+
     const table = canvas.getByRole('table', { name: `Data for ${args.label}` });
+
     await expect(within(table).getAllByRole('rowheader')).toHaveLength(4);
     await expect(within(table).getByRole('rowheader', { name: '2024-03-11' })).toBeVisible();
   },
@@ -392,13 +417,17 @@ export const LongLabelsAndDataTable: Story = {
     const canvas = within(canvasElement);
     const chart = await canvas.findByRole('img', { name: args.label });
     const height = chart.getAttribute('height');
+
     await expect(canvas.getByRole('list', { name: `Legend for ${args.label}` })).toHaveTextContent(
       'Outdoor shaded temperature sensor beside the northern greenhouse entrance',
     );
+
     await userEvent.click(
       canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
     );
+
     const table = canvas.getByRole('table', { name: `Data for ${args.label}` });
+
     await expect(
       within(table).getByRole('columnheader', {
         name: 'Indoor temperature sensor above the southern propagation workbench',
@@ -408,9 +437,11 @@ export const LongLabelsAndDataTable: Story = {
       within(table).getByRole('cell', { name: '30 degrees Celsius recorded by the sensor' }),
     ).toBeVisible();
     await expect(chart).toHaveAttribute('height', height ?? '');
+
     await userEvent.click(
       canvas.getByRole('button', { name: `Hide data table for ${args.label}` }),
     );
+
     await expect(canvas.queryByRole('table')).not.toBeInTheDocument();
   },
 };
@@ -437,13 +468,17 @@ export const NarrowContainer: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const chart = await canvas.findByRole('img', { name: args.label });
+
     await expect(chart).toHaveAttribute('width', '256');
     await expect(chart).toHaveAttribute('height', '320');
     await expect(canvas.getByRole('slider', { name: `Inspect ${args.label}` })).toBeVisible();
+
     await userEvent.click(
       canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
     );
+
     const table = canvas.getByRole('table', { name: `Data for ${args.label}` });
+
     await expect(
       within(table)
         .getAllByRole('rowheader')
@@ -477,18 +512,24 @@ export const CustomFormatting: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+
     await canvas.findByRole('img', { name: args.label });
+
     const details = canvas.getByRole('region', { name: `Details for ${args.label}` });
+
     await expect(
       within(details).getByText('Recorded on 2024-03-12 at midnight UTC', { exact: true }),
     ).toBeVisible();
     await expect(
       within(details).getByText('10 degrees Celsius from the laboratory record', { exact: true }),
     ).toBeVisible();
+
     await userEvent.click(
       canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
     );
+
     const table = canvas.getByRole('table', { name: `Data for ${args.label}` });
+
     await expect(
       within(table).getByRole('rowheader', { name: 'Recorded on 2024-03-12 at midnight UTC' }),
     ).toBeVisible();
@@ -541,6 +582,7 @@ interface UpdatedObservationsExampleProps {
 function UpdatedObservationsExample(props: UpdatedObservationsExampleProps) {
   const { chartProps } = props;
   const [replaced, setReplaced] = useState(false);
+
   return (
     <div className="space-y-pharo-4">
       <button
@@ -575,28 +617,41 @@ export const UpdatedObservations: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+
     await canvas.findByRole('img', { name: args.label });
+
     const details = canvas.getByRole('region', { name: `Details for ${args.label}` });
     const legend = canvas.getByRole('list', { name: `Legend for ${args.label}` });
+
     await expect(within(details).getByText('14', { exact: true })).toBeVisible();
     await expect(within(details).getByText('10', { exact: true })).toBeVisible();
+
     const slider = canvas.getByRole('slider', { name: `Inspect ${args.label}` });
+
     await fireEvent.change(slider, { target: { value: '0' } });
+
     await expect(slider).toHaveValue('0');
     await expect(within(details).getByText('12', { exact: true })).toBeVisible();
     await expect(within(details).getByText('8', { exact: true })).toBeVisible();
+
     await userEvent.click(
       canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
     );
+
     const table = canvas.getByRole('table', { name: `Data for ${args.label}` });
+
     await expect(within(table).getByRole('cell', { name: /^14$/ })).toBeVisible();
+
     await userEvent.click(canvas.getByRole('button', { name: 'Replace observations' }));
+
     await expect(within(details).getByText('18', { exact: true })).toBeVisible();
     await expect(within(table).getByRole('cell', { name: /^21$/ })).toBeVisible();
     await expect(within(table).queryByRole('cell', { name: /^14$/ })).not.toBeInTheDocument();
     await expect(within(legend).getByText('Reference sensor', { exact: true })).toBeVisible();
     await expect(within(details).getByText('8', { exact: true })).toBeVisible();
+
     await userEvent.click(canvas.getByRole('button', { name: 'Restore original observations' }));
+
     await expect(within(details).getByText('12', { exact: true })).toBeVisible();
     await expect(within(table).getByRole('cell', { name: /^14$/ })).toBeVisible();
     await expect(within(table).queryByRole('cell', { name: /^21$/ })).not.toBeInTheDocument();
@@ -612,6 +667,7 @@ interface ControlledDateExampleProps {
 function ControlledDateExample(props: ControlledDateExampleProps) {
   const { chartProps } = props;
   const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
+
   return (
     <div className="space-y-pharo-3">
       <p>
@@ -653,17 +709,23 @@ export const ControlledDate: Story = {
     const slider = canvas.getByRole('slider', { name: `Inspect ${args.label}` });
     const details = canvas.getByRole('region', { name: `Details for ${args.label}` });
     const bounds = chart.getBoundingClientRect();
+
     await userEvent.pointer({
       target: chart,
       coords: { clientX: bounds.left + 56, clientY: bounds.top + 60 },
     });
+
     await expect(canvas.getByText('Comparison date: Latest')).toBeVisible();
     await expect(details).toHaveTextContent('2024-03-10');
     await expect(slider).toHaveValue('2');
+
     await fireEvent.change(slider, { target: { value: '1' } });
+
     await expect(canvas.getByText('Comparison date: 2024-03-11')).toBeVisible();
     await expect(details).toHaveTextContent('2024-03-11');
+
     await userEvent.click(canvas.getByRole('button', { name: 'Back to latest' }));
+
     await expect(canvas.getByText('Comparison date: Latest')).toBeVisible();
     await expect(slider).toHaveValue('2');
   },

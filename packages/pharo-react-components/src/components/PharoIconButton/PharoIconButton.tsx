@@ -12,6 +12,7 @@ import type { PharoIconButtonProps as Props } from './types';
  */
 export function PharoIconButton(props: Props) {
   const { icon, variant = 'secondary', className, ...rest } = props;
+
   return (
     <PharoButton
       {...rest}

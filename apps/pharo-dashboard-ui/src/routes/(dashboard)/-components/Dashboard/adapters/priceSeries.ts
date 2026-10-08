@@ -42,16 +42,20 @@ function unavailablePerformance(
  */
 export function toPerformanceSeries(series: PharoChartSeries): PerformanceSeriesResult {
   const first = series.points.find((point) => point.y !== null);
+
   if (!first || first.y === null) return unavailablePerformance(series, 'no-observations');
   if (!Number.isFinite(first.y)) return unavailablePerformance(series, 'invalid-observation');
   if (first.y <= 0) return unavailablePerformance(series, 'invalid-base');
+
   const base = first.y;
   const points = series.points.map((point) => ({
     x: point.x,
     y: point.y === null ? null : 100 * (point.y / base - 1),
   }));
+
   if (points.some((point) => point.y !== null && !Number.isFinite(point.y)))
     return unavailablePerformance(series, 'invalid-observation');
+
   return { kind: 'ready', baseTimestamp: first.x, series: { ...series, points } };
 }
 
@@ -60,8 +64,11 @@ export function getSeriesWindows(series: readonly PharoChartSeries[]): readonly 
   return series.flatMap((item) => {
     const first = item.points.at(0);
     const last = item.points.at(-1);
+
     if (!first || !last) return [];
+
     const base = item.points.find((point) => point.y !== null);
+
     return [
       {
         id: item.id,

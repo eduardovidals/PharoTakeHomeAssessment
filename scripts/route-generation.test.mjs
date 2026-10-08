@@ -10,6 +10,7 @@ const appDirectory = path.resolve(import.meta.dirname, '../apps/pharo-dashboard-
 
 async function withFixture(operation) {
   const directory = await mkdtemp(path.join(tmpdir(), 'pharo-route-generation-'));
+
   try {
     return await operation(directory);
   } finally {
@@ -33,8 +34,10 @@ async function copyAppRoutes(destination) {
 
 async function checkGeneratedRoutes(sourceDirectory) {
   const committed = await readFile(path.join(sourceDirectory, routerConfig.generatedRouteTree));
+
   return withFixture(async (directory) => {
     const generations = [];
+
     for (const pass of [1, 2]) {
       const root = path.join(directory, `run-${pass}`);
       await cp(
@@ -44,6 +47,7 @@ async function checkGeneratedRoutes(sourceDirectory) {
           recursive: true,
         },
       );
+
       const config = getConfig(
         {
           ...routerConfig,
@@ -52,6 +56,7 @@ async function checkGeneratedRoutes(sourceDirectory) {
         },
         root,
       );
+
       await new Generator({ config, root }).run();
       generations.push(await readFile(config.generatedRouteTree));
     }
@@ -76,10 +81,12 @@ async function addRoute(directory, file, routePath) {
 
 test('fresh grouped-dashboard generation is reproducible and preserves the public root URL', async () => {
   await checkGeneratedRoutes(appDirectory);
+
   const generated = await readFile(
     path.join(appDirectory, routerConfig.generatedRouteTree),
     'utf8',
   );
+
   assert.match(generated, /from ['"]\.\/routes\/\(dashboard\)\/index['"]/);
   assert.match(generated, /fullPaths: ['"]\/['"]/);
   assert.doesNotMatch(generated, /['"]\/dashboard\/?['"]/);
@@ -89,6 +96,7 @@ test('the generation check rejects deliberately stale committed bytes', async ()
   await withFixture(async (directory) => {
     await copyAppRoutes(directory);
     await appendFile(path.join(directory, routerConfig.generatedRouteTree), '\n// stale fixture\n');
+
     await assert.rejects(checkGeneratedRoutes(directory), /routeTree\.gen\.ts is stale/);
   });
 });
@@ -96,6 +104,7 @@ test('the generation check rejects deliberately stale committed bytes', async ()
 test('stories, tests, mocks, and ignored support files are excluded by the shared route policy', async () => {
   await withFixture(async (directory) => {
     await copyAppRoutes(directory);
+
     const ignoredFiles = [
       'fixture.test.tsx',
       'fixture.spec.tsx',
@@ -116,9 +125,11 @@ test('stories, tests, mocks, and ignored support files are excluded by the share
       '(dashboard)/nested/fixture.stories.tsx',
       '(dashboard)/nested/mocks/fixture.tsx',
     ];
+
     for (const [index, file] of ignoredFiles.entries()) {
       await addRoute(directory, file, `/ignored-fixture-${index}`);
     }
+
     await checkGeneratedRoutes(directory);
   });
 });
@@ -127,6 +138,7 @@ test('a new nested ordinary route makes the unchanged committed tree stale', asy
   await withFixture(async (directory) => {
     await copyAppRoutes(directory);
     await addRoute(directory, 'nested/generated-probe.tsx', '/nested/generated-probe');
+
     await assert.rejects(checkGeneratedRoutes(directory), /routeTree\.gen\.ts is stale/);
   });
 });

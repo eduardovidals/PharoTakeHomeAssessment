@@ -30,19 +30,24 @@ function deferred() {
 class LocalResizeObserver implements ResizeObserver {
   static readonly active = new Set<LocalResizeObserver>();
   readonly targets = new Set<Element>();
+
   constructor(readonly callback: ResizeObserverCallback) {
     LocalResizeObserver.active.add(this);
   }
+
   observe(target: Element) {
     this.targets.add(target);
   }
+
   unobserve(target: Element) {
     this.targets.delete(target);
   }
+
   disconnect() {
     this.targets.clear();
     LocalResizeObserver.active.delete(this);
   }
+
   deliver(target: Element) {
     this.callback(
       [
@@ -93,11 +98,13 @@ async function withHistory(
   const cache = createAppQueryClient();
   cache.setDefaultOptions({ queries: { ...cache.getDefaultOptions().queries, retryDelay: 0 } });
   const client = createApiClient({ baseURL: base });
+
   const view = render(
     <QueryClientProvider client={cache}>
       <Harness client={client} tickers={tickers} mode="price" />
     </QueryClientProvider>,
   );
+
   const failures: unknown[] = [];
   try {
     await run({
@@ -166,6 +173,7 @@ async function chartReady(view: RenderResult) {
       ),
     ).toBe(true),
   );
+
   measure(view);
   return screen.getByRole('img', { name: 'Historical closing prices' });
 }
@@ -187,6 +195,7 @@ describe('PriceHistory', () => {
       const labels = [...chart.querySelectorAll('[aria-label="Value axis"] title')].map(
         (title) => title.textContent,
       );
+
       expect(labels.length).toBeGreaterThan(1);
       expect(new Set(labels).size).toBe(labels.length);
       expect(labels).not.toContain('0.00%');
@@ -209,8 +218,10 @@ describe('PriceHistory', () => {
     await withHistory(['A'], async ({ view, show, cache }) => {
       const chart = await chartReady(view);
       const inspector = screen.getByRole('slider', { name: 'Inspect Historical closing prices' });
+
       fireEvent.change(inspector, { target: { value: '1' } });
       show(['A'], 'performance');
+
       expect(screen.getByRole('img', { name: 'Rebased price change' })).toBe(chart);
       expect(screen.getByRole('slider', { name: 'Inspect Rebased price change' })).toBe(inspector);
       expect(inspector).toHaveValue('1');
@@ -221,15 +232,19 @@ describe('PriceHistory', () => {
         ),
       ).toBeVisible();
       expect(chart.querySelector('[data-chart-baseline="0"]')).toBeInTheDocument();
+
       await userEvent.click(
         screen.getByRole('button', { name: 'Show data table for Rebased price change' }),
       );
+
       expect(
         within(screen.getByRole('table', { name: 'Data for Rebased price change' }))
           .getAllByRole('cell')
           .map((cell) => cell.textContent),
       ).toEqual(['0.00%', '+10.00%', '-1.00%']);
+
       show(['A'], 'price');
+
       expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
       expect(inspector).toHaveValue('1');
       expect(chart.querySelector('[data-chart-baseline]')).not.toBeInTheDocument();
@@ -257,21 +272,27 @@ describe('PriceHistory', () => {
     );
     await withHistory(['A'], async ({ view, cache }) => {
       const chart = await chartReady(view);
+
       expect(chart).toHaveAttribute('height', '320');
       expect(within(chart).getByText('Price', { exact: true, selector: 'text' })).toBeVisible();
       expect(
         within(chart).getByText('Date (UTC)', { exact: true, selector: 'text' }),
       ).toBeVisible();
+
       const details = screen.getByRole('region', { name: 'Details for Historical closing prices' });
+
       expect(within(details).getByText('Sun, Mar 10, 2024', { exact: true })).toBeVisible();
       expect(within(details).getByText('20.12', { exact: true })).toBeVisible();
       expect(
         screen.getByRole('slider', { name: 'Inspect Historical closing prices' }),
       ).toHaveAttribute('aria-valuetext', expect.stringContaining('Sunday, March 10, 2024'));
+
       await userEvent.click(
         screen.getByRole('button', { name: 'Show data table for Historical closing prices' }),
       );
+
       const table = screen.getByRole('table', { name: 'Data for Historical closing prices' });
+
       expect(within(table).getAllByRole('rowheader')).toHaveLength(2);
       expect(
         within(table).getByRole('rowheader', { name: 'Thursday, February 29, 2024' }),
@@ -308,11 +329,14 @@ describe('PriceHistory', () => {
     await withHistory(['A'], async () => {
       try {
         await started.promise;
+
         expect(screen.getByText('Loading selected price histories…')).toBeVisible();
         expect(screen.queryByRole('img')).not.toBeInTheDocument();
         expect(LocalResizeObserver.active.size).toBe(0);
+
         release.resolve();
         await screen.findByText('No selected price history is currently available.');
+
         expect(screen.queryByRole('img')).not.toBeInTheDocument();
       } finally {
         release.resolve();
@@ -325,9 +349,12 @@ describe('PriceHistory', () => {
     server.use(http.get(base + '/prices/A', () => HttpResponse.json([])));
     await withHistory(['A'], async ({ show }) => {
       await screen.findByText('No selected price history is currently available.');
+
       expect(screen.queryByRole('img')).not.toBeInTheDocument();
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
       show([]);
+
       expect(
         screen.getByText('Select an instrument to view its historical closing prices.'),
       ).toBeVisible();
@@ -360,20 +387,27 @@ describe('PriceHistory', () => {
         await started.promise;
         const chart = await chartReady(view);
         const legend = screen.getByRole('list', { name: 'Legend for Historical closing prices' });
+
         expect(within(legend).getByText('A', { exact: true })).toBeVisible();
         expect(within(legend).getByText('B', { exact: true })).toBeVisible();
+
         const path = chart.querySelector('[data-series-id="B"] path');
         if (!path) throw new Error('Available B has no SVG path.');
         const appearance = path.getAttribute('class');
+
         expect(chart.querySelectorAll('[data-series-id="A"] circle')).toHaveLength(0);
         expect(cache.getQueryState(pricesKey('A'))?.status).toBe('pending');
+
         release.resolve();
         await settled(cache, 'A');
+
         await waitFor(() =>
           expect(chart.querySelector('[data-series-id="A"] circle')).toBeInTheDocument(),
         );
         expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
+
         show(['B']);
+
         expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
         expect(chart.querySelector('[data-series-id="B"] path')).toHaveAttribute(
           'class',
@@ -406,12 +440,15 @@ describe('PriceHistory', () => {
     await withHistory(['A', 'B'], async ({ view, cache }) => {
       await settled(cache, 'A', 'error');
       const chart = await chartReady(view);
+
       expect(screen.queryByText(/RAW_PRICE_FAILURE_MARKER/)).not.toBeInTheDocument();
       expect(chart.querySelectorAll('[data-series-id="A"] circle')).toHaveLength(0);
       expect(chart.querySelector('[data-series-id="B"] circle')).toBeInTheDocument();
+
       recovered = true;
       // The matrix owns the Retry button; verify this pure chart keeps its owner through Query updates.
       await act(async () => cache.refetchQueries({ queryKey: pricesKey('A'), exact: true }));
+
       await waitFor(() =>
         expect(chart.querySelector('[data-series-id="A"] circle')).toBeInTheDocument(),
       );
@@ -436,9 +473,11 @@ describe('PriceHistory', () => {
     await withHistory(['A'], async ({ cache, view }) => {
       const chart = await chartReady(view);
       const inspector = screen.getByRole('slider', { name: 'Inspect Historical closing prices' });
+
       fireEvent.change(inspector, { target: { value: '0' } });
       await act(async () => cache.refetchQueries({ type: 'active' }));
       await settled(cache, 'A', 'error');
+
       expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
       expect(inspector).toHaveValue('0');
       expect(
@@ -451,8 +490,10 @@ describe('PriceHistory', () => {
         { date: '2024-03-10', price: 11 },
         { date: '2024-03-11', price: 22 },
       ]);
+
       await act(async () => cache.refetchQueries({ type: 'active' }));
       await settled(cache, 'A');
+
       expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
       expect(requests).toBe(3);
     });
@@ -466,6 +507,7 @@ describe('PriceHistory', () => {
     );
     await withHistory(['A'], async () => {
       await screen.findByText('No selected price history is currently available.');
+
       expect(screen.queryByRole('img')).not.toBeInTheDocument();
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
       expect(screen.queryByText(/OWNED_RAW_ERROR/)).not.toBeInTheDocument();
@@ -481,13 +523,16 @@ describe('PriceHistory', () => {
     await withHistory(['A'], async ({ show, cache }) => {
       await settled(cache, 'A');
       show(['A'], 'performance');
+
       expect(
         await screen.findByText(
           'Rebased price change is unavailable for A. Raw prices remain available in Price view.',
         ),
       ).toBeVisible();
       expect(cache.getQueryData(pricesKey('A'))).toEqual(raw);
+
       show(['A'], 'price');
+
       expect(screen.queryByText(/Rebased price change is unavailable/)).not.toBeInTheDocument();
     });
   });
@@ -515,11 +560,14 @@ describe('PriceHistory', () => {
         const chart = await chartReady(view);
         release.resolve();
         await done.promise;
+
         expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
         expect(chart.querySelector('[data-series-id="A"]')).not.toBeInTheDocument();
+
         const details = within(
           screen.getByRole('region', { name: 'Details for Historical closing prices' }),
         );
+
         expect(details.getByText('222.00', { exact: true })).toBeVisible();
         expect(details.queryByText('111.00', { exact: true })).not.toBeInTheDocument();
       } finally {

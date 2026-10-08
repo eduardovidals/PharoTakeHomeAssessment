@@ -18,8 +18,10 @@ export const instrumentsSchema = z
  */
 export function normalizeTicker(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
+
   const trimmed = value.trim();
   // ASCII validation precedes casing: Unicode expansion must not invent a ticker.
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(trimmed)) return undefined;
+
   return trimmed.toUpperCase();
 }

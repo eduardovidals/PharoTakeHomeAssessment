@@ -10,7 +10,9 @@ const shortDate = new Intl.DateTimeFormat('en-US', {
 
 async function matrixCell(page: Page, ticker: string, metric: string) {
   const table = page.getByRole('table', { name: 'Comparison', exact: true });
+
   await expect(table.getByRole('columnheader', { name: ticker, exact: true })).toBeVisible();
+
   const headers = await table.getByRole('columnheader').allTextContents();
   const index = headers.findIndex((header) => header.trim() === ticker) - 1;
   if (index < 0) throw new Error(`Expected a comparison column for ${ticker}.`);
@@ -42,7 +44,9 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
     baseURL,
   }) => {
     const expected = await recordedPrices();
+
     expect(expected).toHaveLength(30);
+
     let reference: string[] | undefined;
     for (const timezoneId of ['UTC', 'America/New_York', 'Asia/Tokyo']) {
       const context = await browser.newContext({
@@ -62,20 +66,29 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
         const response = page.waitForResponse(
           (entry) => new URL(entry.url()).pathname === '/api/prices/TICK0001',
         );
+
         await page.goto('/?tickers=TICK0001');
+
         expect(await (await response).json()).toEqual(expected);
         await expect(page.getByText('Jun 23 – Aug 3, 2026 (UTC)', { exact: true })).toBeVisible();
         await expect(await matrixCell(page, 'TICK0001', 'Total return')).toHaveText('-9.17%');
+
         const before = [...requests];
         const inspector = page.getByRole('slider', { name: 'Inspect Historical closing prices' });
         const details = page.getByRole('region', { name: 'Details for Historical closing prices' });
+
         await expect(details.getByText('Mon, Aug 3, 2026', { exact: true })).toBeVisible();
         await expect(inspector).toHaveAttribute('aria-valuetext', /Monday, August 3, 2026/);
+
         await inspector.press('Home');
+
         await expect(details.getByText('Tue, Jun 23, 2026', { exact: true })).toBeVisible();
+
         await inspector.press('End');
+
         await expect(details.getByText('Mon, Aug 3, 2026', { exact: true })).toBeVisible();
         await expect(details.getByText('172.89', { exact: true })).toBeVisible();
+
         const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
         // e2e-locator: SVG UTC tick titles retain complete labels; visible text is a separate text node.
         const labels = await chart
@@ -88,11 +101,14 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
                 .join(''),
             ),
           );
+
         expect(labels.length).toBeGreaterThan(1);
         if (reference) expect(labels).toEqual(reference);
         else reference = labels;
+
         await page.getByRole('button', { name: 'View data', exact: true }).click();
         const table = page.getByRole('table', { name: 'Recorded closing prices' });
+
         await expect(table.getByRole('rowheader')).toHaveCount(30);
         await expect(
           table.getByRole('rowheader', { name: 'Tuesday, June 23, 2026', exact: true }),
@@ -108,10 +124,12 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
           'datetime',
           '2026-08-03T00:00:00.000Z',
         );
+
         await page
           .getByRole('dialog', { name: 'Raw observations', exact: true })
           .getByRole('button', { name: 'Close', exact: true })
           .click();
+
         expect(requests).toEqual(before);
         expect(failures).toEqual([]);
       } finally {
@@ -127,15 +145,20 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
     const recordedLabels = new Set(
       prices.map((point) => shortDate.format(new Date(`${point.date}T00:00:00.000Z`))),
     );
+
     await page.goto('/?tickers=TICK0001');
+
     const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
+
     await expect(chart).toBeVisible();
     for (const width of [320, 390, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await chart.scrollIntoViewIfNeeded();
       // e2e-locator: The actual SVG time-axis text bounds prove label containment and spacing.
       const ticks = chart.locator('g[aria-label="UTC time axis"] text');
+
       await expect.poll(async () => ticks.count()).toBeGreaterThan(0);
+
       const bounds = await chart.boundingBox();
       if (!bounds) throw new Error('Expected a measured public chart.');
       const labels = await ticks.evaluateAll((elements) =>
@@ -151,11 +174,14 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
           };
         }),
       );
+
       for (const [index, label] of labels.entries()) {
         expect(recordedLabels.has(label.text)).toBe(true);
         expect(label.left).toBeGreaterThanOrEqual(bounds.x);
         expect(label.right).toBeLessThanOrEqual(bounds.x + bounds.width);
+
         const previous = labels[index - 1];
+
         if (previous) expect(label.left - previous.right).toBeGreaterThanOrEqual(4);
       }
       if (width >= 390) {
@@ -173,6 +199,7 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
           .locator('html')
           .evaluate((element: { scrollWidth: number }) => element.scrollWidth),
       ).toBeLessThanOrEqual(width);
+
       await chart.screenshot({ path: testInfo.outputPath(`recorded-ticks-${width}.png`) });
     }
   });
@@ -223,6 +250,7 @@ test.describe('Preserve analytical access with text scaling and user display pre
           if (path.startsWith('/api/')) requests.push(path);
         });
         await page.goto('/?tickers=TICK0001,TICK0002,TICK0003');
+
         for (const ticker of ['TICK0001', 'TICK0002', 'TICK0003']) {
           await expect(await matrixCell(page, ticker, 'Latest close')).toHaveText(
             /^[\d,]+\.\d{2}$/,
@@ -231,21 +259,26 @@ test.describe('Preserve analytical access with text scaling and user display pre
             /^[+−-]?\d+\.\d{2}%$/,
           );
         }
+
         const loaded = [...requests];
         // e2e-locator: Root typography is deliberately scaled in CSS; this is not deviceScaleFactor or a claimed browser zoom setting.
         const documentRoot = page.locator('html');
         if (scenario.scaleText) {
           await expect(documentRoot).toHaveCSS('font-size', '16px');
+
           await documentRoot.evaluate((element) => {
             element.style.fontSize = '200%';
           });
+
           await expect(documentRoot).toHaveCSS('font-size', '32px');
         }
         if (scenario.scaleText) {
           const chart = page.getByRole('img', { name: 'Rebased price change', exact: true });
           // e2e-locator: SVG text nodes own the visible glyphs; title children preserve alternate full labels and must not enter this measurement.
           const axisText = chart.locator('text');
+
           await expect.poll(async () => axisText.count()).toBeGreaterThan(0);
+
           await expect
             .poll(async () => {
               const svg = await chart.boundingBox();
@@ -327,16 +360,23 @@ test.describe('Preserve analytical access with text scaling and user display pre
           forcedColors:
             element.ownerDocument.defaultView?.matchMedia('(forced-colors: active)').matches,
         }));
+
         expect(preferences).toEqual({
           reducedMotion: scenario.reducedMotion === 'reduce',
           forcedColors: scenario.forcedColors === 'active',
         });
+
         const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+
         await input.fill('TICK0004');
+
         await expect(page.getByRole('option', { name: 'TICK0004', exact: true })).toBeDisabled();
         expect((await input.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+
         await input.press('Escape');
+
         const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+
         await expect(matrix.getByRole('columnheader')).toHaveText([
           'Metric',
           'TICK0001',
@@ -347,16 +387,21 @@ test.describe('Preserve analytical access with text scaling and user display pre
         expect(await documentRoot.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(
           scenario.width,
         );
+
         await page.screenshot({
           path: testInfo.outputPath(`${scenario.name}-workspace.png`),
           fullPage: true,
         });
         const trigger = page.getByRole('button', { name: 'View data', exact: true });
         await trigger.scrollIntoViewIfNeeded();
+
         expect((await trigger.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+
         await trigger.press('Enter');
+
         const dialog = page.getByRole('dialog', { name: 'Raw observations', exact: true });
         const close = dialog.getByRole('button', { name: 'Close', exact: true });
+
         await expect(close).toBeFocused();
         expect((await close.boundingBox())?.height).toBeGreaterThanOrEqual(44);
         await expect(
@@ -364,6 +409,7 @@ test.describe('Preserve analytical access with text scaling and user display pre
             .getByRole('table', { name: 'Recorded closing prices', exact: true })
             .getByRole('rowheader'),
         ).toHaveCount(30);
+
         const bounds = await close.boundingBox();
         if (!bounds) throw new Error('Expected the visible modal dismissal control.');
         expect(bounds.y).toBeGreaterThanOrEqual(0);
@@ -371,11 +417,13 @@ test.describe('Preserve analytical access with text scaling and user display pre
         expect(await documentRoot.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(
           scenario.width,
         );
+
         await page.screenshot({
           path: testInfo.outputPath(`${scenario.name}-dialog.png`),
           fullPage: false,
         });
         await page.keyboard.press('Escape');
+
         await expect(dialog).toBeHidden();
         await expect(trigger).toBeFocused();
         expect(requests).toEqual(loaded);

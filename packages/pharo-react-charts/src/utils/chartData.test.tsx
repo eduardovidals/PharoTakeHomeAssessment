@@ -22,8 +22,11 @@ describe('shared recorded data without plot geometry', () => {
       }),
     ]);
     const result = prepareChartRecords(series);
+
     expect(result.kind).toBe('ready');
+
     if (result.kind !== 'ready') throw new Error('Expected valid records.');
+
     expect(result.series).toEqual([
       {
         id: 'a',
@@ -51,7 +54,9 @@ describe('shared recorded data without plot geometry', () => {
       },
       { id: 'b', label: 'B', points: [] },
     ]);
+
     if (result.kind !== 'ready') throw new Error('All-null records are valid data.');
+
     expect(createInspectionTimeline(result.series)).toEqual([10, 30]);
     expect(inspectTimestamp(result.series, 10)).toEqual([
       { id: 'a', label: 'A', kind: 'missing', value: null },
@@ -79,7 +84,9 @@ describe('shared recorded data without plot geometry', () => {
         ],
       },
     ]);
+
     if (result.kind !== 'ready') throw new Error('Expected valid records.');
+
     expect(createInspectionTimeline(result.series)).toEqual([1, 2, 3]);
     expect(inspectTimestamp(result.series, 2)).toEqual([
       { id: 'a', label: 'A', kind: 'absent', value: null },
@@ -99,6 +106,7 @@ describe('shared recorded data without plot geometry', () => {
 
   it('rejects duplicate dates, nonfinite values and invalid or conflicting identities', () => {
     const a: PharoChartSeries = { id: 'a', label: 'A', points: [{ x: 1, y: 1 }] };
+
     for (const series of [
       [a, a],
       [{ ...a, id: ' ' }],
@@ -117,6 +125,7 @@ describe('shared recorded data without plot geometry', () => {
       [{ ...a, points: Array<PharoChartPoint>(1) }],
     ])
       expect(prepareChartRecords(series).kind).toBe('invalid');
+
     expect(
       prepareChartRecords([
         { ...a, appearance: 'primary' },
@@ -129,6 +138,7 @@ describe('shared recorded data without plot geometry', () => {
 
   it('keeps small and extended years intact while default axis labels remain concise', () => {
     const value = Date.parse('2026-06-23T00:00:00.000Z');
+
     expect(formatAxisDate(value)).toBe('Jun 23');
     expect(formatAxisDate(value, true)).toBe('Jun 23, 2026');
     expect(formatDate(Date.parse('0001-01-01T00:00:00Z'))).toBe('0001-01-01');

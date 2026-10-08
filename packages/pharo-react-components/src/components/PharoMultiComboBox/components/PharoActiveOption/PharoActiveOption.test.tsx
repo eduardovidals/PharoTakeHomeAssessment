@@ -6,6 +6,7 @@ import { PharoMultiComboBox } from '../../PharoMultiComboBox';
 
 function FocusExample() {
   const [query, setQuery] = useState('');
+
   return (
     <PharoMultiComboBox
       label="Letters"
@@ -22,18 +23,26 @@ function FocusExample() {
     />
   );
 }
+
 it('resets for a changed query without overriding subsequent arrow navigation', async () => {
   const user = userEvent.setup();
   render(<FocusExample />);
   const input = screen.getByRole('combobox');
+
   await user.type(input, 'Al');
+
   const first = await screen.findByRole('option', { name: 'Alpha' });
+
   await waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', first.id));
+
   await user.keyboard('{ArrowDown}');
+
   expect(input).toHaveAttribute(
     'aria-activedescendant',
     screen.getByRole('option', { name: 'Alpine' }).id,
   );
+
   await user.type(input, 'zzz');
+
   await waitFor(() => expect(input).not.toHaveAttribute('aria-activedescendant'));
 });

@@ -13,6 +13,7 @@ import type { PharoSpinnerProps as Props } from './types';
  */
 export function PharoSpinner(props: Props) {
   const { label = 'Loading', size = 'md', className, ...rest } = props;
+
   return (
     <ProgressBar
       {...rest}

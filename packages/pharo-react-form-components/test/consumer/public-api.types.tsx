@@ -17,13 +17,21 @@ const schema = z.object({
   tags: z.array(z.string()),
   nullable: z.string().nullable(),
 });
+
 type Input = z.input<typeof schema>;
+
 type Output = z.output<typeof schema>;
+
 type Context = { locale: string };
+
 const plants = [{ id: 'fern', name: 'Fern' }];
+
 const itemKey = (item: (typeof plants)[number]) => item.id;
+
 const itemText = (item: (typeof plants)[number]) => item.name;
+
 const textHints: PharoTextFieldInputProps = { autoComplete: 'name', inputMode: 'text' };
+
 const comboHints: PharoComboBoxInputProps = { placeholder: 'Search', onInput: () => undefined };
 
 export function TypedConsumer() {
@@ -32,6 +40,7 @@ export function TypedConsumer() {
     defaultValues: { profile: { name: 'Ada' }, amount: '12' },
   };
   const form: UseSchemaFormResult<Input, Output, Context> = useSchemaForm(schema, options);
+
   form.setValue('amount', '15');
   // @ts-expect-error The input draft remains a string before the schema transform.
   form.setValue('amount', 15);
@@ -40,6 +49,7 @@ export function TypedConsumer() {
     // @ts-expect-error Successful output is numeric after the schema transform.
     value.amount.toUpperCase();
   });
+
   return (
     <>
       <PharoFormTextField
@@ -93,8 +103,10 @@ export function RejectedOverrides() {
   const outerCombo = { selectedKey: 'competing' };
   const nested = { 'aria-label': 'competing' };
   const competingOptions = { resolver: () => ({ values: {}, errors: {} }) };
+
   // @ts-expect-error Wider options cannot replace the schema resolver.
   useSchemaForm(z.object({ name: z.string() }), competingOptions);
+
   return (
     <>
       {/* @ts-expect-error Wider props cannot replace a controller-owned value. */}

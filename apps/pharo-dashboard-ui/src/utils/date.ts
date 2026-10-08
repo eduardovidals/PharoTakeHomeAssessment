@@ -2,10 +2,12 @@ import { dayjs } from '../lib/dayjs';
 
 /** Missing/nonfinite presentation inputs are unavailable, never the current date. */
 type DateValue = number | null | undefined;
+
 const unavailable = 'Unavailable';
 
 function utcDate(timestamp: DateValue) {
   if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) return null;
+
   const date = dayjs.utc(timestamp).locale('en');
   return date.isValid() ? date : null;
 }
@@ -16,9 +18,11 @@ function utcDate(timestamp: DateValue) {
 export function toUtcTimestamp(dateOnly: string): number {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly) || dateOnly.startsWith('0000-'))
     throw new RangeError('Expected a valid UTC date-only value.');
+
   const date = dayjs.utc(`${dateOnly}T00:00:00.000Z`).locale('en');
   if (!date.isValid() || date.format('YYYY-MM-DD') !== dateOnly)
     throw new RangeError('Expected a valid UTC date-only value.');
+
   return date.valueOf();
 }
 
@@ -53,8 +57,10 @@ export function datesSpanYears(start: DateValue, end: DateValue): boolean {
 export function formatDateRange(start: DateValue, end: DateValue): string {
   const first = utcDate(start);
   const last = utcDate(end);
+
   if (!first || !last || first.valueOf() > last.valueOf()) return unavailable;
   if (first.valueOf() === last.valueOf()) return first.format('MMM D, YYYY');
+
   const startFormat = first.year() === last.year() ? 'MMM D' : 'MMM D, YYYY';
   return `${first.format(startFormat)} – ${last.format('MMM D, YYYY')}`;
 }

@@ -11,9 +11,11 @@ describe('multiple selection adaptation', () => {
     expect(selectionActions([7, 'a'], ['a', 7], [7, 'a'])).toEqual([]);
     expect(selectionActions([], [7, 7, 'foreign'], [7])).toEqual([{ kind: 'add', key: 7 }]);
   });
+
   it('accepts an optional positive integer and rejects unusable runtime limits', () => {
     expect(() => validateSelectionLimit(undefined)).not.toThrow();
     expect(() => validateSelectionLimit(4)).not.toThrow();
+
     for (const limit of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
       expect(() => validateSelectionLimit(limit)).toThrow(RangeError);
     }

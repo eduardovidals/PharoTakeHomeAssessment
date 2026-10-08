@@ -14,6 +14,7 @@
   "dependencies": {
     "@eslint/js": "10.0.1",
     "@pharo/prettier-config": "workspace:*",
+    "@stylistic/eslint-plugin": "5.10.0",
     "@tanstack/eslint-plugin-query": "5.104.1",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-jsx-a11y-x": "0.2.0",

@@ -10,6 +10,7 @@ import type {
 } from './types';
 
 const dateLimit = 8_640_000_000_000_000;
+
 const halfDay = 43_200_000;
 
 /** Prepare finite shared geometry on chronological copies, never caller arrays. */
@@ -32,8 +33,10 @@ export function prepareChartGeometry(
     message: 'Chart values cannot be represented safely.',
   };
   const records = prepareChartRecords(series);
+
   if (records.kind === 'invalid' || (baselineY !== undefined && !Number.isFinite(baselineY)))
     return invalidData;
+
   if (
     xTickValues !== undefined &&
     (!Array.isArray(xTickValues) ||
@@ -41,22 +44,27 @@ export function prepareChartGeometry(
       new Set(xTickValues).size !== xTickValues.length)
   )
     return invalidData;
+
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
   const ordered = records.series;
+
   for (const item of ordered) {
     for (const point of item.points) {
       minX = Math.min(minX, point.x);
       maxX = Math.max(maxX, point.x);
+
       if (point.y !== null) {
         minY = Math.min(minY, point.y);
         maxY = Math.max(maxY, point.y);
       }
     }
   }
+
   if (minY === Infinity) return { kind: 'empty', message: 'No observations to display.' };
+
   if (baselineY !== undefined) {
     minY = Math.min(minY, baselineY);
     maxY = Math.max(maxY, baselineY);
@@ -69,6 +77,7 @@ export function prepareChartGeometry(
     right: width - 16 * fontScale,
     bottom: height - 48 * fontScale,
   };
+
   if (
     !Number.isFinite(axisFontSize) ||
     axisFontSize <= 0 ||
@@ -83,15 +92,18 @@ export function prepareChartGeometry(
       message: 'Chart needs more space to display.',
     };
   }
+
   if (minX === maxX) {
     minX = Math.max(-dateLimit, minX - halfDay);
     maxX = Math.min(dateLimit, maxX + halfDay);
   }
+
   if (minY === maxY) {
     const padding = Math.max(Math.abs(minY) * 0.05, 1);
     minY -= padding;
     maxY += padding;
   }
+
   if (
     ![minX, maxX, minY, maxY, maxX - minX, maxY - minY].every(Number.isFinite) ||
     maxX <= minX ||
@@ -111,16 +123,20 @@ export function prepareChartGeometry(
     6,
     Math.max(2, Math.floor((plot.bottom - plot.top) / (55 * fontScale))),
   );
+
   // D3's reciprocal tick increment cannot represent subnormal steps safely.
   if (!Number.isFinite(1 / ((maxY - minY) / yTickCount))) return invalidDomain;
+
   let xTicks: ChartTick[];
   let yTicks: ChartTick[];
+
   try {
     // Filtered D3 calendar intervals can loop after offsetting beyond Date's
     // limits. Extended-year domains use validated endpoints instead; UTC
     // projection and recorded observations remain unchanged.
     const calendarSafe =
       new Date(minX).getUTCFullYear() >= 0 && new Date(maxX).getUTCFullYear() <= 9999;
+
     xTicks =
       xTickValues !== undefined
         ? [...xTickValues]
@@ -135,8 +151,10 @@ export function prepareChartGeometry(
     yTicks = yScale.ticks(yTickCount).map((value) => ({ value, position: yScale(value) }));
   } catch (error) {
     if (error instanceof RangeError) return invalidDomain;
+
     throw error;
   }
+
   if (
     ![...xTicks, ...yTicks].every(
       (tick) => Number.isFinite(tick.value) && Number.isFinite(tick.position),
@@ -151,27 +169,40 @@ export function prepareChartGeometry(
     .y((point) => yScale(point.y ?? 0))
     .curve(curveLinear);
   const prepared: PreparedChartSeries[] = [];
+
   for (const item of ordered) {
     const markers = [];
+
     for (let index = 0; index < item.points.length; index += 1) {
       const point = item.points[index];
+
       if (!point || point.y === null) continue;
+
       const x = xScale(point.x);
       const y = yScale(point.y);
+
       if (!Number.isFinite(x) || !Number.isFinite(y)) return invalidDomain;
+
       const before = item.points[index - 1];
       const after = item.points[index + 1];
+
       if ((!before || before.y === null) && (!after || after.y === null)) {
         markers.push({ x, y, point });
       }
     }
+
     const path = pathFor(item.points);
+
     if (path !== null && /NaN|Infinity/.test(path)) return invalidDomain;
+
     prepared.push({ id: item.id, label: item.label, points: item.points, path, markers });
   }
+
   const baseline =
     baselineY === undefined ? undefined : { value: baselineY, position: yScale(baselineY) };
+
   if (baseline !== undefined && !Number.isFinite(baseline.position)) return invalidDomain;
+
   return {
     kind: 'ready',
     width,

@@ -22,12 +22,15 @@ public sealed class ApiErrorTests(WebApplicationFactory<Program> application)
     public async Task BothUnknownAndInvalidTickerRoutesReturnTheSameSafeNotFoundContract(string ticker)
     {
         using var client = application.CreateClient();
+
         foreach (var suffix in new[] { "", "/stats" })
         {
             using var response = await client.GetAsync($"/api/prices/{ticker}{suffix}");
             var body = await response.Content.ReadAsStringAsync();
+
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
             Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
             using var document = JsonDocument.Parse(body);
             AssertProblem(document.RootElement, 404, "Instrument not found",
                 "No market data is available for the requested instrument.",
@@ -51,10 +54,13 @@ public sealed class ApiErrorTests(WebApplicationFactory<Program> application)
                 options.Filters.Add(new ThrowingActionFilter())));
         });
         using var client = failingApplication.CreateClient();
+
         using var response = await client.GetAsync("/api/instruments?diagnostic=api-request-marker");
         var body = await response.Content.ReadAsStringAsync();
+
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
         using var document = JsonDocument.Parse(body);
         AssertProblem(document.RootElement, 500, "An unexpected error occurred.",
             "The request could not be completed.",

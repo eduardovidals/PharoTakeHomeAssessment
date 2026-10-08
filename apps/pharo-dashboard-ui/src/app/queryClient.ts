@@ -13,6 +13,7 @@ export function createAppQueryClient() {
         refetchInterval: false,
         retry(failureCount, error) {
           if (failureCount >= 2 || !isApiFailure(error)) return false;
+
           return (
             error.kind === 'network' ||
             error.kind === 'timeout' ||

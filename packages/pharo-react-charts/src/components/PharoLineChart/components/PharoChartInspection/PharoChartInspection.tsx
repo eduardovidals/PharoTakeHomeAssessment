@@ -24,6 +24,7 @@ export function PharoChartInspection(props: Props) {
   } = props;
   const id = useId();
   const instructionId = `${id}-instructions`;
+
   return (
     <div className={styles.root}>
       <section aria-label={`Details for ${label}`} className={styles.details}>
@@ -58,6 +59,7 @@ export function PharoChartInspection(props: Props) {
             onChange={(event) => {
               const index = Number(event.currentTarget.value);
               const next = Number.isInteger(index) ? timeline[index] : undefined;
+
               if (next !== undefined) onInspect(next);
             }}
           />

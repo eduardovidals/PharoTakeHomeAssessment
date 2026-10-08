@@ -2,7 +2,9 @@ import { normalizeTicker } from '../instruments';
 
 function canonicalTicker(ticker: string): string {
   const canonical = normalizeTicker(ticker);
+
   if (canonical === undefined) throw new TypeError('Invalid instrument identifier.');
+
   return canonical;
 }
 

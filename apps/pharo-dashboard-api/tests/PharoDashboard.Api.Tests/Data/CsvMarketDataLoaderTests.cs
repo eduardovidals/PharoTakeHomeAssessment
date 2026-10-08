@@ -15,13 +15,17 @@ public sealed class CsvMarketDataLoaderTests
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Data", "market_data.csv");
         var hash = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path)));
+
         Assert.Equal("363970ba4e81bf2cf5d890b0be9df93d28bda0819f39ba10796012e4ec231440", hash);
 
         var store = CsvMarketDataLoader.Load(path);
+
         Assert.Equal(200, store.Tickers.Length);
         Assert.Equal(store.Tickers.Order(StringComparer.Ordinal), store.Tickers);
+
         var dates = new HashSet<DateOnly>();
         var observations = 0;
+
         foreach (var ticker in store.Tickers)
         {
             Assert.True(store.TryGetPrices(ticker, out var prices));
@@ -31,6 +35,7 @@ public sealed class CsvMarketDataLoaderTests
             Assert.Equal(prices.OrderBy(point => point.Date), prices);
             Assert.Equal(prices.Length, prices.Select(point => point.Date).Distinct().Count());
             Assert.All(prices, point => Assert.True(point.Price > 0));
+
             dates.UnionWith(prices.Select(point => point.Date));
             observations += prices.Length;
         }
@@ -43,6 +48,7 @@ public sealed class CsvMarketDataLoaderTests
     public void MissingFileFailsInsteadOfProducingAnEmptyStore()
     {
         var directory = Directory.CreateTempSubdirectory("pharo-csv-missing-");
+
         try
         {
             Assert.Throws<FileNotFoundException>(() =>
@@ -62,6 +68,7 @@ public sealed class CsvMarketDataLoaderTests
     public void EmptyInputCannotLookLikeAValidDataset(string csv)
     {
         using var reader = new StringReader(csv);
+
         Assert.Throws<InvalidDataException>(() => CsvMarketDataLoader.Load(reader));
     }
 
@@ -75,6 +82,7 @@ public sealed class CsvMarketDataLoaderTests
     public void HeadersMustMatchTheRequiredNamesAndOrder(string header)
     {
         using var reader = new StringReader(header + "\n2026-06-23,AAA,100\n");
+
         Assert.Throws<InvalidDataException>(() => CsvMarketDataLoader.Load(reader));
     }
 
@@ -98,7 +106,9 @@ public sealed class CsvMarketDataLoaderTests
     public void InvalidRowsRejectTheWholeDatasetIncludingEarlierValidRows(string row)
     {
         using var reader = new StringReader(Header + "2026-06-22,GOOD,50\n" + row + "\n");
+
         var error = Assert.Throws<InvalidDataException>(() => CsvMarketDataLoader.Load(reader));
+
         Assert.Contains("record", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -110,6 +120,7 @@ public sealed class CsvMarketDataLoaderTests
     {
         using var reader = new StringReader(Header +
             $"2026-06-23,AAA,100\n2026-06-23,{duplicateTicker},110\n");
+
         Assert.Throws<InvalidDataException>(() => CsvMarketDataLoader.Load(reader));
     }
 
@@ -120,6 +131,7 @@ public sealed class CsvMarketDataLoaderTests
     {
         var directory = Directory.CreateTempSubdirectory("pharo-csv-bom-");
         var path = Path.Combine(directory.FullName, "quoted.csv");
+
         try
         {
             File.WriteAllText(path,
@@ -128,6 +140,7 @@ public sealed class CsvMarketDataLoaderTests
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
 
             var store = CsvMarketDataLoader.Load(path);
+
             Assert.Equal("AAA", Assert.Single(store.Tickers));
             Assert.True(store.TryGetPrices("AAA", out var prices));
             var observation = Assert.Single(prices);
@@ -148,6 +161,7 @@ public sealed class CsvMarketDataLoaderTests
     public void OnlyGenuinelyEmptyTrailingRecordsCanBeIgnored(string suffix)
     {
         using var reader = new StringReader(Header + "2026-06-23,AAA,100\n" + suffix);
+
         Assert.Throws<InvalidDataException>(() => CsvMarketDataLoader.Load(reader));
     }
 
@@ -158,12 +172,16 @@ public sealed class CsvMarketDataLoaderTests
     {
         var originalCulture = CultureInfo.CurrentCulture;
         var originalUiCulture = CultureInfo.CurrentUICulture;
+
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(cultureName);
+
             using var reader = new StringReader(Header + "2026-06-23, i.a-1 ,123.4567\n");
+
             var store = CsvMarketDataLoader.Load(reader);
+
             Assert.Equal("I.A-1", Assert.Single(store.Tickers));
             Assert.True(store.TryGetPrices(" i.a-1 ", out var prices));
             Assert.Equal(123.4567m, Assert.Single(prices).Price);
@@ -181,7 +199,9 @@ public sealed class CsvMarketDataLoaderTests
         using var reader = new StringReader(Header +
             "2026-06-25,ZZZ,120\n2026-06-24,AAA,21\n" +
             "2026-06-23,zzz,100\n2026-06-23,AAA,20\n2026-06-24,ZZZ,110\n");
+
         var store = CsvMarketDataLoader.Load(reader);
+
         Assert.Equal(new[] { "AAA", "ZZZ" }, store.Tickers);
         Assert.True(store.TryGetPrices("ZZZ", out var prices));
         Assert.Equal(new[] { 100m, 110m, 120m }, prices.Select(point => point.Price));

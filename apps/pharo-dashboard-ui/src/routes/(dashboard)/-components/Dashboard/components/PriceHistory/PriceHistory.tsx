@@ -31,21 +31,26 @@ export function PriceHistory(props: Props) {
     selectedTimestamp,
     onTimestampChange,
   } = props;
+
   const available = resources.filter((resource) => (resource.query.data?.length ?? 0) > 0).length;
   const pending = resources.some((resource) => resource.query.isPending);
+
   const rawSeries = resources.map((resource) =>
     toChartSeries(resource.ticker, resource.query.data ?? [], resource.appearance),
   );
   const transformed = mode === 'performance' ? rawSeries.map(toPerformanceSeries) : undefined;
   const series = transformed?.map((result) => result.series) ?? rawSeries;
+
   const label = mode === 'performance' ? 'Rebased price change' : 'Historical closing prices';
   const description =
     mode === 'performance'
       ? 'Price change from each instrument’s own first recorded price. This is not adjusted total return.'
       : 'Raw closing prices on recorded UTC dates. Price units are supplied by the dataset.';
+
   const ticks = recordedDateTicks(series);
   const includeYear = datesSpanYears(ticks.at(0), ticks.at(-1));
   const formatAxis = (timestamp: number) => formatDateAxis(timestamp, includeYear);
+
   return (
     <section aria-label={label} className={historyStyles.panel}>
       <h2 className={historyStyles.heading}>{label}</h2>

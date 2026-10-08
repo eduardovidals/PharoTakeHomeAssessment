@@ -9,6 +9,7 @@ public sealed class InstrumentsService
     public InstrumentsService(MarketDataStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
+
         Tickers = store.Tickers;
     }
 

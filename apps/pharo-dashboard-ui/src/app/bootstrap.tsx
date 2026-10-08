@@ -13,6 +13,7 @@ import type { AppBootstrapOptions, AppInstance } from './types';
 /** Mount one application graph; failed startup releases every resource already acquired.
  * @example
  * const app = await bootstrapApplication(element);
+ *
  * await app.dispose();
  */
 export async function bootstrapApplication(
@@ -39,8 +40,10 @@ export async function bootstrapApplication(
           failures.push(error);
         }
       }
+
       if (failures.length > 0) throw new AggregateError(failures, 'Application cleanup failed');
     });
+
     return disposal;
   }
 
@@ -50,12 +53,14 @@ export async function bootstrapApplication(
     history ??= createBrowserHistory();
     const router = createAppRouter({ queryClient, apiClient }, history);
     root = createRoot(element);
+
     await router.load();
     root.render(
       <StrictMode>
         <AppProviders router={router} />
       </StrictMode>,
     );
+
     return { apiClient, queryClient, history, router, root, dispose };
   } catch (primaryError) {
     const [cleanup] = await Promise.allSettled([dispose()]);
@@ -68,6 +73,7 @@ export async function bootstrapApplication(
         },
       );
     }
+
     throw primaryError;
   }
 }

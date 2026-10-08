@@ -18,11 +18,13 @@ public sealed class MarketDataStartupTests
     {
         using var input = new StartupInput("date,ticker,price\n2026-06-23,AAA,100\n");
         var loadCount = 0;
+
         using var application = input.CreateApplication(builder => builder.ConfigureTestServices(services =>
         {
             var original = Assert.Single(services, service => service.ServiceType == typeof(MarketDataStore));
             var createStore = original.ImplementationFactory ??
                 throw new InvalidOperationException("The store must be initialized by the startup factory.");
+
             services.RemoveAll<MarketDataStore>();
             services.AddSingleton(provider =>
             {
@@ -32,16 +34,20 @@ public sealed class MarketDataStartupTests
         }));
 
         using var client = application.CreateClient();
+
         // No request or explicit store resolution has occurred yet.
         Assert.Equal(1, Volatile.Read(ref loadCount));
+
         var originalStore = application.Services.GetRequiredService<MarketDataStore>();
         Assert.True(originalStore.TryGetPrices("AAA", out var originalPrices));
+
         File.WriteAllText(input.Path, "deliberately invalid replacement data");
 
         await Task.WhenAll(Enumerable.Range(0, 32).Select(async _ =>
         {
             using var response = await client.GetAsync("/health");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
             using var scope = application.Services.CreateScope();
             var currentStore = scope.ServiceProvider.GetRequiredService<MarketDataStore>();
             Assert.Same(originalStore, currentStore);
@@ -53,6 +59,7 @@ public sealed class MarketDataStartupTests
         File.Delete(input.Path);
         using var secondClient = application.CreateClient();
         using var afterDeletion = await secondClient.GetAsync("/health");
+
         Assert.Equal(HttpStatusCode.OK, afterDeletion.StatusCode);
         Assert.Same(originalStore, application.Services.GetRequiredService<MarketDataStore>());
         Assert.Equal(1, Volatile.Read(ref loadCount));
@@ -63,7 +70,9 @@ public sealed class MarketDataStartupTests
     {
         using var input = new StartupInput(null);
         using var application = input.CreateApplication();
+
         var error = Assert.ThrowsAny<Exception>(() => application.CreateClient());
+
         Assert.True(ContainsException<FileNotFoundException>(error), error.ToString());
     }
 
@@ -72,7 +81,9 @@ public sealed class MarketDataStartupTests
     {
         using var input = new StartupInput("date,ticker,price\n2026-06-23,AAA,0\n");
         using var application = input.CreateApplication();
+
         var error = Assert.ThrowsAny<Exception>(() => application.CreateClient());
+
         Assert.True(ContainsException<InvalidDataException>(error), error.ToString());
     }
 
@@ -81,13 +92,17 @@ public sealed class MarketDataStartupTests
     {
         using var input = new StartupInput("date,ticker,price\n2026-06-23,ROOT,25\n");
         Assert.NotEqual(System.IO.Path.GetFullPath(Environment.CurrentDirectory), input.Directory);
+
         using var application = input.CreateApplication(relativePath: true);
         using var client = application.CreateClient();
         var environment = application.Services.GetRequiredService<IHostEnvironment>();
+
         Assert.Equal(System.IO.Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory),
             System.IO.Path.TrimEndingDirectorySeparator(environment.ContentRootPath));
+
         using var response = await client.GetAsync("/health");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
         var store = application.Services.GetRequiredService<MarketDataStore>();
         Assert.Equal("ROOT", Assert.Single(store.Tickers));
     }
@@ -96,6 +111,7 @@ public sealed class MarketDataStartupTests
     {
         if (error is TException) return true;
         if (error is AggregateException aggregate && aggregate.InnerExceptions.Any(ContainsException<TException>)) return true;
+
         return error.InnerException is not null && ContainsException<TException>(error.InnerException);
     }
 
@@ -118,6 +134,7 @@ public sealed class MarketDataStartupTests
                     {
                         ["MarketData:Path"] = relativePath ? System.IO.Path.GetRelativePath(AppContext.BaseDirectory, Path) : Path,
                     }));
+
                 configure?.Invoke(builder);
             });
         }

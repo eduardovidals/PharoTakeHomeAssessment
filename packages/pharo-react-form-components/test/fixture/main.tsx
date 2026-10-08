@@ -13,7 +13,9 @@ const plants = [
     name: 'A particularly long botanical variety name that wraps inside the available width',
   },
 ];
+
 const plantKey = (plant: (typeof plants)[number]) => plant.id;
+
 const plantText = (plant: (typeof plants)[number]) => plant.name;
 
 function SelectionForm() {
@@ -28,6 +30,7 @@ function SelectionForm() {
     { defaultValues: { name: '', plant: '' } },
   );
   const [submitted, setSubmitted] = useState('Not submitted');
+
   return (
     <form
       noValidate
@@ -72,6 +75,7 @@ function OptionalForm() {
   );
   const [submitted, setSubmitted] = useState('Not submitted');
   const [inputEvents, setInputEvents] = useState(0);
+
   return (
     <form
       noValidate
@@ -125,6 +129,7 @@ function DisabledReadOnlyForm() {
     },
   );
   const [submitted, setSubmitted] = useState('Not submitted');
+
   return (
     <form
       noValidate
@@ -193,6 +198,7 @@ function LongLabelForm() {
   const form = useSchemaForm(z.object({ plant: z.string() }), {
     defaultValues: { plant: '' },
   });
+
   return (
     <form
       aria-labelledby="long-heading"
@@ -230,5 +236,7 @@ function Consumer() {
 }
 
 const root = document.getElementById('root');
+
 if (!root) throw new Error('Form consumer root is missing.');
+
 createRoot(root).render(<Consumer />);

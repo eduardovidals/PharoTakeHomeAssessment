@@ -10,17 +10,21 @@ const plants = [
   { id: 'orchid', name: 'Orchid' },
   { id: 'fern', name: 'Fern' },
 ];
+
 const itemKey = (item: (typeof plants)[number]) => item.id;
+
 const itemText = (item: (typeof plants)[number]) => item.name;
 
 describe('PharoFormComboBox', () => {
   it('binds required selection, validation associations, controller focus, and successful submission', async () => {
     const user = userEvent.setup();
     const submitted = vi.fn();
+
     function Form() {
       const form = useSchemaForm(z.object({ plant: z.string().min(1, 'Choose a plant.') }), {
         defaultValues: { plant: '' },
       });
+
       return (
         <form noValidate onSubmit={form.handleSubmit(submitted)}>
           <PharoFormComboBox
@@ -37,18 +41,25 @@ describe('PharoFormComboBox', () => {
         </form>
       );
     }
+
     render(<Form />);
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     await user.click(screen.getByRole('button', { name: 'Submit' }));
+
     expect(await screen.findByText('Choose a plant.')).toBeVisible();
     await waitFor(() => expect(input).toHaveFocus());
     expect(input).toHaveAccessibleDescription(/One plant per pot\./);
     expect(input).toHaveAccessibleDescription(/Choose a plant\./);
     expect(input).toHaveAttribute('placeholder', 'Search plants');
+
     await user.type(input, 'Fer');
     await user.keyboard('{ArrowDown}{Enter}');
+
     expect(input).toHaveValue('Fern');
+
     await user.click(screen.getByRole('button', { name: 'Submit' }));
+
     await waitFor(() => expect(submitted).toHaveBeenCalledTimes(1));
     expect(submitted.mock.calls[0]?.[0]).toEqual({ plant: 'fern' });
   });
@@ -57,11 +68,13 @@ describe('PharoFormComboBox', () => {
     const user = userEvent.setup();
     const nativeInput = vi.fn();
     const inputProps = Object.freeze({ onInput: nativeInput });
+
     function Form() {
       const form = useSchemaForm(
         z.object({ preferences: z.object({ plant: z.string().optional() }) }),
         { defaultValues: { preferences: {} } },
       );
+
       return (
         <>
           <PharoFormComboBox
@@ -82,28 +95,38 @@ describe('PharoFormComboBox', () => {
         </>
       );
     }
+
     render(<Form />);
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     expect(input).toHaveValue('');
     expect(screen.getByLabelText('Draft')).toHaveTextContent('{"dirty":false}');
+
     await user.type(input, 'Fer');
+
     expect(await screen.findByRole('option', { name: 'Fern' })).toBeVisible();
     expect(screen.getByLabelText('Draft')).toHaveTextContent('{"dirty":false}');
+
     await user.keyboard('{Escape}');
+
     expect(input).toHaveValue('');
     expect(screen.getByLabelText('Draft')).toHaveTextContent('{"dirty":false}');
+
     await user.type(input, 'Or');
     await user.clear(input);
+
     expect(screen.getByLabelText('Draft')).toHaveTextContent('{"value":"","dirty":true}');
     expect(nativeInput).toHaveBeenCalled();
   });
 
   it('retains a selected key while filtering and restores its label on Escape, then clears deliberately', async () => {
     const user = userEvent.setup();
+
     function Form() {
       const form = useSchemaForm(z.object({ plant: z.string() }), {
         defaultValues: { plant: 'fern' },
       });
+
       return (
         <>
           <PharoFormComboBox
@@ -118,13 +141,20 @@ describe('PharoFormComboBox', () => {
         </>
       );
     }
+
     render(<Form />);
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     await user.type(input, 'x');
+
     expect(screen.getByLabelText('Selected key')).toHaveTextContent('"fern"');
+
     await user.keyboard('{Escape}');
+
     expect(input).toHaveValue('Fern');
+
     await user.clear(input);
+
     expect(screen.getByLabelText('Selected key')).toHaveTextContent('""');
   });
 
@@ -133,12 +163,14 @@ describe('PharoFormComboBox', () => {
     async (mode) => {
       const user = userEvent.setup();
       const submitted = vi.fn();
+
       function Form() {
         const [disabled, setDisabled] = useState(true);
         const form = useSchemaForm(z.object({ plant: z.string().optional() }), {
           defaultValues: { plant: 'fern' },
           disabled: mode === 'form' && disabled,
         });
+
         return (
           <form onSubmit={form.handleSubmit(submitted)}>
             <PharoFormComboBox
@@ -157,19 +189,29 @@ describe('PharoFormComboBox', () => {
           </form>
         );
       }
+
       render(<Form />);
       const input = screen.getByRole('combobox', { name: 'Plant' });
+
       expect(input).toBeDisabled();
+
       await user.click(screen.getByRole('button', { name: 'Show options Plant' }));
+
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
       await user.click(screen.getByRole('button', { name: 'Submit' }));
+
       await waitFor(() => expect(submitted).toHaveBeenCalledTimes(1));
       expect(submitted.mock.calls[0]?.[0].plant).toBeUndefined();
       expect(JSON.stringify(submitted.mock.calls[0]?.[0])).toBe('{}');
+
       await user.click(screen.getByRole('button', { name: 'Enable' }));
+
       expect(input).toBeEnabled();
       expect(input).toHaveValue('Fern');
+
       await user.click(screen.getByRole('button', { name: 'Submit' }));
+
       await waitFor(() => expect(submitted).toHaveBeenCalledTimes(2));
       expect(submitted.mock.calls[1]?.[0]).toEqual({ plant: 'fern' });
     },
@@ -178,10 +220,12 @@ describe('PharoFormComboBox', () => {
   it('keeps read-only selection focusable and included while blocking edits', async () => {
     const user = userEvent.setup();
     const submitted = vi.fn();
+
     function Form() {
       const form = useSchemaForm(z.object({ plant: z.string().min(1) }), {
         defaultValues: { plant: 'fern' },
       });
+
       return (
         <form onSubmit={form.handleSubmit(submitted)}>
           <PharoFormComboBox
@@ -197,15 +241,24 @@ describe('PharoFormComboBox', () => {
         </form>
       );
     }
+
     render(<Form />);
     const input = screen.getByRole('combobox', { name: 'Plant' });
+
     await user.tab();
+
     expect(input).toHaveFocus();
+
     await user.type(input, 'change');
+
     expect(input).toHaveValue('Fern');
+
     await user.keyboard('{ArrowDown}');
+
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
     await user.click(screen.getByRole('button', { name: 'Submit' }));
+
     await waitFor(() => expect(submitted).toHaveBeenCalledTimes(1));
     expect(submitted.mock.calls[0]?.[0]).toEqual({ plant: 'fern' });
   });
@@ -219,8 +272,10 @@ describe('PharoFormComboBox', () => {
     'errorMessage',
   ])('rejects untyped outer %s ownership overrides', (key) => {
     const override: Record<string, unknown> = { [key]: undefined };
+
     function Form() {
       const form = useSchemaForm(z.object({ plant: z.string().optional() }));
+
       return (
         <PharoFormComboBox
           control={form.control}
@@ -233,13 +288,16 @@ describe('PharoFormComboBox', () => {
         />
       );
     }
+
     expect(() => render(<Form />)).toThrow('PHARO-FORMS-COMBO-PROPS');
   });
 
   it('preserves the actual base guard for nested input overrides', () => {
     const inputProps: Record<string, unknown> = { value: undefined };
+
     function Form() {
       const form = useSchemaForm(z.object({ plant: z.string().optional() }));
+
       return (
         <PharoFormComboBox
           control={form.control}
@@ -252,14 +310,17 @@ describe('PharoFormComboBox', () => {
         />
       );
     }
+
     expect(() => render(<Form />)).toThrow('PHARO-FIELD-INPUT-PROPS');
   });
 
   it('preserves nonenumerable own input keys for the actual base ownership guard', () => {
     const inputProps: Record<string, unknown> = {};
     Object.defineProperty(inputProps, 'value', { value: undefined });
+
     function Form() {
       const form = useSchemaForm(z.object({ plant: z.string().optional() }));
+
       return (
         <PharoFormComboBox
           control={form.control}
@@ -272,14 +333,17 @@ describe('PharoFormComboBox', () => {
         />
       );
     }
+
     expect(() => render(<Form />)).toThrow('PHARO-FIELD-INPUT-PROPS');
   });
 
   it.each([42, ''])('rejects the invalid runtime item key %s', (invalidKey) => {
     const item = { id: 'valid', name: 'Plant' };
     Object.defineProperty(item, 'id', { value: invalidKey });
+
     function Form() {
       const form = useSchemaForm(z.object({ plant: z.string().optional() }));
+
       return (
         <PharoFormComboBox
           control={form.control}
@@ -291,14 +355,17 @@ describe('PharoFormComboBox', () => {
         />
       );
     }
+
     expect(() => render(<Form />)).toThrow('PHARO-FORMS-ITEM-KEY');
   });
 
   it('rejects an untyped nonstring draft instead of converting it into a key', () => {
     const defaults = { plant: '' };
     Object.defineProperty(defaults, 'plant', { value: 42 });
+
     function Form() {
       const form = useSchemaForm(z.object({ plant: z.string() }), { defaultValues: defaults });
+
       return (
         <PharoFormComboBox
           control={form.control}
@@ -310,6 +377,7 @@ describe('PharoFormComboBox', () => {
         />
       );
     }
+
     expect(() => render(<Form />)).toThrow('PHARO-FORMS-TEXT-VALUE');
   });
 });

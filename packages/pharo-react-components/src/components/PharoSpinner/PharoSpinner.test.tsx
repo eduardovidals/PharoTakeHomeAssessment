@@ -5,6 +5,7 @@ import { PharoSpinner } from './PharoSpinner';
 describe('PharoSpinner', () => {
   it('has a default accessible name without a fabricated numeric percentage', () => {
     render(<PharoSpinner />);
+
     expect(screen.getByRole('progressbar', { name: 'Loading' })).not.toHaveAttribute(
       'aria-valuenow',
     );
@@ -12,7 +13,9 @@ describe('PharoSpinner', () => {
 
   it.each(['sm', 'md'])('supports %s sizing, an explicit name, and consumer classes', (size) => {
     if (size !== 'sm' && size !== 'md') throw new Error('Invalid fixture.');
+
     render(<PharoSpinner size={size} label="Updating details" className="consumer-progress" />);
+
     expect(screen.getByRole('progressbar', { name: 'Updating details' })).toHaveClass(
       'consumer-progress',
     );
@@ -26,6 +29,7 @@ describe('PharoSpinner', () => {
         }
       />,
     );
+
     expect(screen.getByRole('progressbar', { name: 'Loading' })).toHaveClass('indeterminate-probe');
   });
 });

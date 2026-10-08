@@ -21,6 +21,7 @@ public static class Ticker
     public static bool TryNormalize(string? value, out string canonical)
     {
         canonical = value?.Trim().ToUpperInvariant() ?? string.Empty;
+
         if (canonical.Length is < 1 or > 32 || !char.IsAsciiLetterOrDigit(canonical[0]))
         {
             canonical = string.Empty;

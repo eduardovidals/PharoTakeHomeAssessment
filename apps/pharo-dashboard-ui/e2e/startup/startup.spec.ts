@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { expect, test } from '@playwright/test';
 
 const execute = promisify(execFile);
+
 const rootDirectory = fileURLToPath(new URL('../../../../', import.meta.url));
 
 function hasCode(error: unknown, code: string): boolean {
@@ -42,7 +43,9 @@ async function withPrivacySentinel(run: (sentinel: PrivacySentinel) => Promise<v
     const file = join(directory, 'sentinel.txt');
     const marker = `PHARO_PREVIEW_SENTINEL_${randomUUID()}`;
     await writeFile(file, marker, { flag: 'wx' });
+
     expect(await readFile(file, 'utf8')).toBe(marker);
+
     // A real ignored fixture establishes the prerequisite; no actual private source is read.
     await execute('git', ['check-ignore', '--quiet', '--', file], { cwd: rootDirectory });
     await run({ file, marker });
@@ -84,11 +87,14 @@ test.describe('Open the local dashboard safely', () => {
     page,
   }) => {
     await page.goto('/');
+
     await expect(page.getByRole('heading', { name: 'Instrument Analytics' })).toBeVisible();
     // e2e-locator: document-body colors establish inheritance for body-portaled controls.
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(245, 247, 250)');
     await expect(page.locator('body')).toHaveCSS('color', 'rgb(23, 36, 58)');
+
     const readiness = await page.request.get('/health');
+
     expect(readiness.status()).toBe(200);
     expect(await readiness.json()).toEqual({ status: 'ready' });
   });
@@ -100,9 +106,11 @@ test.describe('Open the local dashboard safely', () => {
         .map(encodeURIComponent)
         .join('/');
       const absolutePath = file.split(sep).map(encodeURIComponent).join('/');
+
       for (const url of [`/${ordinaryPath}`, `/@fs${absolutePath}`, `/@fs/${absolutePath}`]) {
         const response = await request.get(url, { timeout: 5000 });
         const body = await response.text();
+
         expect(body, `Private sentinel leaked from ${url}`).not.toContain(marker);
         expect([200, 403, 404]).toContain(response.status());
         if (response.status() === 200) {
@@ -110,7 +118,9 @@ test.describe('Open the local dashboard safely', () => {
           expect(response.headers()['content-type']).toContain('text/html');
         }
       }
+
       const readiness = await request.get('/health', { timeout: 5000 });
+
       expect(readiness.status()).toBe(200);
       expect(await readiness.json()).toEqual({ status: 'ready' });
     });

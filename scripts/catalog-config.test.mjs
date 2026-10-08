@@ -7,7 +7,9 @@ import { normalizeStories, normalizeStoryPath } from 'storybook/internal/common'
 import { build, createServer, mergeConfig, resolveConfig } from 'vite';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+
 const catalogs = ['pharo-react-components', 'pharo-react-form-components', 'pharo-react-charts'];
+
 const protectedPaths = [
   '.env',
   '.env.local',
@@ -23,16 +25,19 @@ const protectedPaths = [
   'AGENTS.override.md',
   'fixture-custom-secret/sentinel.txt',
 ];
+
 const sentinel = 'catalog-private-file-must-not-be-served';
 
 /** Preserve the primary failure and independently release the owned host and fixture. */
 async function withFixture(run) {
   const cache = path.join(root, 'node_modules/.cache');
   await mkdir(cache, { recursive: true });
+
   const directory = await mkdtemp(path.join(cache, 'pharo-catalog-'));
   const identity = await lstat(directory);
   let server;
   const failures = [];
+
   try {
     await run(directory, (ownedServer) => {
       assert.equal(server, undefined, 'Each fixture owns one server');
@@ -41,23 +46,27 @@ async function withFixture(run) {
   } catch (error) {
     failures.push(error);
   }
+
   try {
     await server?.close();
   } catch (error) {
     failures.push(error);
   }
+
   if (failures.length === 0) {
     try {
       const current = await lstat(directory);
       assert.ok(current.isDirectory() && !current.isSymbolicLink());
       assert.equal(current.dev, identity.dev, 'Fixture device ownership changed');
       assert.equal(current.ino, identity.ino, 'Fixture directory ownership changed');
+
       // Allow a bounded retry for Vite's final dependency-cache filesystem work.
       await rm(directory, { recursive: true, maxRetries: 3, retryDelay: 50 });
     } catch (error) {
       failures.push(error);
     }
   }
+
   if (failures.length > 0) {
     throw new AggregateError(failures, `Catalog fixture failed; inspect ${directory}`);
   }
@@ -77,6 +86,7 @@ for (const catalog of catalogs) {
 
     assert.ok(matches(`packages/${catalog}/src/PharoExample/PharoExample.stories.tsx`));
     assert.ok(matches(`packages/${catalog}/src/PharoExample.stories.tsx`));
+
     for (const file of [
       `packages/${catalog}/src/PharoExample/PharoExample.test.tsx`,
       `packages/${catalog}/archives/PharoExample.stories.tsx`,
@@ -89,6 +99,7 @@ for (const catalog of catalogs) {
     ]) {
       assert.equal(matches(file), false, file);
     }
+
     assert.deepEqual(configuration.addons, ['@storybook/addon-docs', '@storybook/addon-a11y']);
     assert.equal(configuration.framework.name, '@storybook/react-vite');
   });
@@ -102,6 +113,7 @@ for (const catalog of catalogs) {
         resolve: { dedupe: ['fixture-existing-dependency'] },
         server: { fs: { deny: ['**/fixture-custom-secret/**'] } },
       });
+
       assert.equal(final.server.host, '127.0.0.1');
       assert.equal(final.server.fs.strict, true);
       for (const rule of defaults.server.fs.deny)
@@ -111,6 +123,7 @@ for (const catalog of catalogs) {
       assert.ok(final.resolve.dedupe.includes('react-dom'));
 
       await writeFile(path.join(fixture, 'allowed.txt'), 'public-control');
+
       for (const file of protectedPaths) {
         const destination = path.join(fixture, file);
         await mkdir(path.dirname(destination), { recursive: true });
@@ -126,12 +139,15 @@ for (const catalog of catalogs) {
       );
       ownServer(server);
       await server.listen();
+
       const address = server.httpServer.address();
       assert.ok(address && typeof address === 'object');
+
       const base = `http://127.0.0.1:${address.port}`;
       const control = await fetch(`${base}/allowed.txt`);
       assert.equal(control.status, 200);
       assert.equal(await control.text(), 'public-control');
+
       for (const file of protectedPaths) {
         for (const url of [`/${file}`, `/@fs${path.join(fixture, file)}`]) {
           const response = await fetch(`${base}${url}`);
@@ -156,6 +172,7 @@ for (const catalog of catalogs) {
         path.join(fixture, '.dev-private/scan-sentinel.tsx'),
         '<div className="z-[19137]">Excluded scan candidate</div>',
       );
+
       const compiled = await build(
         mergeConfig(final, {
           root: fixture,
@@ -167,6 +184,7 @@ for (const catalog of catalogs) {
           },
         }),
       );
+
       const outputs = (Array.isArray(compiled) ? compiled : [compiled]).flatMap(
         (result) => result.output,
       );
@@ -174,6 +192,7 @@ for (const catalog of catalogs) {
         .filter((output) => output.type === 'asset' && output.fileName.endsWith('.css'))
         .map((output) => Buffer.from(output.source).toString('utf8'))
         .join('\n');
+
       assert.ok(css.length > 0, 'The actual preview import emits theme CSS');
       assert.match(css, /data-pressed/);
       assert.match(css, /text-decoration-line:\s*underline/);
@@ -184,7 +203,9 @@ for (const catalog of catalogs) {
       assert.match(css, /\.text-pharo-foreground\s*\{/);
       assert.match(css, /\.pharo-focus-ring/);
       assert.equal(css.includes('19137'), false, 'Private fixtures do not enter Tailwind scanning');
+
       const previewModule = outputs.find((output) => output.type === 'chunk' && output.isEntry);
+
       assert.ok(previewModule);
       assert.match(previewModule.code, /test:\s*["']error["']/);
       assert.match(previewModule.code, /autodocs/);

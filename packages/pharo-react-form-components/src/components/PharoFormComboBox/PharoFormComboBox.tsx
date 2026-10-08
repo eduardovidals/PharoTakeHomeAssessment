@@ -13,9 +13,11 @@ import type { PharoFormComboBoxProps as Props } from './types';
  * @example
  * ```tsx
  * const choices = [{ id: 'alpha', label: 'Alpha' }];
+ *
  * const form = useSchemaForm(z.object({ choice: z.string() }), {
  *   defaultValues: { choice: '' },
  * });
+ *
  * <PharoFormComboBox
  *   control={form.control}
  *   name="choice"
@@ -33,6 +35,7 @@ export function PharoFormComboBox<
   Context = unknown,
 >(props: Props<Input, Item, Output, Context>) {
   assertManagedFormProps(props, managedComboBoxKeys, 'PHARO-FORMS-COMBO-PROPS');
+
   const { control, name, itemKey, inputProps, isDisabled, isReadOnly, ...rest } = props;
   const { disabled: formDisabled } = useFormState<Input, Output>({ control });
 
@@ -47,8 +50,10 @@ export function PharoFormComboBox<
           if (!field.disabled && !isReadOnly && event.currentTarget.value === '') {
             field.onChange('');
           }
+
           inputProps?.onInput?.(event);
         };
+
         // Retain every own key for the base guard, including non-enumerable conflicts.
         // A fresh object also supports frozen consumer hints without mutating them.
         const composedInputProps = Object.defineProperties(
@@ -58,6 +63,7 @@ export function PharoFormComboBox<
             onInput: { value: onInput, enumerable: true, configurable: true, writable: true },
           },
         );
+
         return (
           <PharoComboBox<Item>
             {...rest}

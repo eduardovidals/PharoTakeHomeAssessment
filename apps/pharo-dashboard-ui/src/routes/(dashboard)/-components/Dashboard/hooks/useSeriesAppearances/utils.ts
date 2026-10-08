@@ -12,6 +12,7 @@ export function appearanceConfiguration(selectedIds: readonly string[]): string 
     [...selectedIds].some((id) => typeof id !== 'string' || !id.trim())
   )
     throw new TypeError('Expected up to three distinct selected identifiers.');
+
   return JSON.stringify(selectedIds);
 }
 
@@ -23,6 +24,7 @@ export function allocateSeriesAppearances(
   const configuration = appearanceConfiguration(selectedIds);
   const active = new Map<string, PharoChartAppearance>();
   const occupied = new Set<PharoChartAppearance>();
+
   for (const id of selectedIds) {
     const retained = previous.active.get(id);
     if (retained) {
@@ -30,16 +32,22 @@ export function allocateSeriesAppearances(
       occupied.add(retained);
     }
   }
+
   for (const id of selectedIds) {
     if (active.has(id)) continue;
+
     const preferred = previous.history.get(id);
     const appearance =
       preferred && !occupied.has(preferred) ? preferred : slots.find((slot) => !occupied.has(slot));
+
     if (!appearance) throw new Error('Selected identifiers require distinct appearance slots.');
+
     active.set(id, appearance);
     occupied.add(appearance);
   }
+
   const history = new Map(previous.history);
   for (const [id, appearance] of active) history.set(id, appearance);
+
   return { configuration, active, history };
 }

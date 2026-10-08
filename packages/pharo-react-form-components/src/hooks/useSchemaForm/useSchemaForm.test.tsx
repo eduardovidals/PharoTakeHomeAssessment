@@ -10,8 +10,11 @@ describe('useSchemaForm', () => {
     const { result } = renderHook(() =>
       useSchemaForm(schema, { defaultValues: { quantity: '12' } }),
     );
+
     expect(result.current.getValues()).toEqual({ quantity: '12' });
+
     await act(async () => result.current.handleSubmit(submitted)());
+
     expect(submitted.mock.calls[0]?.[0]).toEqual({ quantity: 12 });
     expect(result.current.getValues()).toEqual({ quantity: '12' });
   });
@@ -22,14 +25,19 @@ describe('useSchemaForm', () => {
     const invalid = vi.fn();
     const { result } = renderHook(() => {
       const form = useSchemaForm(schema, { defaultValues: { title: '' }, mode: 'onBlur' });
+
       return { form, errors: form.formState.errors };
     });
+
     await act(async () => result.current.form.handleSubmit(submitted, invalid)());
+
     expect(submitted).not.toHaveBeenCalled();
     expect(invalid).toHaveBeenCalledTimes(1);
     expect(result.current.errors.title?.message).toBe('Use at least three characters.');
+
     act(() => result.current.form.setValue('title', 'Ready'));
     await act(async () => result.current.form.handleSubmit(submitted)());
+
     expect(submitted.mock.calls[0]?.[0]).toEqual({ title: 'Ready' });
     expect(result.current.errors).toEqual({});
   });
@@ -45,9 +53,12 @@ describe('useSchemaForm', () => {
         shouldFocusError: false,
       }),
     );
+
     expect(result.current.getValues('title')).toBe('Initial');
     expect(result.current.formState.disabled).toBe(true);
+
     act(() => result.current.reset({ title: 'Reset' }));
+
     expect(result.current.getValues('title')).toBe('Reset');
   });
 
@@ -55,6 +66,7 @@ describe('useSchemaForm', () => {
     'rejects an own resolver override, including undefined',
     (resolver) => {
       const options: Record<string, unknown> = { resolver };
+
       expect(() =>
         renderHook(() => useSchemaForm(z.object({ title: z.string() }), options)),
       ).toThrow('PHARO-FORMS-SCHEMA-OPTIONS');

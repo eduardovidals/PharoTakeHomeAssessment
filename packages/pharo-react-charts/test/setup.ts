@@ -24,6 +24,7 @@ export class ChartResizeObserver implements ResizeObserver {
 
   deliver(target: Element, width: number, height: number) {
     const size = { inlineSize: width, blockSize: height };
+
     this.callback(
       [
         {
@@ -41,6 +42,7 @@ export class ChartResizeObserver implements ResizeObserver {
 
 beforeEach(() => {
   ChartResizeObserver.instances = [];
+
   vi.stubGlobal('ResizeObserver', ChartResizeObserver);
 });
 

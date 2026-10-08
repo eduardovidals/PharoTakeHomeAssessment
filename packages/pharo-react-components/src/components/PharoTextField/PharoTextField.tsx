@@ -14,6 +14,7 @@ import type { PharoTextFieldProps as Props } from './types';
  */
 export function PharoTextField(props: Props) {
   const { label, description, errorMessage, inputRef, inputProps, className, ...rest } = props;
+
   assertFieldInputProps(inputProps);
 
   return (

@@ -21,12 +21,14 @@ import type { ComparisonMatrixProps as Props, ComparisonQuery, ComparisonResourc
  */
 export function ComparisonMatrix(props: Props) {
   const { columns, onRemove, selectedTimestamp = null, timeline = [], onTimestampChange } = props;
+
   const id = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { scrollRef, tableRef, isOverflowing } = useComparisonOverflow();
   const [retrying, setRetrying] = useState<readonly string[]>([]);
   const [removing, setRemoving] = useState<readonly string[]>([]);
   const [actionFailure, setActionFailure] = useState<string | null>(null);
+
   const rows = useMemo(
     () => getComparisonRows(columns, selectedTimestamp),
     [columns, selectedTimestamp],
@@ -35,6 +37,7 @@ export function ComparisonMatrix(props: Props) {
     () => getComparisonPeriods(columns, selectedTimestamp),
     [columns, selectedTimestamp],
   );
+
   const feedback = columns.map((column) => ({
     ticker: column.ticker,
     prices: getResourceFeedback(
@@ -60,6 +63,7 @@ export function ComparisonMatrix(props: Props) {
       prices.canRetry ||
       statistics.canRetry,
   );
+
   const handleRetry = async (
     ticker: string,
     resource: ComparisonResource,
@@ -68,8 +72,10 @@ export function ComparisonMatrix(props: Props) {
   ) => {
     const key = `${ticker}:${resource}`;
     if (retrying.includes(key)) return;
+
     setRetrying((keys) => [...keys, key]);
     setActionFailure(null);
+
     try {
       const result = await query.refetch();
       if (
@@ -84,10 +90,13 @@ export function ComparisonMatrix(props: Props) {
       setRetrying((keys) => keys.filter((candidate) => candidate !== key));
     }
   };
+
   const handleRemove = async (ticker: string) => {
     if (removing.includes(ticker)) return;
+
     setRemoving((keys) => [...keys, ticker]);
     setActionFailure(null);
+
     try {
       await onRemove(ticker);
     } catch {
@@ -196,6 +205,7 @@ export function ComparisonMatrix(props: Props) {
                 {columns.map((column, index) => {
                   const state = feedback[index];
                   const notFound = state?.prices.notFound || state?.statistics.notFound;
+
                   return (
                     <td key={column.ticker} className={matrixStyles.statusCell}>
                       <div
@@ -220,6 +230,7 @@ export function ComparisonMatrix(props: Props) {
                         {(['prices', 'statistics'] as const).map((resource) => {
                           const current = state?.[resource];
                           const key = `${column.ticker}:${resource}`;
+
                           return (
                             <div key={resource} className={matrixStyles.feedback}>
                               {current?.message && <p>{current.message}</p>}

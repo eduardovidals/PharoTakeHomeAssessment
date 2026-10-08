@@ -27,13 +27,16 @@ export function PharoChartDataTable(props: Props) {
     className,
   } = props;
   const records = prepareChartRecords(series);
+
   if (records.kind === 'invalid')
     return (
       <p role="status" className={styles.status}>
         {records.message}
       </p>
     );
+
   const timeline = createInspectionTimeline(records.series);
+
   return (
     <div
       role="region"

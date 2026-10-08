@@ -21,5 +21,6 @@ export function selectionActions(
     .filter((key) => !previousSet.has(key) && availableSet.has(key))
     .map((key) => ({ kind: 'add', key }));
   const removed = previous.filter((key) => availableSet.has(key) && !nextSet.has(key));
+
   return removed.length ? [...additions, { kind: 'remove', keys: removed }] : additions;
 }

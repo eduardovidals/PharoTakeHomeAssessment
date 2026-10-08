@@ -14,17 +14,21 @@ export function calculatePriceStatistics(prices: PriceSeries): PriceStats | unde
     )
   )
     return undefined;
+
   const values = prices.map(({ price }) => price);
   const first = values[0];
   const last = values.at(-1);
   if (first === undefined || last === undefined) return undefined;
+
   const totalReturnPercent = 100 * (last / first - 1);
+
   let peak = first;
   let maximumDrawdown = 0;
   for (const price of values.slice(1)) {
     peak = Math.max(peak, price);
     maximumDrawdown = Math.max(maximumDrawdown, (peak - price) / peak);
   }
+
   let dailyVolatilityPercent: number | null = null;
   if (values.length >= 3) {
     const returns: number[] = [];
@@ -33,22 +37,29 @@ export function calculatePriceStatistics(prices: PriceSeries): PriceStats | unde
       const current = values[index];
       const next = values[index + 1];
       if (current === undefined || next === undefined) return undefined;
+
       const dailyReturn = next / current - 1;
       if (!Number.isFinite(dailyReturn)) return undefined;
+
       returns.push(dailyReturn);
       returnSum += dailyReturn;
     }
+
     const mean = returnSum / returns.length;
     if (!Number.isFinite(mean)) return undefined;
+
     let squaredDeviationSum = 0;
     for (const dailyReturn of returns) {
       const deviation = dailyReturn - mean;
       squaredDeviationSum += deviation * deviation;
     }
+
     const sampleVariance = squaredDeviationSum / (returns.length - 1);
     if (!Number.isFinite(sampleVariance)) return undefined;
+
     dailyVolatilityPercent = 100 * Math.sqrt(sampleVariance);
   }
+
   const maxDrawdownPercent = 100 * maximumDrawdown;
   return [totalReturnPercent, dailyVolatilityPercent ?? 0, maxDrawdownPercent].every(
     Number.isFinite,
@@ -63,9 +74,11 @@ export function getHistoricalComparison(
   selectedTimestamp: number,
 ): HistoricalComparison {
   if (!Number.isFinite(selectedTimestamp)) return { observationCount: 0 };
+
   const prefix = prices.filter(({ date }) => toUtcTimestamp(date) <= selectedTimestamp);
   const first = prefix[0];
   const last = prefix.at(-1);
+
   return {
     closingPrice: last && toUtcTimestamp(last.date) === selectedTimestamp ? last.price : undefined,
     statistics: calculatePriceStatistics(prefix),

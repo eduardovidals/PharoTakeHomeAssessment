@@ -14,19 +14,23 @@ import type { ComparisonDateNavigationProps as Props } from './types';
  */
 export function ComparisonDateNavigation(props: Props) {
   const { selectedTimestamp, timeline, onTimestampChange } = props;
+
   const selectRef = useRef<HTMLDivElement>(null);
   const restoreDateFocus = useRef<number | null | undefined>(undefined);
+
   useEffect(() => {
     if (selectedTimestamp === restoreDateFocus.current) {
       restoreDateFocus.current = undefined;
       selectRef.current?.querySelector('button')?.focus();
     }
   }, [selectedTimestamp]);
+
   const current = selectedTimestamp ?? timeline.at(-1);
   const previous = timeline
     .filter((timestamp) => current !== undefined && timestamp < current)
     .at(-1);
   const next = timeline.find((timestamp) => current !== undefined && timestamp > current);
+
   // Retain an explicit selected date even if a newly selected instrument lacks that observation.
   const dates =
     selectedTimestamp !== null && !timeline.includes(selectedTimestamp)
@@ -39,10 +43,12 @@ export function ComparisonDateNavigation(props: Props) {
       label: formatDateTable(timestamp),
     })),
   ];
+
   const handleChange = (key: string | number | null) => {
     if (key === 'latest') onTimestampChange(null);
     else if (key !== null) onTimestampChange(Number(key));
   };
+
   return (
     <div className={styles.group}>
       <Select

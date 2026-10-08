@@ -19,7 +19,9 @@ const geometry = prepareChartGeometry(
   240,
   [0, 86_400_000],
 );
+
 if (geometry.kind !== 'ready') throw new Error('Axis story needs usable geometry.');
+
 const meta = {
   title: 'Charts/Private/PharoChartAxes',
   component: PharoChartAxes,
@@ -38,11 +40,15 @@ const meta = {
     </svg>
   ),
 } satisfies Meta<typeof PharoChartAxes>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const PreparedAxes: Story = {
   play: async ({ canvasElement }) => {
     const svg = within(canvasElement).getByRole('img', { name: 'Prepared axes' });
+
     await expect(svg).toBeVisible();
     await expect(within(svg).getByLabelText('UTC time axis')).toHaveTextContent('Jan 1');
     await expect(svg.querySelector('[textLength]')).toBeNull();

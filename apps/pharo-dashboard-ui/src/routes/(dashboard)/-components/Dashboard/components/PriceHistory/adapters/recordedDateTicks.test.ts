@@ -24,9 +24,11 @@ describe('recorded date tick candidates', () => {
       { id: 'pending', label: 'Pending', points: [] },
     ];
     const before = JSON.stringify(series);
+
     expect(recordedDateTicks(series)).toEqual([1710028800000, 1710201600000, 1710460800000]);
     expect(JSON.stringify(series)).toBe(before);
   });
+
   test('does not manufacture endpoints for empty or single-observation collections', () => {
     expect(recordedDateTicks([])).toEqual([]);
     expect(recordedDateTicks([{ id: 'empty', label: 'Empty', points: [] }])).toEqual([]);

@@ -13,17 +13,21 @@ public sealed class MarketDataStoreTests
     public void ExposedSeriesAndTickerCollectionsCannotMutateTheStoredGeneration()
     {
         using var reader = new StringReader(Csv);
+
         var store = CsvMarketDataLoader.Load(reader);
         var tickers = store.Tickers;
+
         Assert.True(store.TryGetPrices("BBB", out var prices));
 
         var changedTickers = tickers.SetItem(0, "CHANGED");
         var changedPrices = prices.SetItem(0, prices[0] with { Price = 999m });
+
         Assert.Equal("CHANGED", changedTickers[0]);
         Assert.Equal(999m, changedPrices[0].Price);
 
         IList<string> writableTickers = tickers;
         IList<PricePoint> writablePrices = prices;
+
         Assert.Throws<NotSupportedException>(() => writableTickers[0] = "CHANGED");
         Assert.Throws<NotSupportedException>(() => writablePrices[0] = new PricePoint(new DateOnly(2026, 6, 23), 999m));
         Assert.Equal(new[] { "AAA", "BBB" }, store.Tickers);
@@ -37,24 +41,31 @@ public sealed class MarketDataStoreTests
     public async Task ParallelReadsReuseTheImmutableGenerationWithoutReadingTheSourceAgain()
     {
         using var reader = new CountingReader(Csv);
+
         var store = CsvMarketDataLoader.Load(reader);
+
         Assert.False(reader.WasDisposed);
         Assert.True(reader.ReadCalls > 0);
+
         var readCountAfterLoading = reader.ReadCalls;
         reader.RejectFurtherReads = true;
         reader.Dispose();
 
         var tickers = store.Tickers;
         Assert.True(store.TryGetPrices("BBB", out var expected));
+
         var reads = Enumerable.Range(0, 128).Select(async _ =>
         {
             await Task.Yield();
+
             Assert.Equal(tickers, store.Tickers);
             Assert.True(store.TryGetPrices(" bbb ", out var current));
             Assert.Equal(expected, current);
             Assert.Equal(new[] { 100m, 120m }, current.Select(point => point.Price));
         });
+
         await Task.WhenAll(reads);
+
         Assert.Equal(readCountAfterLoading, reader.ReadCalls);
     }
 
@@ -67,7 +78,9 @@ public sealed class MarketDataStoreTests
     public void MissingOrInvalidTickersDoNotInventAStoredSeries(string? ticker)
     {
         using var reader = new StringReader(Csv);
+
         var store = CsvMarketDataLoader.Load(reader);
+
         Assert.False(store.TryGetPrices(ticker, out _));
         Assert.Equal(new[] { "AAA", "BBB" }, store.Tickers);
     }

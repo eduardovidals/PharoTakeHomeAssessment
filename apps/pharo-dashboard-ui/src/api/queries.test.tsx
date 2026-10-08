@@ -11,7 +11,9 @@ import { pricesQueryOptions, priceStatsQueryOptions } from './prices';
 import type { ApiClient } from './types';
 
 const base = 'http://localhost/api';
+
 const point = (price: number) => [{ date: '2024-03-10', price }];
+
 const stats = { totalReturnPercent: 5, dailyVolatilityPercent: 2, maxDrawdownPercent: 1 };
 
 function deferred() {
@@ -35,11 +37,13 @@ async function withCache(run: (cache: QueryClient, client: ApiClient) => Promise
   } catch (error) {
     failures.push(error);
   }
+
   try {
     await cache.cancelQueries();
   } catch (error) {
     failures.push(error);
   }
+
   try {
     cache.clear();
   } catch (error) {
@@ -52,6 +56,7 @@ async function withCache(run: (cache: QueryClient, client: ApiClient) => Promise
 test('uses the fixed dataset cache policy without polling or focus refetch', async () => {
   await withCache(async (cache) => {
     const options = cache.getDefaultOptions().queries;
+
     expect(options?.staleTime).toBe(Infinity);
     expect(options?.gcTime).toBe(1800000);
     expect(options?.refetchOnWindowFocus).toBe(false);
@@ -84,10 +89,13 @@ test('runs independent resources concurrently and reuses canonical cache keys', 
       cache.fetchQuery(priceStatsQueryOptions(client, 'A')),
       cache.fetchQuery(priceStatsQueryOptions(client, 'B')),
     ]);
+
     expect(values).toEqual([['A', 'B'], point(11), point(22), stats, stats]);
     expect(requests).toHaveLength(5);
+
     await cache.fetchQuery(pricesQueryOptions(client, 'A'));
     await cache.fetchQuery(instrumentsQueryOptions(client));
+
     expect(requests).toHaveLength(5);
     expect(
       cache
@@ -119,6 +127,7 @@ test('deduplicates concurrent requests for the same canonical ticker', async () 
       cache.fetchQuery(pricesQueryOptions(client, 'a')),
       cache.fetchQuery(pricesQueryOptions(client, ' A ')),
     ]);
+
     expect(values).toEqual([point(7), point(7)]);
     expect(requests).toBe(1);
   });
@@ -145,9 +154,12 @@ test('resolves B while an independent A history is still held', async () => {
     const second = cache.fetchQuery(pricesQueryOptions(client, 'B'));
     try {
       await started.promise;
+
       await expect(second).resolves.toEqual(point(22));
       expect(cache.getQueryState(['prices', 'A'])?.fetchStatus).toBe('fetching');
+
       release.resolve();
+
       await expect(first).resolves.toEqual(point(11));
     } finally {
       release.resolve();
@@ -186,6 +198,7 @@ test.each(['network', 'timeout', 'server'])(
           kind === 'timeout' ? createApiClient({ baseURL: base, timeoutMs: 100 }) : regularClient;
         // The supported fetch adapter enforces the actual deadline while MSW holds its response.
         if (kind === 'timeout') client.defaults.adapter = 'fetch';
+
         await expect(cache.fetchQuery(pricesQueryOptions(client, 'A'))).rejects.toMatchObject({
           kind: kind === 'server' ? 'http' : kind,
         });
@@ -252,8 +265,11 @@ test('consumes the Query signal and cancels an inactive held resource without re
     });
     try {
       await started.promise;
+
       expect(sawSignal).toBe(true);
+
       unsubscribe();
+
       await waitFor(() => expect(aborted).toBe(true));
       expect(requests).toBe(1);
       expect(cache.getQueryState(['prices', 'A'])?.fetchStatus).toBe('idle');
@@ -318,9 +334,12 @@ test('never displays a late A response beneath B after a real observer change', 
           <PriceWitness ticker="B" client={client} />
         </QueryClientProvider>,
       );
+
       await waitFor(() => expect(view.getByLabelText('History for B')).toHaveTextContent('42'));
+
       release.resolve();
       await done.promise;
+
       expect(view.getByRole('heading', { name: 'B' })).toBeVisible();
       expect(view.queryByLabelText('History for A')).not.toBeInTheDocument();
       expect(view.getByLabelText('History for B')).toHaveTextContent('42');

@@ -7,6 +7,7 @@ import prettierOptions from '@pharo/prettier-config';
 import { format } from 'prettier';
 
 const rootDirectory = path.resolve(import.meta.dirname, '../../..');
+
 const eslint = new ESLint({
   cwd: rootDirectory,
   overrideConfigFile: true,
@@ -17,14 +18,18 @@ async function lint(source, filePath = 'apps/pharo-dashboard-ui/src/PolicyFixtur
   const parser = filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'babel';
   const formatted = await format(source, { ...prettierOptions, parser });
   const results = await eslint.lintText(formatted, { filePath });
+
   assert.equal(results.length, 1);
+
   return results[0];
 }
 
 test('public config accepts narrowed types, const assertions and valid React hooks', async () => {
   const result = await lint(`
     import { useState } from 'react';
+
     const fallback = ['Closing price'] as const;
+
     export function PriceLabel(props: { label?: string }) {
       const [label] = useState(props.label ?? fallback[0]);
       return <span>{label}</span>;
@@ -169,7 +174,9 @@ test('a consumer must supply an absolute repository root', () => {
 
 const fileRoute = `
   import { createFileRoute } from '@tanstack/react-router';
+
   export function Dashboard() { return <h1>Prices</h1>; }
+
   export const Route = createFileRoute('/')({ component: Dashboard });
 `;
 
@@ -194,6 +201,7 @@ const privateRouteFiles = [
   '(dashboard)/-fixture.tsx',
   '(dashboard)/nested/mocks/Fixture.tsx',
 ];
+
 for (const file of privateRouteFiles) {
   test(`private route-owned source ${file} retains ordinary refresh export rules`, async () => {
     const result = await lint(fileRoute, `apps/pharo-dashboard-ui/src/routes/${file}`);
@@ -239,4 +247,147 @@ test('Route allowance is limited to the application file-route directory', async
     result.messages.some((message) => message.ruleId === 'react-refresh/only-export-components'),
     JSON.stringify(result.messages),
   );
+});
+
+test('spacing separates story metadata, the default export, story type and every story', async () => {
+  const result = await lint(
+    `const meta = {};
+export default meta;
+type Story = { args?: object };
+export const Primary: Story = {};
+export const Secondary: Story = {};
+export const Quiet: Story = {};`,
+    'packages/pharo-react-components/src/components/Example/Example.stories.tsx',
+  );
+
+  assert.equal(
+    result.messages.filter(
+      (message) => message.ruleId === '@stylistic/padding-line-between-statements',
+    ).length,
+    5,
+  );
+});
+
+test('spacing separates lifecycle hooks without splitting their callback statements', async () => {
+  const result = await lint(
+    `import { beforeAll, afterEach, afterAll } from 'vitest';
+
+beforeAll(() => {});
+afterEach(() => {});
+afterAll(() => {});`,
+    'apps/pharo-dashboard-ui/src/example.test.ts',
+  );
+
+  assert.equal(
+    result.messages.filter(
+      (message) => message.ruleId === '@stylistic/padding-line-between-statements',
+    ).length,
+    2,
+  );
+});
+
+test('spacing accepts cohesive imports, variables, assertions, barrel exports and JSX', async () => {
+  const result = await lint(
+    `import assert from 'node:assert/strict';
+import type { ReactNode } from 'react';
+
+const uiPort = 4191;
+const apiPort = 5190;
+assert.notEqual(uiPort, apiPort);
+assert.ok(uiPort > 0);
+
+export { uiPort, apiPort };
+export type { ReactNode };
+
+export function Example() {
+  const options = { first: 'A', second: 'B' };
+  const { first, second } = options;
+  return <div><span>{first}</span><span>{second}</span></div>;
+}`,
+    'packages/pharo-react-components/src/components/Example/Example.test.tsx',
+  );
+
+  assert.deepEqual(result.messages, []);
+});
+
+test('spacing recognizes adjacent parameterized test declarations', async () => {
+  for (const name of ['test', 'it', 'describe']) {
+    const first = `${name}.each([1])('first %s', () => {});`;
+    const second = `${name}.each([2])('second %s', () => {});`;
+    const imports = `import { ${name} } from 'vitest';\n\n`;
+    const filePath = 'apps/pharo-dashboard-ui/src/example.test.ts';
+    const invalid = await lint(`${imports}${first}\n${second}`, filePath);
+    const valid = await lint(`${imports}${first}\n\n${second}`, filePath);
+
+    assert.equal(
+      invalid.messages.filter(
+        (message) => message.ruleId === '@stylistic/padding-line-between-statements',
+      ).length,
+      1,
+    );
+    assert.deepEqual(valid.messages, []);
+  }
+});
+
+test('spacing fixes before attached JSDoc and Prettier leaves exactly one blank line', async () => {
+  const source = `/** First documented declaration. */
+export type First = string;
+/** Second documented declaration. */
+export type Second = number;
+
+
+/** Third documented declaration. */
+export type Third = boolean;
+`;
+  const fixing = new ESLint({
+    cwd: rootDirectory,
+    overrideConfigFile: true,
+    overrideConfig: createPharoEslintConfig({ rootDirectory }),
+    fix: true,
+  });
+  const [result] = await fixing.lintText(source, {
+    filePath: 'apps/pharo-dashboard-ui/src/example.ts',
+  });
+
+  assert.deepEqual(result.messages, []);
+  assert.equal(
+    result.output,
+    `/** First documented declaration. */
+export type First = string;
+
+/** Second documented declaration. */
+export type Second = number;
+
+/** Third documented declaration. */
+export type Third = boolean;
+`,
+  );
+});
+
+test('spacing fixes are idempotent and preserve internal JSDoc example boundaries', async () => {
+  const source = `const initial = 1;
+/** Example lifecycle.
+ * @example
+ * const ready = prepare();
+ *
+ * ready.dispose();
+ */
+export function value() { return initial; }
+`;
+  const fixing = new ESLint({
+    cwd: rootDirectory,
+    overrideConfigFile: true,
+    overrideConfig: createPharoEslintConfig({ rootDirectory }),
+    fix: true,
+  });
+  const options = { filePath: 'apps/pharo-dashboard-ui/src/example.ts' };
+  const [first] = await fixing.lintText(source, options);
+  const [second] = await fixing.lintText(first.output ?? source, options);
+
+  assert.deepEqual(first.messages, []);
+  assert.deepEqual(second.messages, []);
+  assert.equal(second.output, undefined);
+  assert.match(first.output, /const initial = 1;\n\n\/\*\* Example/);
+  assert.match(first.output, /prepare\(\);\n \*\n \* ready.dispose/);
+  assert.match(first.output, / \*\/\nexport function/);
 });

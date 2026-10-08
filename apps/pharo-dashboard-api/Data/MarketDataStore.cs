@@ -19,6 +19,7 @@ public sealed class MarketDataStore
             item => item.Key,
             item => item.Value.OrderBy(point => point.Date).ToImmutableArray(),
             StringComparer.Ordinal);
+
         Tickers = _series.Keys.Order(StringComparer.Ordinal).ToImmutableArray();
     }
 

@@ -12,6 +12,7 @@ import type { PharoButtonProps as Props } from './types';
  */
 export function PharoButton(props: Props) {
   const { variant = 'primary', size = 'md', className, ...rest } = props;
+
   return (
     <Button
       {...rest}

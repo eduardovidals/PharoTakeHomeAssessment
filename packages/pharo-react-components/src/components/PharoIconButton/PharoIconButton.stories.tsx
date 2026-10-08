@@ -20,34 +20,46 @@ const meta = {
     icon: { control: false },
   },
 } satisfies Meta<typeof PharoIconButton>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
 export const Secondary: Story = {
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: 'Close observations' });
+
     button.focus();
     await userEvent.keyboard('{Enter}');
+
     await expect(args.onPress).toHaveBeenCalledTimes(1);
     await expect(button).toHaveFocus();
   },
 };
+
 export const Primary: Story = { args: { variant: 'primary' } };
+
 export const Quiet: Story = { args: { variant: 'quiet' } };
+
 export const Disabled: Story = {
   args: { isDisabled: true, onPress: fn() },
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: 'Close observations' });
+
     await userEvent.click(button);
+
     await expect(button).toBeDisabled();
     await expect(args.onPress).not.toHaveBeenCalled();
   },
 };
+
 export const Pending: Story = {
   args: { isPending: true, onPress: fn() },
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: 'Close observations' });
+
     await userEvent.click(button);
+
     await expect(args.onPress).not.toHaveBeenCalled();
   },
 };

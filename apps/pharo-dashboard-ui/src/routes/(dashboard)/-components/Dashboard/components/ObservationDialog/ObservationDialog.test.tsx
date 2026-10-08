@@ -37,16 +37,21 @@ describe('ObservationDialog', () => {
         { x: toUtcTimestamp('2024-03-12'), y: 20 + index },
       ],
     }));
+
     render(<ObservationDialog triggerId="raw-shared" series={shared} />);
+
     const dialog = await openDialog();
     const windows = within(
       within(dialog).getByRole('list', { name: 'Recorded windows by instrument' }),
     );
+
     expect(windows.getAllByRole('listitem')).toHaveLength(1);
     expect(windows.getByRole('listitem')).toHaveTextContent(
       'A, B, C: Mar 10 – Mar 12, 2024 (UTC), 2 observations each. Performance base: Mar 10, 2024.',
     );
+
     const table = within(dialog).getByRole('table', { name: 'Recorded closing prices' });
+
     expect(
       within(table)
         .getAllByRole('columnheader')
@@ -61,16 +66,19 @@ describe('ObservationDialog', () => {
 
   test('shares only matching metadata when other datasets differ or are unavailable', async () => {
     const first = series[0];
+
     render(
       <ObservationDialog
         triggerId="raw-partially-shared"
         series={[...series, { ...first, id: 'C', label: 'C' }]}
       />,
     );
+
     const dialog = await openDialog();
     const windows = within(
       within(dialog).getByRole('list', { name: 'Recorded windows by instrument' }),
     );
+
     expect(windows.getAllByRole('listitem')).toHaveLength(3);
     expect(windows.getByText(/^A, C:/)).toHaveTextContent('2 observations each.');
     expect(windows.getByText(/^B:/)).toHaveTextContent('Mar 11, 2024 (UTC), 1 observation.');
@@ -106,10 +114,12 @@ describe('ObservationDialog', () => {
           series={[series[0], { id: 'B', label: 'B', points }]}
         />,
       );
+
       const dialog = await openDialog();
       const windows = within(
         within(dialog).getByRole('list', { name: 'Recorded windows by instrument' }),
       );
+
       expect(windows.getAllByRole('listitem')).toHaveLength(2);
       expect(windows.getByText(/^A:/)).toHaveTextContent(
         '2 observations. Performance base: Mar 10, 2024.',
@@ -120,14 +130,20 @@ describe('ObservationDialog', () => {
 
   test('shows every actual raw row and selected column with truthful windows and bases', async () => {
     const original = JSON.stringify(series);
+
     render(<ObservationDialog triggerId="raw-data" series={series} />);
+
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
     const dialog = await openDialog();
+
     expect(within(dialog).getByText(/currency is not specified/)).toBeVisible();
     expect(within(dialog).getByText(/stay raw in both Price and Performance/)).toBeVisible();
+
     const windows = within(
       within(dialog).getByRole('list', { name: 'Recorded windows by instrument' }),
     );
+
     expect(
       windows.getByText(
         /A: Mar 10 – Mar 12, 2024 \(UTC\), 2 observations\. Performance base: Mar 10, 2024\./,
@@ -141,13 +157,17 @@ describe('ObservationDialog', () => {
     expect(
       windows.getByText('UNKNOWN: No recorded observations currently available.'),
     ).toBeVisible();
+
     const table = within(dialog).getByRole('table', { name: 'Recorded closing prices' });
+
     expect(
       within(table)
         .getAllByRole('columnheader')
         .map((cell) => cell.textContent),
     ).toEqual(['Date (UTC)', 'A', 'B', 'UNKNOWN']);
+
     const rows = within(table).getAllByRole('row').slice(1);
+
     expect(
       rows.map((row) =>
         within(row)
@@ -172,33 +192,47 @@ describe('ObservationDialog', () => {
 
   test('uses native opening, dismissal and trigger focus restoration', async () => {
     const user = userEvent.setup();
+
     render(<ObservationDialog triggerId="raw-focus" series={series} />);
+
     const trigger = screen.getByRole('button', { name: 'View data' });
+
     expect(trigger).toHaveAttribute('id', 'raw-focus');
+
     trigger.focus();
     await user.keyboard('{Enter}');
+
     const dialog = await screen.findByRole('dialog', { name: 'Raw observations' });
+
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus(),
     );
+
     await user.keyboard('{Escape}');
+
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(trigger).toHaveFocus());
+
     await user.click(trigger);
     await user.click(await screen.findByRole('button', { name: 'Close' }));
+
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   test('uses current raw props while open without resetting modal state', async () => {
     const view = render(<ObservationDialog triggerId="raw-current" series={series} />);
+
     const dialog = await openDialog();
     const updated: readonly PharoChartSeries[] = [
       { id: 'B', label: 'B', points: [{ x: toUtcTimestamp('2024-02-29'), y: 1234.56789 }] },
     ];
     view.rerender(<ObservationDialog triggerId="raw-current" series={updated} />);
+
     expect(screen.getByRole('dialog', { name: 'Raw observations' })).toBe(dialog);
+
     const table = within(dialog).getByRole('table', { name: 'Recorded closing prices' });
+
     expect(
       within(table)
         .getAllByRole('columnheader')
@@ -221,8 +255,10 @@ describe('ObservationDialog', () => {
         ]}
       />,
     );
+
     const dialog = await openDialog();
     const table = within(dialog).getByRole('table', { name: 'Recorded closing prices' });
+
     expect(
       within(table)
         .getAllByRole('columnheader')

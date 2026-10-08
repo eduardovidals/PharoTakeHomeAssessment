@@ -22,6 +22,7 @@ test('unions selected histories without inventing missing days or mutating their
     { id: 'UNAVAILABLE', label: 'Unavailable', points: [] },
   ];
   const original = JSON.stringify(series);
+
   expect(getComparisonTimeline(series)).toEqual([100, 300, 400]);
   expect(JSON.stringify(series)).toBe(original);
   expect(getComparisonTimeline([])).toEqual([]);

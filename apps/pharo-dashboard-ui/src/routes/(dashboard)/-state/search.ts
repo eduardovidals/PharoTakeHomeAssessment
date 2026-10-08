@@ -22,21 +22,26 @@ function normalizeSelection(input: unknown): {
     typeof input === 'object' && input !== null && !Array.isArray(input) && 'tickers' in input
       ? input.tickers
       : undefined;
+
   if (raw === undefined || raw === '') return { search: {} };
   if (typeof raw !== 'string') {
     return { search: {}, notice: { kind: 'invalid', message: noticeMessages.invalid } };
   }
+
   const unique = new Set<string>();
   for (const token of raw.split(',')) {
     const ticker = normalizeTicker(token);
     if (ticker !== undefined) unique.add(ticker);
   }
+
   const tickers = [...unique];
   if (tickers.length === 0) {
     return { search: {}, notice: { kind: 'invalid', message: noticeMessages.invalid } };
   }
+
   const canonical = tickers.slice(0, 3).join(',');
   const kind = tickers.length > 3 ? 'limit' : raw !== canonical ? 'normalized' : undefined;
+
   return {
     search: { tickers: canonical },
     ...(kind === undefined ? {} : { notice: { kind, message: noticeMessages[kind] } }),
@@ -46,6 +51,7 @@ function normalizeSelection(input: unknown): {
 function requireTicker(value: string): string {
   const ticker = normalizeTicker(value);
   if (ticker === undefined) throw new TypeError('A valid instrument identifier is required.');
+
   return ticker;
 }
 
@@ -57,12 +63,14 @@ function normalizeSearch(input: unknown): { search: DashboardSearch; notice?: Se
       : undefined;
   const validView = rawView === 'price' || rawView === 'performance';
   const invalidView = rawView !== undefined && !validView;
+
   const notice =
     selection.notice?.kind === 'invalid' || selection.notice?.kind === 'limit'
       ? selection.notice
       : invalidView
         ? { kind: 'invalid' as const, message: "The link's chart view is invalid." }
         : selection.notice;
+
   return {
     search: validView ? { ...selection.search, view: rawView } : selection.search,
     ...(notice ? { notice } : {}),
@@ -77,6 +85,7 @@ export function parseDashboardSearch(raw: string): Record<string, unknown> {
     const values = parameters.getAll(field);
     if (values.length > 0) search[field] = values.length === 1 ? values[0] : values;
   }
+
   return search;
 }
 
@@ -86,6 +95,7 @@ export function stringifyDashboardSearch(search: Record<string, unknown>): strin
   const parameters = new URLSearchParams();
   if (canonical.tickers !== undefined) parameters.set('tickers', canonical.tickers);
   if (canonical.view !== undefined) parameters.set('view', canonical.view);
+
   const encoded = parameters.toString();
   return encoded ? `?${encoded}` : '';
 }
@@ -110,8 +120,10 @@ export function addSelectedTicker(search: DashboardSearch, value: string): Selec
   const ticker = requireTicker(value);
   const selected = getSelectedTickers(search);
   const canonical = validateDashboardSearch(search);
+
   if (selected.includes(ticker)) return { search: canonical, outcome: 'already-selected' };
   if (selected.length === 3) return { search: canonical, outcome: 'limit' };
+
   return { search: { ...canonical, tickers: [...selected, ticker].join(',') }, outcome: 'added' };
 }
 
@@ -120,6 +132,7 @@ export function removeSelectedTicker(search: DashboardSearch, value: string): Da
   const ticker = requireTicker(value);
   const remaining = getSelectedTickers(search).filter((selected) => selected !== ticker);
   const { view } = validateDashboardSearch(search);
+
   return {
     ...(remaining.length === 0 ? {} : { tickers: remaining.join(',') }),
     ...(view === undefined ? {} : { view }),
@@ -141,6 +154,7 @@ export function getEffectiveChartMode(search: DashboardSearch): ChartMode {
 export function setDashboardView(search: DashboardSearch, view: ChartMode): DashboardSearch {
   if (view !== 'price' && view !== 'performance')
     throw new TypeError('A valid chart view is required.');
+
   return { ...validateDashboardSearch(search), view };
 }
 
@@ -151,6 +165,7 @@ export function applyDashboardAction(
 ): DashboardActionResult {
   const current = validateDashboardSearch(search);
   let next: DashboardSearch;
+
   switch (action.type) {
     case 'add': {
       const result = addSelectedTicker(current, action.ticker);
@@ -179,6 +194,7 @@ export function applyDashboardAction(
     default:
       throw new TypeError('A valid dashboard action is required.');
   }
+
   return {
     search: next,
     outcome:

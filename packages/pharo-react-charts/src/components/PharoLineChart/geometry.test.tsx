@@ -3,6 +3,7 @@ import { prepareChartGeometry } from './geometry';
 import type { PharoChartPoint, PharoChartSeries } from './types';
 
 const day = 86_400_000;
+
 const dateLimit = 8_640_000_000_000_000;
 
 function series(points: readonly PharoChartPoint[], id = 'temperature'): PharoChartSeries {
@@ -11,8 +12,11 @@ function series(points: readonly PharoChartPoint[], id = 'temperature'): PharoCh
 
 function ready(input: readonly PharoChartSeries[], width = 672, height = 320) {
   const result = prepareChartGeometry(input, width, height);
+
   expect(result.kind).toBe('ready');
+
   if (result.kind !== 'ready') throw new Error(`Expected ready geometry, got ${result.kind}`);
+
   return result;
 }
 
@@ -28,10 +32,14 @@ describe('prepareChartGeometry', () => {
     ]);
     const before = JSON.stringify(input);
     const normal = prepareChartGeometry(input, 672, 320);
+
     expect(prepareChartGeometry(input, 672, 320, undefined, undefined, 12)).toEqual(normal);
+
     const large = prepareChartGeometry(input, 672, 320, undefined, 0, 24);
+
     if (normal.kind !== 'ready' || large.kind !== 'ready')
       throw new Error('Expected measured charts.');
+
     expect(normal.plot).toEqual({ left: 56, top: 16, right: 656, bottom: 272 });
     expect(large.plot).toEqual({ left: 112, top: 32, right: 640, bottom: 224 });
     expect(large.axisFontSize).toBe(24);
@@ -72,8 +80,11 @@ describe('prepareChartGeometry', () => {
       ]);
       const before = JSON.stringify(input);
       const result = prepareChartGeometry(input, 672, 320, undefined, baseline);
+
       expect(result.kind).toBe('ready');
+
       if (result.kind !== 'ready') throw new Error('Expected baseline geometry.');
+
       expect(result.yDomain).toEqual(domain);
       expect(result.baseline).toEqual({ value: baseline, position });
       expect(result.series[0]?.points).toEqual(input[0]?.points);
@@ -90,6 +101,7 @@ describe('prepareChartGeometry', () => {
       ]),
     ];
     const unchanged = ready(positive);
+
     expect(unchanged.yDomain).toEqual([10, 20]);
     expect(unchanged.series[0]?.path).toBe('M56,272L656,16');
     expect(unchanged).not.toHaveProperty('baseline');
@@ -126,6 +138,7 @@ describe('prepareChartGeometry', () => {
 
   it('rejects untyped baseline values and unsafe expanded domains', () => {
     const input = [series([{ x: 0, y: 10 }])];
+
     // @ts-expect-error Runtime callers may violate the numerical baseline contract.
     expect(prepareChartGeometry(input, 672, 320, undefined, '0')).toMatchObject({
       kind: 'invalid',
@@ -157,8 +170,11 @@ describe('prepareChartGeometry', () => {
     ]);
     const candidates = Object.freeze([4 * day, day, 0, -day, 5 * day]);
     const result = prepareChartGeometry(input, 672, 320, candidates);
+
     expect(result.kind).toBe('ready');
+
     if (result.kind !== 'ready') throw new Error('Expected candidate geometry.');
+
     expect(result.xTicks).toEqual([
       { value: 0, position: 56 },
       { value: day, position: 206 },
@@ -176,12 +192,14 @@ describe('prepareChartGeometry', () => {
         { x: 4 * day, y: 20 },
       ]),
     ];
+
     for (const candidates of [[], [-day, 5 * day]]) {
       expect(prepareChartGeometry(input, 672, 320, candidates)).toMatchObject({
         kind: 'ready',
         xTicks: [],
       });
     }
+
     expect(prepareChartGeometry(input, 672, 320, [day])).toMatchObject({
       kind: 'ready',
       xTicks: [{ value: day, position: 206 }],
@@ -207,6 +225,7 @@ describe('prepareChartGeometry', () => {
 
   it('rejects untyped candidate containers and missing sparse entries safely', () => {
     const input = [series([{ x: 0, y: 1 }])];
+
     // @ts-expect-error Runtime callers may violate the readonly-array contract.
     expect(prepareChartGeometry(input, 672, 320, '0')).toMatchObject({ kind: 'invalid' });
     expect(prepareChartGeometry(input, 672, 320, Array<number>(1))).toMatchObject({
@@ -222,6 +241,7 @@ describe('prepareChartGeometry', () => {
         { x: 2 * day, y: 20 },
       ]),
     ]);
+
     expect(result.width).toBe(672);
     expect(result.height).toBe(320);
     expect(result.plot).toEqual({ left: 56, top: 16, right: 656, bottom: 272 });
@@ -238,6 +258,7 @@ describe('prepareChartGeometry', () => {
     const points = Object.freeze([last, first, middle]);
     const input = Object.freeze([Object.freeze(series(points))]);
     const result = ready(input);
+
     expect(points).toEqual([last, first, middle]);
     expect(points[0]).toBe(last);
     expect(result.series[0]?.points).toEqual([first, middle, last]);
@@ -253,6 +274,7 @@ describe('prepareChartGeometry', () => {
         { x: 2 * day, y: null },
       ]),
     ]);
+
     expect(result.xDomain).toEqual([0, 172_800_000]);
     expect(result.yDomain).toEqual([19, 21]);
     expect(result.series[0]?.markers).toEqual([{ x: 356, y: 144, point: { x: day, y: 20 } }]);
@@ -266,6 +288,7 @@ describe('prepareChartGeometry', () => {
         { x: 2 * day, y: 20 },
       ]),
     ]);
+
     expect(result.yDomain).toEqual([0, 20]);
     expect(result.series[0]?.path).toBe('M56,272ZM656,16Z');
     expect(result.series[0]?.markers).toEqual([
@@ -284,6 +307,7 @@ describe('prepareChartGeometry', () => {
         { x: 4 * day, y: null },
       ]),
     ]);
+
     expect(result.xDomain).toEqual([0, 345_600_000]);
     expect(result.series[0]?.path).toBe('M56,272L206,144M506,16Z');
     expect(result.series[0]?.markers).toEqual([{ x: 506, y: 16, point: { x: 3 * day, y: 20 } }]);
@@ -296,6 +320,7 @@ describe('prepareChartGeometry', () => {
     { value: -100, domain: [-105, -95] },
   ])('pads flat $value without forcing zero into its domain', ({ value, domain }) => {
     const result = ready([series([{ x: day, y: value }])]);
+
     expect(result.xDomain).toEqual([43_200_000, 129_600_000]);
     expect(result.yDomain).toEqual(domain);
     expect(result.series[0]?.markers).toEqual([{ x: 356, y: 144, point: { x: day, y: value } }]);
@@ -308,6 +333,7 @@ describe('prepareChartGeometry', () => {
     'clamps singleton temporal padding at $x without changing the observation',
     ({ x, domain, position }) => {
       const result = ready([series([{ x, y: 20 }])]);
+
       expect(result.xDomain).toEqual(domain);
       expect(result.series[0]?.markers).toEqual([{ x: position, y: 144, point: { x, y: 20 } }]);
     },
@@ -331,6 +357,7 @@ describe('prepareChartGeometry', () => {
       ),
       series([{ x: day, y: 0 }], 'reference'),
     ]);
+
     expect(result.yDomain).toEqual([-15, 15]);
     expect(result.series.map((item) => item.path)).toEqual([
       'M56,272L656,144',
@@ -342,6 +369,7 @@ describe('prepareChartGeometry', () => {
 
   it('uses exact nonblank identifiers without normalizing identity', () => {
     const result = ready([series([{ x: 0, y: 1 }], 'A'), series([{ x: 0, y: 2 }], 'a')]);
+
     expect(result.series.map((item) => item.id)).toEqual(['A', 'a']);
   });
 
@@ -359,6 +387,7 @@ describe('prepareChartGeometry', () => {
     },
   ])('returns an intentional empty state for $name', ({ input }) => {
     const result = prepareChartGeometry(input, 672, 320);
+
     expect(result.kind).toBe('empty');
     expect(result).not.toHaveProperty('series');
   });
@@ -374,6 +403,7 @@ describe('prepareChartGeometry', () => {
       672,
       320,
     );
+
     expect(result).toMatchObject({ kind: 'invalid', reason: 'PHARO-CHART-DOMAIN' });
     expect(result).not.toHaveProperty('series');
   });
@@ -389,14 +419,17 @@ describe('prepareChartGeometry', () => {
       1e12,
       1e12,
     );
+
     expect(result.xTicks.length).toBeGreaterThan(0);
     expect(result.xTicks.length).toBeLessThanOrEqual(12);
     expect(result.yTicks.length).toBeGreaterThan(0);
     expect(result.yTicks.length).toBeLessThanOrEqual(12);
+
     for (const tick of [...result.xTicks, ...result.yTicks]) {
       expect(Number.isFinite(tick.value)).toBe(true);
       expect(Number.isFinite(tick.position)).toBe(true);
     }
+
     expect(result.series[0]?.path).not.toMatch(/NaN|Infinity/);
   });
 
@@ -432,10 +465,12 @@ describe('prepareChartGeometry', () => {
       ],
     },
   ];
+
   it.each(malformed)(
     'rejects $name as malformed rather than dropping observations',
     ({ input }) => {
       const result = prepareChartGeometry(input, 672, 320);
+
       expect(result).toMatchObject({ kind: 'invalid', reason: 'PHARO-CHART-DATA' });
       expect(result).not.toHaveProperty('series');
     },
@@ -450,6 +485,7 @@ describe('prepareChartGeometry', () => {
     [{ x: 0, y: -Number.MAX_VALUE }],
   ])('rejects unsafe finite-domain arithmetic without rendering Infinity', (...points) => {
     const result = prepareChartGeometry([series(points)], 672, 320);
+
     expect(result).toMatchObject({ kind: 'invalid', reason: 'PHARO-CHART-DOMAIN' });
     expect(result).not.toHaveProperty('series');
   });
@@ -464,6 +500,7 @@ describe('prepareChartGeometry', () => {
     [672, Infinity],
   ])('withholds geometry for unusable dimensions %s × %s', (width, height) => {
     const result = prepareChartGeometry([series([{ x: 0, y: 1 }])], width, height);
+
     expect(result).toMatchObject({ kind: 'unmeasured', reason: 'PHARO-CHART-SIZE' });
   });
 
@@ -475,10 +512,12 @@ describe('prepareChartGeometry', () => {
       ]),
     ];
     const result = ready(input, 372, 192);
+
     expect(result.plot).toEqual({ left: 56, top: 16, right: 356, bottom: 144 });
     expect(result.xDomain).toEqual([0, 172_800_000]);
     expect(result.yDomain).toEqual([0, 20]);
     expect(result.series[0]?.path).toBe('M56,144L356,16');
+
     for (const tick of [...result.xTicks, ...result.yTicks]) {
       expect(Number.isFinite(tick.value)).toBe(true);
       expect(Number.isFinite(tick.position)).toBe(true);

@@ -17,7 +17,9 @@ public sealed class PricesService
     public PricesService(MarketDataStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
+
         var snapshots = new Dictionary<string, PriceSnapshot>(StringComparer.Ordinal);
+
         foreach (var ticker in store.Tickers)
         {
             if (!store.TryGetPrices(ticker, out var prices))
@@ -31,6 +33,7 @@ public sealed class PricesService
                 statistics.TotalReturnPercent,
                 statistics.DailyVolatilityPercent,
                 statistics.MaxDrawdownPercent);
+
             snapshots.Add(ticker, new PriceSnapshot(points, stats));
         }
 
