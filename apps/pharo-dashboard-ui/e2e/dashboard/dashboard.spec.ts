@@ -3,7 +3,6 @@ import { expect, test } from '@playwright/test';
 import type { Page, Request } from '@playwright/test';
 
 const dateLabel = new Intl.DateTimeFormat('en-US', {
-  weekday: 'short',
   month: 'short',
   day: 'numeric',
   year: 'numeric',
@@ -255,7 +254,7 @@ test.describe('Inspect prices on a narrow touch screen', () => {
     await expect(details.getByText('172.89', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Show data table for Historical closing prices' }).tap();
     const tableRegion = page.getByRole('region', {
-      name: 'Data table for Historical closing prices',
+      name: 'Data for Historical closing prices',
     });
     await expect(tableRegion.getByRole('rowheader')).toHaveCount(30);
     const scroll = await tableRegion.evaluate(

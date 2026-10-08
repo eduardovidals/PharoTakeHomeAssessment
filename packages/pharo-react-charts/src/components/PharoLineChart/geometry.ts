@@ -1,5 +1,6 @@
 import { scaleLinear, scaleUtc } from 'd3-scale';
 import { curveLinear, line } from 'd3-shape';
+import { prepareChartRecords } from '../../utils/chartData';
 import type {
   ChartGeometry,
   ChartTick,
@@ -10,7 +11,6 @@ import type {
 
 const dateLimit = 8_640_000_000_000_000;
 const halfDay = 43_200_000;
-const appearances = new Set(['primary', 'secondary', 'tertiary']);
 
 /** Prepare finite shared geometry on chronological copies, never caller arrays. */
 export function prepareChartGeometry(
@@ -29,7 +29,8 @@ export function prepareChartGeometry(
     reason: 'PHARO-CHART-DOMAIN',
     message: 'Chart values cannot be represented safely.',
   };
-  if (!Array.isArray(series) || series.length > 3) return invalidData;
+  const records = prepareChartRecords(series);
+  if (records.kind === 'invalid') return invalidData;
   if (
     xTickValues !== undefined &&
     (!Array.isArray(xTickValues) ||
@@ -37,53 +38,20 @@ export function prepareChartGeometry(
       new Set(xTickValues).size !== xTickValues.length)
   )
     return invalidData;
-  const ids = new Set<string>();
-  const explicitAppearances = new Set<string>();
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
-  const ordered: PharoChartSeries[] = [];
-
-  for (const item of series) {
-    if (
-      !item ||
-      typeof item.id !== 'string' ||
-      !item.id.trim() ||
-      typeof item.label !== 'string' ||
-      !item.label.trim() ||
-      ids.has(item.id) ||
-      !Array.isArray(item.points)
-    )
-      return invalidData;
-    ids.add(item.id);
-    if (item.appearance !== undefined) {
-      if (!appearances.has(item.appearance) || explicitAppearances.has(item.appearance))
-        return invalidData;
-      explicitAppearances.add(item.appearance);
-    }
-    const timestamps = new Set<number>();
-    const points: PharoChartPoint[] = [];
+  const ordered = records.series;
+  for (const item of ordered) {
     for (const point of item.points) {
-      if (
-        !point ||
-        !Number.isInteger(point.x) ||
-        Math.abs(point.x) > dateLimit ||
-        (point.y !== null && (typeof point.y !== 'number' || !Number.isFinite(point.y))) ||
-        timestamps.has(point.x)
-      )
-        return invalidData;
-      timestamps.add(point.x);
       minX = Math.min(minX, point.x);
       maxX = Math.max(maxX, point.x);
       if (point.y !== null) {
         minY = Math.min(minY, point.y);
         maxY = Math.max(maxY, point.y);
       }
-      points.push({ x: point.x, y: point.y });
     }
-    points.sort((first, second) => first.x - second.x);
-    ordered.push({ id: item.id, label: item.label, points });
   }
   if (minY === Infinity) return { kind: 'empty', message: 'No observations to display.' };
 

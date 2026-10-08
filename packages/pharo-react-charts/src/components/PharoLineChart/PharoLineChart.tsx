@@ -2,36 +2,27 @@ import { useId, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { useChartSize } from '../../hooks/useChartSize/useChartSize';
 import { mergeClasses } from '../../styles/mergeClasses';
-import { prepareChartGeometry } from './geometry';
 import {
-  compactLabel,
+  createInspectionTimeline,
+  inspectTimestamp,
+  prepareChartRecords,
   formatDate,
+  formatAxisDate,
   formatNumber,
-  identityConfiguration,
-  prepareXLabels,
-  resolveIdentities,
-} from './utils';
-import { createInspectionTimeline, findNearestTimestamp, inspectTimestamp } from './inspection';
+} from '../../utils/chartData';
+import { PharoChartDataTable } from '../PharoChartDataTable';
+import { PharoChartAxes } from './components/PharoChartAxes';
+import { PharoChartInspection } from './components/PharoChartInspection';
+import { useExternalDataTrigger } from './hooks/useExternalDataTrigger';
+import { prepareChartGeometry } from './geometry';
+import { identityConfiguration, prepareXLabels, resolveIdentities } from './utils';
+import { findNearestTimestamp } from './inspection';
 import {
-  axisLabelStyles,
-  axisStyles,
-  boundsStyles,
   containerStyles,
-  captionStyles,
   crosshairStyles,
   dashPatterns,
-  dateHeaderStyles,
-  dateStyles,
-  detailItemStyles,
-  detailLabelStyles,
-  detailListStyles,
-  detailsStyles,
-  detailValueStyles,
   disclosureStyles,
   figureStyles,
-  helpStyles,
-  inspectionLabelStyles,
-  inspectionStyles,
   labelStyles,
   legendItemStyles,
   legendSampleStyles,
@@ -40,12 +31,6 @@ import {
   markerStyles,
   statusStyles,
   svgStyles,
-  rangeStyles,
-  tableCellStyles,
-  tableDateStyles,
-  tableHeaderStyles,
-  tableRegionStyles,
-  tableStyles,
 } from './styles';
 import type {
   ChartGeometry,
@@ -76,19 +61,30 @@ export function PharoLineChart(props: Props) {
     description,
     xAxisLabel,
     yAxisLabel,
-    formatX = formatDate,
-    formatXAxis = formatX,
+    formatXAxis,
+    formatXDetail = formatDate,
+    formatXTable = formatDate,
+    formatXAccessible = formatDate,
     xTickValues,
-    formatY = formatNumber,
+    formatYAxis = formatNumber,
+    formatYDetail = formatNumber,
+    formatYTable = formatNumber,
+    dataTable,
     className,
   } = props;
   const { ref, width, height } = useChartSize();
+  const [figure, setFigure] = useState<HTMLElement | null>(null);
+  const externalTrigger = useExternalDataTrigger({
+    owner: figure,
+    triggerId:
+      dataTable?.mode === 'external' && typeof dataTable.triggerId === 'string'
+        ? dataTable.triggerId
+        : undefined,
+  });
   const uniqueId = useId();
   const titleId = uniqueId + '-title';
   const descriptionId = uniqueId + '-description';
   const clipId = uniqueId + '-clip';
-  const inspectionId = uniqueId + '-inspection';
-  const instructionId = uniqueId + '-instructions';
   const tableId = uniqueId + '-table';
   const [selectedTimestamp, setSelectedTimestamp] = useState<number | undefined>();
   const [tableOpen, setTableOpen] = useState(false);
@@ -120,32 +116,39 @@ export function PharoLineChart(props: Props) {
           reason: 'PHARO-CHART-DATA',
           message: 'Chart appearances conflict.',
         };
+  const records = prepareChartRecords(series);
+  const timeline = records.kind === 'ready' ? createInspectionTimeline(records.series) : [];
+  const includeYear =
+    geometry.kind === 'ready' &&
+    new Date(geometry.xDomain[0]).getUTCFullYear() !==
+      new Date(geometry.xDomain[1]).getUTCFullYear();
+  const axisDate = formatXAxis ?? ((timestamp: number) => formatAxisDate(timestamp, includeYear));
   const xLabels =
-    geometry.kind === 'ready' ? prepareXLabels(geometry.xTicks, formatXAxis, geometry.plot) : [];
-  const timeline = geometry.kind === 'ready' ? createInspectionTimeline(geometry.series) : [];
-  let inspectedTimestamp = selectedTimestamp;
+    geometry.kind === 'ready' ? prepareXLabels(geometry.xTicks, axisDate, geometry.plot) : [];
+  let inspectedTimestamp: number | undefined;
   if (geometry.kind === 'ready') {
-    inspectedTimestamp = findNearestTimestamp(timeline, selectedTimestamp ?? timeline[0] ?? NaN);
-    if (inspectedTimestamp !== selectedTimestamp) setSelectedTimestamp(inspectedTimestamp);
+    inspectedTimestamp = findNearestTimestamp(
+      timeline,
+      selectedTimestamp ?? timeline.at(-1) ?? NaN,
+    );
+    // Only an explicit user choice becomes state; later async records keep the implicit latest fresh.
+    if (selectedTimestamp !== undefined && inspectedTimestamp !== selectedTimestamp)
+      setSelectedTimestamp(inspectedTimestamp);
   } else if (geometry.kind !== 'unmeasured' && selectedTimestamp !== undefined) {
-    inspectedTimestamp = undefined;
     setSelectedTimestamp(undefined);
   }
   const details: readonly ChartInspectionDetail[] =
     geometry.kind === 'ready' && inspectedTimestamp !== undefined
       ? inspectTimestamp(geometry.series, inspectedTimestamp).map((row) => ({
           ...row,
-          display: row.kind === 'available' ? formatY(row.value) : 'Unavailable',
+          display: row.kind === 'available' ? formatYDetail(row.value) : 'Unavailable',
         }))
       : [];
-  const selectedDate =
-    inspectedTimestamp !== undefined && geometry.kind === 'ready'
-      ? formatX(inspectedTimestamp)
-      : '';
-  const selectedIndex =
-    inspectedTimestamp === undefined ? -1 : timeline.indexOf(inspectedTimestamp);
+  const selectedDate = inspectedTimestamp !== undefined ? formatXDetail(inspectedTimestamp) : '';
   const valueText =
-    selectedDate + '; ' + details.map((row) => row.label + ': ' + row.display).join('; ');
+    (inspectedTimestamp !== undefined ? formatXAccessible(inspectedTimestamp) : '') +
+    '; ' +
+    details.map((row) => row.label + ': ' + row.display).join('; ');
   const crosshairX =
     geometry.kind === 'ready' && inspectedTimestamp !== undefined
       ? geometry.plot.left +
@@ -206,7 +209,7 @@ export function PharoLineChart(props: Props) {
   };
 
   return (
-    <figure className={figureStyles}>
+    <figure ref={setFigure} className={figureStyles}>
       {geometry.kind === 'ready' ? (
         <ul aria-label={`Legend for ${label}`} className={legendStyles}>
           {geometry.series.map((item) => {
@@ -250,6 +253,7 @@ export function PharoLineChart(props: Props) {
             role="img"
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
+            aria-details={externalTrigger}
             className={svgStyles}
             viewBox={`0 0 ${geometry.width} ${geometry.height}`}
             width={geometry.width}
@@ -273,77 +277,13 @@ export function PharoLineChart(props: Props) {
                 />
               </clipPath>
             </defs>
-            <path
-              className={boundsStyles}
-              strokeWidth={1}
-              d={`M${geometry.plot.left},${geometry.plot.top}V${geometry.plot.bottom}H${geometry.plot.right}`}
+            <PharoChartAxes
+              geometry={geometry}
+              xLabels={xLabels}
+              formatYAxis={formatYAxis}
+              xAxisLabel={xAxisLabel}
+              yAxisLabel={yAxisLabel}
             />
-            <g className={axisStyles} aria-label="UTC time axis">
-              {xLabels.map((tick) => {
-                const fullLabel = tick.label;
-                const text = tick.text;
-                return (
-                  <text
-                    key={tick.value}
-                    x={tick.position}
-                    y={geometry.plot.bottom + 20}
-                    textAnchor={tick.anchor}
-                  >
-                    <title>{fullLabel}</title>
-                    {text}
-                  </text>
-                );
-              })}
-            </g>
-            <g className={axisStyles} aria-label="Value axis">
-              {geometry.yTicks.map((tick) => {
-                const fullLabel = formatY(tick.value);
-                const text = compactLabel(fullLabel, 9);
-                return (
-                  <text
-                    key={tick.value}
-                    x={geometry.plot.left - 8}
-                    y={tick.position}
-                    dy="0.35em"
-                    textAnchor="end"
-                    textLength={text.length > 6 ? 44 : undefined}
-                    lengthAdjust="spacingAndGlyphs"
-                  >
-                    <title>{fullLabel}</title>
-                    {text}
-                  </text>
-                );
-              })}
-            </g>
-            {yAxisLabel ? (
-              <text
-                className={axisLabelStyles}
-                x={geometry.plot.left}
-                y={12}
-                textLength={
-                  yAxisLabel.length > 24 ? geometry.plot.right - geometry.plot.left : undefined
-                }
-                lengthAdjust="spacingAndGlyphs"
-              >
-                <title>{yAxisLabel}</title>
-                {compactLabel(yAxisLabel, 36)}
-              </text>
-            ) : null}
-            {xAxisLabel ? (
-              <text
-                className={axisLabelStyles}
-                x={(geometry.plot.left + geometry.plot.right) / 2}
-                y={geometry.height - 8}
-                textAnchor="middle"
-                textLength={
-                  xAxisLabel.length > 24 ? geometry.plot.right - geometry.plot.left : undefined
-                }
-                lengthAdjust="spacingAndGlyphs"
-              >
-                <title>{xAxisLabel}</title>
-                {compactLabel(xAxisLabel, 36)}
-              </text>
-            ) : null}
             <g>
               {geometry.series.map((item) => {
                 const appearance = identities.active.get(item.id);
@@ -390,47 +330,18 @@ export function PharoLineChart(props: Props) {
         )}
       </div>
       {geometry.kind === 'ready' && inspectedTimestamp !== undefined ? (
+        <PharoChartInspection
+          label={label}
+          timeline={timeline}
+          timestamp={inspectedTimestamp}
+          date={selectedDate}
+          valueText={valueText}
+          details={details}
+          onInspect={setSelectedTimestamp}
+        />
+      ) : null}
+      {records.kind === 'ready' && timeline.length > 0 && !externalTrigger ? (
         <>
-          {timeline.length > 1 ? (
-            <div className={inspectionStyles}>
-              <label htmlFor={inspectionId} className={inspectionLabelStyles}>
-                Inspect {label}
-              </label>
-              <input
-                id={inspectionId}
-                type="range"
-                min={0}
-                max={timeline.length - 1}
-                step={1}
-                value={selectedIndex}
-                aria-valuetext={valueText}
-                aria-describedby={instructionId}
-                className={rangeStyles}
-                onChange={(event) => {
-                  const index = Number(event.currentTarget.value);
-                  const timestamp = Number.isInteger(index) ? timeline[index] : undefined;
-                  if (timestamp !== undefined) setSelectedTimestamp(timestamp);
-                }}
-              />
-              <p id={instructionId} className={helpStyles}>
-                Drag the slider or use arrow keys, Home and End to inspect recorded dates. Tab moves
-                to the next control.
-              </p>
-            </div>
-          ) : null}
-          <section aria-label={`Details for ${label}`} className={detailsStyles}>
-            <h3 className={dateStyles}>
-              <time dateTime={new Date(inspectedTimestamp).toISOString()}>{selectedDate}</time>
-            </h3>
-            <dl className={detailListStyles}>
-              {details.map((row) => (
-                <div key={row.id} className={detailItemStyles}>
-                  <dt className={detailLabelStyles}>{row.label}</dt>
-                  <dd className={detailValueStyles}>{row.display}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
           <button
             type="button"
             className={disclosureStyles}
@@ -441,47 +352,15 @@ export function PharoLineChart(props: Props) {
           >
             {tableOpen ? 'Hide data table' : 'Show data table'}
           </button>
-          <div
-            id={tableId}
-            role="region"
-            aria-label={`Data table for ${label}`}
-            // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- The named overflow region needs keyboard focus to scroll the full table.
-            tabIndex={0}
-            hidden={!tableOpen}
-            className={tableRegionStyles}
-          >
+          <div id={tableId} hidden={!tableOpen}>
             {tableOpen ? (
-              <table className={tableStyles}>
-                <caption className={captionStyles}>Data for {label}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" className={dateHeaderStyles}>
-                      Date (UTC)
-                    </th>
-                    {geometry.series.map((item) => (
-                      <th key={item.id} scope="col" className={tableHeaderStyles}>
-                        {item.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {timeline.map((timestamp) => (
-                    <tr key={timestamp}>
-                      <th scope="row" className={tableDateStyles}>
-                        <time dateTime={new Date(timestamp).toISOString()}>
-                          {formatX(timestamp)}
-                        </time>
-                      </th>
-                      {inspectTimestamp(geometry.series, timestamp).map((row) => (
-                        <td key={row.id} className={tableCellStyles}>
-                          {row.kind === 'available' ? formatY(row.value) : 'Unavailable'}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PharoChartDataTable
+                series={records.series}
+                caption={`Data for ${label}`}
+                formatXTable={formatXTable}
+                formatXAccessible={formatXAccessible}
+                formatYTable={formatYTable}
+              />
             ) : null}
           </div>
         </>

@@ -4,13 +4,14 @@ import { toChartSeries } from '../../adapters/priceSeries';
 import { recordedDateTicks } from '../../adapters/recordedDateTicks';
 import {
   datesSpanYears,
+  formatDateAccessible,
   formatDateAxis,
   formatDateDetail,
   formatDateRange,
   formatDateTable,
   toUtcTimestamp,
 } from '../../../../utils/date';
-import { formatPrice } from '../../../../utils/number';
+import { formatPrice, formatPriceAxis } from '../../../../utils/number';
 import { historyStyles } from './styles';
 import type { PriceHistoryProps as Props } from './types';
 
@@ -51,8 +52,12 @@ export function PriceHistory(props: Props) {
             yAxisLabel="Price"
             xTickValues={ticks}
             formatXAxis={formatAxis}
-            formatX={formatDateDetail}
-            formatY={formatPrice}
+            formatXDetail={formatDateDetail}
+            formatXTable={formatDateTable}
+            formatXAccessible={formatDateAccessible}
+            formatYAxis={formatPriceAxis}
+            formatYDetail={formatPrice}
+            formatYTable={formatPrice}
           />
         </>
       ) : (

@@ -1,28 +1,46 @@
-/** A recorded UTC epoch-millisecond observation; null explicitly means missing. */
-export interface PharoChartPoint {
-  /** Integer UTC epoch milliseconds within JavaScript's valid Date range. */
-  readonly x: number;
-  /** A finite numerical observation, or null to break the line at missing data. */
-  readonly y: number | null;
+import type {
+  ChartInspectionRow,
+  PharoChartPoint,
+  PharoChartSeries,
+  PharoChartAppearance,
+} from '../../types';
+export type { PharoChartPoint, PharoChartSeries, PharoChartAppearance } from '../../types';
+
+/** Independent formatter contexts preserve readable axis, detail, table and spoken labels. */
+export interface PharoChartFormatters {
+  /** Short UTC axis text; defaults to month/day with year for multiyear domains. */
+  readonly formatXAxis?: (timestamp: number) => string;
+  /** Full date in the inspection readout; defaults to the canonical UTC date. */
+  readonly formatXDetail?: (timestamp: number) => string;
+  /** Visible date for every recorded table row. */
+  readonly formatXTable?: (timestamp: number) => string;
+  /** Complete spoken date for the native inspection control and table. */
+  readonly formatXAccessible?: (timestamp: number) => string;
+  /** Numerical axis labels; no assumed currency or percentage units. */
+  readonly formatYAxis?: (value: number) => string;
+  /** Full recorded inspection values. */
+  readonly formatYDetail?: (value: number) => string;
+  /** Full recorded table values. */
+  readonly formatYTable?: (value: number) => string;
 }
 
-/** Three semantic color and dash identities, independent of array order. */
-export type PharoChartAppearance = 'primary' | 'secondary' | 'tertiary';
+/** Standalone data disclosure, or an accessible consumer-owned data trigger. */
+export type PharoChartDataTableMode =
+  | {
+      /** Keep the chart-owned recorded-data disclosure. */
+      readonly mode: 'inline';
+      /** Inline disclosure does not associate an external trigger. */
+      readonly triggerId?: never;
+    }
+  | {
+      /** Use a consumer-owned accessible data alternative. */
+      readonly mode: 'external';
+      /** ID of the named, enabled and keyboard-reachable data trigger. */
+      readonly triggerId: string;
+    };
 
-/** Generic observations with a stable, nonblank identifier and readable label. */
-export interface PharoChartSeries {
-  /** Nonblank exact identity retained across additions, removals and reordering. */
-  readonly id: string;
-  /** Nonblank, human-readable description of this series. */
-  readonly label: string;
-  /** Readonly observations; the chart sorts a copy and rejects duplicate times. */
-  readonly points: readonly PharoChartPoint[];
-  /** Optional explicit identity; active series must have distinct appearances. */
-  readonly appearance?: PharoChartAppearance;
-}
-
-/** Responsive SVG comparison with recorded-point inspection and a full data table. */
-export interface PharoLineChartProps {
+/** Responsive SVG comparison with recorded-point inspection and a shared data table. */
+export interface PharoLineChartProps extends PharoChartFormatters {
   /** Zero to three independent series using one shared pair of domains. */
   readonly series: readonly PharoChartSeries[];
   /** Required accessible chart name. */
@@ -33,14 +51,14 @@ export interface PharoLineChartProps {
   readonly xAxisLabel?: string;
   /** Optional text above the plot describing its numerical units. */
   readonly yAxisLabel?: string;
-  /** Formats UTC timestamps; identical tick labels retain their first coordinate. */
-  readonly formatX?: (timestamp: number) => string;
-  /** Optional short axis formatter; details and table retain formatX during migration. */
-  readonly formatXAxis?: (timestamp: number) => string;
-  /** Unique integer UTC candidates; sorted copies in the data domain retain real time spacing. */
+  /** Unique integer UTC candidates; sorted copies retain real time spacing. */
   readonly xTickValues?: readonly number[];
-  /** Formats numeric values; defaults to plain numbers without currency. */
-  readonly formatY?: (value: number) => string;
+  /** Omit for inline disclosure; external mode requires a real reachable trigger. */
+  readonly dataTable?: PharoChartDataTableMode;
+  /** Old catch-all aliases are rejected, including forwarding through wider objects. */
+  readonly formatX?: never;
+  /** Choose the axis/detail/table value formatter explicitly. */
+  readonly formatY?: never;
   /** Layout overrides apply to the actual measured container. */
   readonly className?: string;
 }
@@ -152,27 +170,6 @@ export interface ChartIdentityState {
   /** Whether the current configuration permits distinct, stable appearances. */
   readonly valid: boolean;
 }
-
-/** @internal One series' exact value, explicit missing record or absent record. */
-export type ChartInspectionRow = {
-  /** Exact series identity associated with this observation. */
-  readonly id: string;
-  /** Full series label used in details and accessible value text. */
-  readonly label: string;
-} & (
-  | {
-      /** A defined observation exists at the inspected timestamp. */
-      readonly kind: 'available';
-      /** Unrounded recorded value, never an interpolated estimate. */
-      readonly value: number;
-    }
-  | {
-      /** Distinguishes an explicit null from a date absent in this series. */
-      readonly kind: 'missing' | 'absent';
-      /** Null means unavailable and must never be formatted as zero. */
-      readonly value: null;
-    }
-);
 
 /** @internal An exact inspection row with caller-formatted readable output. */
 export type ChartInspectionDetail = ChartInspectionRow & {

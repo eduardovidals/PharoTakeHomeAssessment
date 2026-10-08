@@ -3,7 +3,6 @@ import { expect, test } from '@playwright/test';
 import type { Page, Request, Route } from '@playwright/test';
 
 const dateLabel = new Intl.DateTimeFormat('en-US', {
-  weekday: 'short',
   month: 'short',
   day: 'numeric',
   year: 'numeric',

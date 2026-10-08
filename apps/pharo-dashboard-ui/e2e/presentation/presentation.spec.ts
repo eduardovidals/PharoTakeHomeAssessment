@@ -68,8 +68,10 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
         ).toBeVisible();
         const before = [...requests];
         const inspector = page.getByRole('slider', { name: 'Inspect Historical closing prices' });
-        await inspector.press('Home');
         const details = page.getByRole('region', { name: 'Details for Historical closing prices' });
+        await expect(details.getByText('Mon, Aug 3, 2026', { exact: true })).toBeVisible();
+        await expect(inspector).toHaveAttribute('aria-valuetext', /Monday, August 3, 2026/);
+        await inspector.press('Home');
         await expect(details.getByText('Tue, Jun 23, 2026', { exact: true })).toBeVisible();
         await inspector.press('End');
         await expect(details.getByText('Mon, Aug 3, 2026', { exact: true })).toBeVisible();
@@ -89,6 +91,21 @@ test.describe('Present recorded prices with consistent UTC labels', () => {
         expect(labels.length).toBeGreaterThan(1);
         if (reference) expect(labels).toEqual(reference);
         else reference = labels;
+        await page
+          .getByRole('button', { name: 'Show data table for Historical closing prices' })
+          .click();
+        const table = page.getByRole('table', { name: 'Data for Historical closing prices' });
+        await expect(table.getByRole('rowheader')).toHaveCount(30);
+        await expect(
+          table.getByRole('rowheader', { name: 'Tuesday, June 23, 2026', exact: true }),
+        ).toHaveText('Jun 23, 2026');
+        await expect(table.getByText('Jun 23, 2026', { exact: true })).toHaveAttribute(
+          'datetime',
+          '2026-06-23T00:00:00.000Z',
+        );
+        await expect(
+          table.getByRole('row', { name: 'Tuesday, June 23, 2026 190.34', exact: true }),
+        ).toBeVisible();
         expect(requests).toEqual(before);
         expect(failures).toEqual([]);
       } finally {

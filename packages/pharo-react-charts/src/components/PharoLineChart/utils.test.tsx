@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, prepareXLabels } from './utils';
+import { prepareXLabels } from './utils';
+import { formatDate } from '../../utils/chartData';
 import type { ChartTick } from './types';
 
 function ticks(width: number): readonly ChartTick[] {

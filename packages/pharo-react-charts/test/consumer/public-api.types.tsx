@@ -1,4 +1,4 @@
-import { PharoLineChart } from '@pharo/react-charts';
+import { PharoChartDataTable, PharoLineChart } from '@pharo/react-charts';
 import type {
   PharoChartPoint,
   PharoChartSeries,
@@ -23,13 +23,27 @@ export function TypedConsumer() {
     series,
     xAxisLabel: 'UTC date',
     yAxisLabel: 'Degrees',
-    formatX: (timestamp) => new Date(timestamp).toISOString().slice(0, 10),
+    formatXDetail: (timestamp) => new Date(timestamp).toISOString().slice(0, 10),
     formatXAxis: (timestamp) => new Date(timestamp).toISOString().slice(5, 10),
     xTickValues: Object.freeze([point.x]),
-    formatY: (value) => value.toFixed(1),
+    formatYDetail: (value) => value.toFixed(1),
     className: 'max-w-4xl',
   };
-  return <PharoLineChart {...props} />;
+  return (
+    <>
+      <PharoLineChart {...props} dataTable={{ mode: 'external', triggerId: 'consumer-data' }} />
+      <button id="consumer-data" type="button">
+        View recorded data
+      </button>
+      <PharoChartDataTable
+        series={series}
+        caption="Recorded observations"
+        formatXTable={(value) => String(value)}
+        formatXAccessible={(value) => `Full recorded timestamp ${value}`}
+        formatYTable={String}
+      />
+    </>
+  );
 }
 
 export function RejectedConsumerContracts() {
@@ -61,15 +75,30 @@ export function RejectedConsumerContracts() {
     // @ts-expect-error Presentation is a finite semantic contract, not arbitrary CSS colors.
     appearance: 'red',
   };
+  const legacy = {
+    label: 'Legacy forwarded object',
+    series,
+    formatX: (value: number) => String(value),
+  };
   return (
     <>
+      {/* @ts-expect-error Deprecated aliases cannot be forwarded through a wider object. */}
+      <PharoLineChart {...legacy} />
+      <PharoLineChart
+        series={series}
+        label="Missing association"
+        // @ts-expect-error An external alternative requires an explicit real trigger ID.
+        dataTable={{ mode: 'external' }}
+      />
+      {/* @ts-expect-error Data access cannot be hidden entirely. */}
+      <PharoLineChart series={series} label="Hidden alternative" dataTable={{ mode: 'none' }} />
       {/* @ts-expect-error Every chart requires an accessible label. */}
       <PharoLineChart series={series} />
       <PharoLineChart
         label="Invalid formatter"
         series={series}
         // @ts-expect-error A formatter returns presentation text.
-        formatY={(value) => value}
+        formatYAxis={(value) => value}
       />
       <PharoLineChart
         label="Invalid candidate dates"

@@ -74,21 +74,37 @@ The chart observes its actual plot container with ResizeObserver. Default plot h
 
 Each mounted instance owns its observer, selection and appearance history. Observer ownership is retired on container replacement and unmount; no global resize listener or caller cleanup is required. A temporary unmeasured state retains inspection selection. Empty or invalid input clears it.
 
-`label` is the required accessible SVG name; `description` supplies optional descriptive text. Optional `xAxisLabel` and `yAxisLabel` describe units. `formatX(timestamp)` and `formatY(value)` return display strings. Defaults use UTC dates and full plain-number values, with no currency or data rounding.
+`label` is the required accessible SVG name; `description` supplies optional descriptive text. Optional `xAxisLabel` and `yAxisLabel` describe units. Seven independent callbacks format presentation only:
 
-Optional `xTickValues` supplies readonly UTC epoch-millisecond candidates. Values must be unique finite integers within JavaScript's Date range. The chart sorts a copy, drops candidates outside its display domain and positions the remaining values through the UTC scale. An empty array intentionally omits x ticks; omission retains automatic generic UTC ticks. Pass the recorded timestamp union when every displayed date must correspond to an observation, including explicit null records. Tick choices do not change the data, inspection timeline or table.
+| Callback | Context | Standalone default |
+| --- | --- | --- |
+| `formatXAxis(timestamp)` | Compact date ticks | UTC month/day, with year for multiyear domains |
+| `formatXDetail(timestamp)` | Inspection readout | Full UTC ISO date |
+| `formatXTable(timestamp)` | Visible table date | Full UTC ISO date |
+| `formatXAccessible(timestamp)` | Spoken inspection/table date | Full UTC ISO date |
+| `formatYAxis(value)` | Numerical axis | Full plain number |
+| `formatYDetail(value)` | Exact inspection value | Full plain number |
+| `formatYTable(value)` | Exact table value | Full plain number |
 
-`formatXAxis(timestamp)` can provide a short axis label while `formatX` continues to provide complete detail and table text. It falls back to `formatX` when omitted. The measured plot width and formatted label budget select a readable subset: first/last candidates remain when both fit, with fewer labels at narrow widths. X-axis text is never compressed with SVG `textLength`; full strings remain in titles when long labels need ellipsis.
+The old `formatX`/`formatY` aliases are rejected. No callback changes underlying observations or implies currency. Complete axis strings remain in SVG titles; width budgets compact text without squeezing glyphs. Formatter exceptions propagate, so callbacks should handle their valid input domain.
 
-Axes compact long labels and omit overlapping ticks; identical formatted x labels retain their first coordinate. SVG titles preserve complete axis strings. Details and the table use complete formatter output and recorded values. Formatter exceptions propagate, so callbacks should handle the valid domain they receive.
+Optional `xTickValues` supplies readonly UTC epoch-millisecond candidates. Values must be unique finite integers within JavaScript's Date range. The chart sorts a copy, drops candidates outside its display domain and positions them through the UTC scale. An empty array intentionally omits x ticks; omission retains automatic generic UTC ticks. Pass the recorded timestamp union when every displayed date must correspond to an observation, including explicit null records. Measured plot width selects a readable subset, keeping endpoints when both fit. Tick choices never change the inspection timeline or table.
 
 ## Inspect recorded data
 
 Pointer movement and completed touch taps select the nearest timestamp in the sorted union of recorded dates; equal-distance ties choose the earlier date. Touch scrolling and cancelled gestures do not commit an inspection.
 
-When more than one timestamp exists, the native `Inspect {label}` range control supports arrow keys, Home and End. Tab follows the normal control order. A single timestamp still has details and a table. Details expose the full date and each series' exact value at that timestamp; an explicit null or an absent record is shown as `Unavailable`, never zero or a neighboring value. Details are stable content rather than a continuously announced live region.
+Inspection initially shows the latest actual timestamp and follows later records until the user chooses a date. Explicit inspection survives resize, order and formatter changes while valid. When more than one timestamp exists, the native `Inspect {label}` range control supports arrow keys, Home and End. Tab follows the normal control order. Complete instructions stay associated with the range and become visible on keyboard focus; the dated readout uses compact wrapping text instead of a permanent instruction panel. A single timestamp still has details and a table. Details expose the full date and each series' exact value at that timestamp; an explicit null or an absent record is shown as `Unavailable`, never zero or a neighboring value. Details are stable content rather than a continuously announced live region.
 
 `Show data table` opens every recorded union timestamp and its per-series values. The table has a UTC date column, full labels and a named, keyboard-focusable horizontal overflow region for narrow screens. If an inspected date disappears after an update, selection reconciles to the nearest remaining date with the same earlier-tie rule.
+
+## Shared data table and external composition
+
+`PharoChartDataTable` is a standalone export accepting generic `series`, required `caption`, optional `formatXTable`, `formatXAccessible`, `formatYTable`, `emptyMessage` and `className`. It preserves every recorded union date, selected series column, null/absent cell and canonical machine timestamp. The caption also names its keyboard-focusable horizontal-scroll region. All-null records remain available even when no line can be drawn.
+
+`PharoLineChart` uses that same renderer for its default inline disclosure. To compose a separate consumer-owned data surface, supply `dataTable={{ mode: 'external', triggerId: 'raw-data' }}` and render a real enabled, named, visible keyboard-reachable button with that ID which opens your `PharoChartDataTable`. The chart associates its SVG using `aria-details`. The package has no modal or base-UI dependency.
+
+A missing, blank, hidden or disabled external trigger leaves the inline alternative available. An instance-owned observer updates this fallback if the consumer changes the trigger and disconnects on cleanup; measured resize also rechecks responsive visibility. Omitting `dataTable`, or `{mode: 'inline'}`, keeps standalone access. There is no `none` mode. Consumers own the table's source series and can expose raw records while plotting a transformed view.
 
 ## Workspace commands
 

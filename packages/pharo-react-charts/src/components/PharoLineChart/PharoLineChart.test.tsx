@@ -192,9 +192,9 @@ describe('PharoLineChart', () => {
     expect(chart).toHaveAttribute('viewBox', '0 0 672 320');
     const timeAxis = within(chart).getByLabelText('UTC time axis');
     const dates = [...timeAxis.querySelectorAll('title')].map((title) => title.textContent);
-    expect(dates).toContain('2024-03-10');
-    expect(dates).toContain('2024-03-12');
-    expect(dates).not.toContain('2024-03-09');
+    expect(dates).toContain('Mar 10');
+    expect(dates).toContain('Mar 12');
+    expect(dates).not.toContain('Mar 9');
     expect(new Set(dates).size).toBe(dates.length);
     const valueAxis = within(chart).getByLabelText('Value axis');
     expect(valueAxis).toHaveTextContent('-10');
@@ -232,7 +232,10 @@ describe('PharoLineChart', () => {
       label: 'Recorded candidates',
       xTickValues: [firstDate, firstDate + 3 * day],
       formatXAxis: (timestamp) => `Mar ${new Date(timestamp).getUTCDate()}`,
-      formatX: (timestamp) => `Full date ${new Date(timestamp).toISOString().slice(0, 10)}`,
+      formatXDetail: (timestamp) => `Full date ${new Date(timestamp).toISOString().slice(0, 10)}`,
+      formatXTable: (timestamp) => `Full date ${new Date(timestamp).toISOString().slice(0, 10)}`,
+      formatXAccessible: (timestamp) =>
+        `Full date ${new Date(timestamp).toISOString().slice(0, 10)}`,
     });
     const chart = screen.getByRole('img', { name: 'Recorded candidates' });
     const axis = within(chart).getByLabelText('UTC time axis');
@@ -256,19 +259,19 @@ describe('PharoLineChart', () => {
     expect(within(table).getByRole('rowheader', { name: 'Full date 2024-03-12' })).toBeVisible();
   });
 
-  it('keeps both endpoint dates readable at 256 pixels and restores the middle date when widened', () => {
+  it('keeps both endpoint dates readable at 184 pixels and restores the middle date when widened', () => {
     const view = renderChart({ series: observations, label: 'Narrow date labels' });
     const chart = screen.getByRole('img', { name: 'Narrow date labels' });
     function visibleDates() {
       const timeAxis = within(chart).getByLabelText('UTC time axis');
       return [...timeAxis.querySelectorAll('text title')].map((title) => title.textContent);
     }
-    expect(visibleDates()).toEqual(['2024-03-10', '2024-03-11', '2024-03-12']);
-    measure(view.container, 256, 320);
-    expect(visibleDates()).toEqual(['2024-03-10', '2024-03-12']);
-    expect(chart).toHaveAttribute('viewBox', '0 0 256 320');
+    expect(visibleDates()).toEqual(['Mar 10', 'Mar 11', 'Mar 12']);
+    measure(view.container, 184, 320);
+    expect(visibleDates()).toEqual(['Mar 10', 'Mar 12']);
+    expect(chart).toHaveAttribute('viewBox', '0 0 184 320');
     measure(view.container, 672, 320);
-    expect(visibleDates()).toEqual(['2024-03-10', '2024-03-11', '2024-03-12']);
+    expect(visibleDates()).toEqual(['Mar 10', 'Mar 11', 'Mar 12']);
   });
 
   it('draws visible singleton markers around a missing observation without a connecting line', () => {
@@ -339,7 +342,12 @@ describe('PharoLineChart', () => {
   it('retains full caller formatter output in accessible titles and passes numerical values', () => {
     const formatX = vi.fn((value: number) => `Observation timestamp ${value}`);
     const formatY = vi.fn((value: number) => `Measured value ${value}`);
-    renderChart({ series: observations, label: 'Custom labels', formatX, formatY });
+    renderChart({
+      series: observations,
+      label: 'Custom labels',
+      formatXAxis: formatX,
+      formatYAxis: formatY,
+    });
     const chart = screen.getByRole('img', { name: 'Custom labels' });
     const fullTitles = [...chart.querySelectorAll('text title')].map((title) => title.textContent);
     expect(fullTitles).toContain(`Observation timestamp ${Date.UTC(2024, 2, 10)}`);
@@ -365,8 +373,8 @@ describe('PharoLineChart', () => {
         <PharoLineChart
           series={observations}
           label="Caller formatting"
-          formatX={axis === 'x' ? formatter : undefined}
-          formatY={axis === 'y' ? formatter : undefined}
+          formatXAxis={axis === 'x' ? formatter : undefined}
+          formatYAxis={axis === 'y' ? formatter : undefined}
         />,
       );
       expect(() => measure(view.container)).toThrow(failure);
@@ -488,6 +496,90 @@ describe('PharoLineChart', () => {
 });
 
 describe('PharoLineChart recorded observation access', () => {
+  it('follows latest arrivals only until a user explicitly selects a recorded date', () => {
+    const first = [{ id: 'sensor', label: 'Sensor', points: [{ x: firstDate, y: 1 }] }];
+    const second = [
+      {
+        ...first[0],
+        id: 'sensor',
+        label: 'Sensor',
+        points: [
+          { x: firstDate, y: 1 },
+          { x: firstDate + day, y: 2 },
+        ],
+      },
+    ];
+    const view = renderChart({ series: first, label: 'Latest arrivals' });
+    view.rerender(<PharoLineChart series={second} label="Latest arrivals" />);
+    expect(screen.getByRole('slider', { name: 'Inspect Latest arrivals' })).toHaveValue('1');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '0' } });
+    const previous = second[0];
+    if (!previous) throw new Error('Second fixture must exist.');
+    view.rerender(
+      <PharoLineChart
+        series={[
+          {
+            id: 'sensor',
+            label: 'Sensor',
+            points: [...previous.points, { x: firstDate + 2 * day, y: 3 }],
+          },
+        ]}
+        label="Latest arrivals"
+        formatXDetail={() => 'Changed view'}
+      />,
+    );
+    expect(screen.getByRole('slider')).toHaveValue('0');
+    measure(view.container, 320, 240);
+    expect(screen.getByRole('slider')).toHaveValue('0');
+  });
+
+  it('keeps axis, detail, table and spoken formatter contexts independent', () => {
+    renderChart({
+      series: observations,
+      label: 'Seven formats',
+      formatXAxis: () => 'Axis date',
+      formatXDetail: () => 'Detail date',
+      formatXTable: () => 'Table date',
+      formatXAccessible: () => 'Complete spoken date',
+      formatYAxis: (value) => `Axis ${value}`,
+      formatYDetail: (value) => `Detail ${value}`,
+      formatYTable: (value) => `Table ${value}`,
+    });
+    const chart = screen.getByRole('img', { name: 'Seven formats' });
+    expect(within(chart).getByLabelText('UTC time axis')).toHaveTextContent('Axis date');
+    expect(within(chart).getByLabelText('Value axis')).toHaveTextContent('Axis 10');
+    expect(screen.getByRole('region', { name: 'Details for Seven formats' })).toHaveTextContent(
+      'Detail date',
+    );
+    expect(screen.getByRole('slider')).toHaveAttribute(
+      'aria-valuetext',
+      'Complete spoken date; Temperature: Detail 10',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Show data table for Seven formats' }));
+    const table = screen.getByRole('table', { name: 'Data for Seven formats' });
+    expect(within(table).getAllByRole('rowheader')[0]).toHaveTextContent('Table date');
+    expect(within(table).getAllByRole('rowheader')[0]).toHaveAccessibleName('Complete spoken date');
+    expect(within(table).getByRole('cell', { name: 'Table 10' })).toBeVisible();
+  });
+
+  it('preserves an inline alternative for missing external triggers and all-null recorded rows', () => {
+    renderChart({
+      series: [{ id: 'empty', label: 'Null observations', points: [{ x: firstDate, y: null }] }],
+      label: 'Recorded missing values',
+      dataTable: { mode: 'external', triggerId: 'missing-trigger' },
+    });
+    expect(screen.getByRole('status', { name: 'Recorded missing values' })).toHaveTextContent(
+      'No observations',
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show data table for Recorded missing values' }),
+    );
+    expect(
+      screen.getByRole('table', { name: 'Data for Recorded missing values' }),
+    ).toHaveTextContent('Unavailable');
+    expect(screen.getByRole('rowheader', { name: '2024-03-10' })).toBeVisible();
+  });
+
   it('names the native range and exposes exact values or unavailable without a pointer live region', () => {
     const view = renderChart({ series: unequalObservations, label: 'Unequal dates' });
     const slider = screen.getByRole('slider', { name: 'Inspect Unequal dates' });
@@ -495,11 +587,11 @@ describe('PharoLineChart recorded observation access', () => {
     expect(slider).toHaveAttribute('min', '0');
     expect(slider).toHaveAttribute('max', '3');
     expect(slider).toHaveAttribute('step', '1');
-    expect(slider).toHaveValue('0');
+    expect(slider).toHaveValue('3');
     expect(slider).toHaveAccessibleDescription();
     expect(slider).toHaveAttribute(
       'aria-valuetext',
-      '2024-03-10; Sensor A: 2; Sensor B: Unavailable',
+      '2024-03-13; Sensor A: 8; Sensor B: Unavailable',
     );
     // A DOM change proves the React handler; Playwright owns native range-key defaults.
     fireEvent.change(slider, { target: { value: '1' } });
@@ -614,7 +706,7 @@ describe('PharoLineChart recorded observation access', () => {
       ).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /data table/ })).not.toBeInTheDocument();
       view.rerender(<PharoLineChart series={unequalObservations} label="Reset inspection" />);
-      expect(screen.getByRole('slider', { name: 'Inspect Reset inspection' })).toHaveValue('0');
+      expect(screen.getByRole('slider', { name: 'Inspect Reset inspection' })).toHaveValue('3');
     },
   );
 
@@ -669,10 +761,20 @@ describe('PharoLineChart recorded observation access', () => {
   it('retains full custom formatted dates and values in details and the table', () => {
     const formatX = (value: number) => `Full recorded UTC timestamp ${value}`;
     const formatY = (value: number) => `Full measured observation ${value} degrees`;
-    renderChart({ series: unequalObservations, label: 'Full formatting', formatX, formatY });
+    renderChart({
+      series: unequalObservations,
+      label: 'Full formatting',
+      formatXDetail: formatX,
+      formatXTable: formatX,
+      formatXAccessible: formatX,
+      formatYDetail: formatY,
+      formatYTable: formatY,
+    });
     const details = screen.getByRole('region', { name: 'Details for Full formatting' });
-    expect(within(details).getByText(`Full recorded UTC timestamp ${firstDate}`)).toBeVisible();
-    expect(within(details).getByText('Full measured observation 2 degrees')).toBeVisible();
+    expect(
+      within(details).getByText(`Full recorded UTC timestamp ${firstDate + 3 * day}`),
+    ).toBeVisible();
+    expect(within(details).getByText('Full measured observation 8 degrees')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Show data table for Full formatting' }));
     const table = screen.getByRole('table', { name: 'Data for Full formatting' });
     expect(
@@ -703,7 +805,7 @@ describe('PharoLineChart recorded observation access', () => {
     });
     expect(
       screen.getByRole('slider', { name: 'Inspect Second independent inspection' }),
-    ).toHaveValue('0');
+    ).toHaveValue('3');
     expect(
       screen.queryByRole('slider', { name: 'Inspect Singleton inspection' }),
     ).not.toBeInTheDocument();

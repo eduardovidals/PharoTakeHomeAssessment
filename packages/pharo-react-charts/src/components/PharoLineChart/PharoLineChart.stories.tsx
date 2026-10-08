@@ -1,8 +1,8 @@
-import { PharoLineChart } from '@pharo/react-charts';
+import { PharoChartDataTable, PharoLineChart } from '@pharo/react-charts';
 import type { PharoChartSeries, PharoLineChartProps } from '@pharo/react-charts';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
-import { expect, userEvent, within } from 'storybook/test';
+import { useId, useState } from 'react';
+import { expect, fireEvent, userEvent, within } from 'storybook/test';
 import { PharoLineChart as PharoLineChartDocs } from './PharoLineChart';
 
 const readings: readonly PharoChartSeries[] = [
@@ -27,7 +27,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Compare up to three generic series with shared UTC and value axes. Supply readonly observations with integer UTC epoch-millisecond x values and finite number or null y values. IDs and labels are nonblank; series IDs and dates within each series are unique. The chart sorts copies, preserves the supplied dates and breaks the straight line at null observations. Negative values, flat values and isolated points are supported.\n\nEach active ID retains its color and dash when other series change. Pointer inspection, touch taps and the labeled native range select actual recorded dates; midpoint ties choose the earlier date. Missing or absent readings at that exact date are Unavailable. Arrow keys, Home and End navigate the range, and the disclosure exposes every recorded date in a table.\n\nImport the public theme CSS once and include installed chart classes in the consumer’s Tailwind sources. The default measured chart height is 320px; className targets that measured box. Legend, details and table sit outside it. formatX and formatY change presentation without changing observations: axes may compact labels, while details and table retain full text. Caller formatter exceptions propagate. Empty and invalid input have chart-owned states; request loading and network failures belong to the consuming application.',
+          'Compare up to three generic series with shared UTC and value axes. Supply readonly observations with integer UTC epoch-millisecond x values and finite number or null y values. IDs and labels are nonblank; series IDs and dates within each series are unique. The chart sorts copies, preserves the supplied dates and breaks the straight line at null observations. Negative values, flat values and isolated points are supported.\n\nEach active ID retains its color and dash when other series change. Pointer inspection, touch taps and the labeled native range select actual recorded dates; midpoint ties choose the earlier date. Missing or absent readings at that exact date are Unavailable. Arrow keys, Home and End navigate the range, and the disclosure exposes every recorded date in a table.\n\nImport the public theme CSS once and include installed chart classes in the consumer’s Tailwind sources. The default measured chart height is 320px; className targets that measured box. Legend, details and table sit outside it. Seven independent axis/detail/table/accessibility formatters change presentation without changing observations. Axis text stays compact while details and table retain full text. Caller formatter exceptions propagate. Empty and invalid input have chart-owned states; request loading and network failures belong to the consuming application.',
       },
     },
   },
@@ -44,10 +44,17 @@ const meta = {
     description: { control: 'text' },
     xAxisLabel: { control: 'text' },
     yAxisLabel: { control: 'text' },
-    formatX: { control: false },
+    formatXDetail: { control: false },
+    formatXTable: { control: false },
+    formatXAccessible: { control: false },
     formatXAxis: { control: false },
     xTickValues: { control: 'object' },
-    formatY: { control: false },
+    formatYAxis: { control: false },
+    formatYDetail: { control: false },
+    formatYTable: { control: false },
+    dataTable: { control: 'object' },
+    formatX: { table: { disable: true } },
+    formatY: { table: { disable: true } },
   },
   play: async ({ canvasElement, args }) => {
     const chart = await within(canvasElement).findByRole('img', { name: args.label });
@@ -61,6 +68,46 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   parameters: {
     docs: { description: { story: 'One series includes negative, zero and positive readings.' } },
+  },
+};
+
+function ExternalExample(props: PharoLineChartProps) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div>
+      <button
+        id={id}
+        type="button"
+        aria-expanded={open}
+        aria-controls={`${id}-table`}
+        className="min-h-pharo-control rounded-pharo-control border border-pharo-control-border px-pharo-3 focus-visible:pharo-focus-ring"
+        onClick={() => setOpen((value) => !value)}
+      >
+        View external data
+      </button>
+      <PharoLineChart {...props} dataTable={{ mode: 'external', triggerId: id }} />
+      <div id={`${id}-table`} hidden={!open}>
+        {open ? (
+          <PharoChartDataTable series={props.series} caption="External source records" />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+export const ExternalData: Story = {
+  render: (args) => <ExternalExample {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const chart = await canvas.findByRole('img', { name: args.label });
+    const trigger = canvas.getByRole('button', { name: 'View external data' });
+    await expect(chart).toHaveAttribute('aria-details', trigger.id);
+    await expect(
+      canvas.queryByRole('button', { name: `Show data table for ${args.label}` }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(trigger);
+    await expect(canvas.getByRole('table', { name: 'External source records' })).toBeVisible();
+    await expect(chart).toHaveAttribute('height', '320');
   },
 };
 
@@ -295,7 +342,8 @@ export const LongLabelsAndDataTable: Story = {
           ? 'Outdoor shaded temperature sensor beside the northern greenhouse entrance'
           : 'Indoor temperature sensor above the southern propagation workbench',
     })),
-    formatY: (value) => `${value} degrees Celsius recorded by the sensor`,
+    formatYDetail: (value) => `${value} degrees Celsius recorded by the sensor`,
+    formatYTable: (value) => `${value} degrees Celsius recorded by the sensor`,
   },
   render: (args) => (
     <div className="w-full max-w-sm">
@@ -380,8 +428,14 @@ export const CustomFormatting: Story = {
   args: {
     label: 'Measurements with full unit descriptions',
     description: 'Consumer formatting supplies explicit UTC date text and measurement units.',
-    formatX: (value) => `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight UTC`,
-    formatY: (value) => `${value.toString()} degrees Celsius from the laboratory record`,
+    formatXDetail: (value) =>
+      `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight UTC`,
+    formatXTable: (value) =>
+      `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight UTC`,
+    formatXAccessible: (value) =>
+      `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight UTC`,
+    formatYDetail: (value) => `${value.toString()} degrees Celsius from the laboratory record`,
+    formatYTable: (value) => `${value.toString()} degrees Celsius from the laboratory record`,
   },
   parameters: {
     docs: {
@@ -396,10 +450,10 @@ export const CustomFormatting: Story = {
     await canvas.findByRole('img', { name: args.label });
     const details = canvas.getByRole('region', { name: `Details for ${args.label}` });
     await expect(
-      within(details).getByText('Recorded on 2024-03-10 at midnight UTC', { exact: true }),
+      within(details).getByText('Recorded on 2024-03-12 at midnight UTC', { exact: true }),
     ).toBeVisible();
     await expect(
-      within(details).getByText('-5 degrees Celsius from the laboratory record', { exact: true }),
+      within(details).getByText('10 degrees Celsius from the laboratory record', { exact: true }),
     ).toBeVisible();
     await userEvent.click(
       canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
@@ -494,6 +548,11 @@ export const UpdatedObservations: Story = {
     await canvas.findByRole('img', { name: args.label });
     const details = canvas.getByRole('region', { name: `Details for ${args.label}` });
     const legend = canvas.getByRole('list', { name: `Legend for ${args.label}` });
+    await expect(within(details).getByText('14', { exact: true })).toBeVisible();
+    await expect(within(details).getByText('10', { exact: true })).toBeVisible();
+    const slider = canvas.getByRole('slider', { name: `Inspect ${args.label}` });
+    await fireEvent.change(slider, { target: { value: '0' } });
+    await expect(slider).toHaveValue('0');
     await expect(within(details).getByText('12', { exact: true })).toBeVisible();
     await expect(within(details).getByText('8', { exact: true })).toBeVisible();
     await userEvent.click(

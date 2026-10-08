@@ -527,7 +527,7 @@ test.describe('independent built charts', () => {
         return (
           row.left >= compact.left - 0.5 &&
           row.right <= compact.right + 0.5 &&
-          (!previous || row.top >= previous.bottom + 4)
+          (!previous || row.top >= previous.bottom || row.left >= previous.right + 4)
         );
       }),
     ).toBe(true);
@@ -820,8 +820,8 @@ test.describe('independent built charts', () => {
         await expect(chart).toBeVisible();
         // e2e-locator: Verify visible SVG text, not its correctly hidden full-value title child.
         const dateLabels = chart.locator('g[aria-label="UTC time axis"] text');
-        await expect(dateLabels.filter({ hasText: '2024-03-10' })).toBeVisible();
-        await expect(dateLabels.filter({ hasText: '2024-03-12' })).toBeVisible();
+        await expect(dateLabels.filter({ hasText: 'Mar 10' })).toBeVisible();
+        await expect(dateLabels.filter({ hasText: 'Mar 12' })).toBeVisible();
         // e2e-locator: Read actual SVG axis text to compare timezone-independent labels.
         observations.push(await chart.locator('text').allTextContents());
         const slider = page.getByRole('slider', { name: 'Inspect Greenhouse temperature' });
@@ -846,6 +846,102 @@ test.describe('independent built charts', () => {
     }
     expect(observations[0]).toEqual(observations[2]);
     expect(observations[1]).toEqual(observations[3]);
+  });
+
+  test('external data access opens complete raw records and restores inline fallback if the trigger is hidden', async ({
+    page,
+  }, testInfo) => {
+    const example = page.getByRole('region', { name: 'External data example' });
+    const chart = example.getByRole('img', { name: 'External recorded measurements' });
+    const trigger = example.getByRole('button', { name: 'View external records' });
+    await expect(chart).toHaveAttribute('aria-details', 'external-data-trigger');
+    await expect(
+      example.getByRole('button', { name: 'Show data table for External recorded measurements' }),
+    ).toHaveCount(0);
+    await trigger.click();
+    const table = example.getByRole('table', { name: 'External recorded values' });
+    await expect(table.getByRole('rowheader')).toHaveText([
+      '2024-03-10',
+      '2024-03-11',
+      '2024-03-12',
+      '2024-03-13',
+    ]);
+    await expect(table.getByRole('cell')).toHaveText([
+      '2',
+      'Unavailable',
+      'Unavailable',
+      '20',
+      'Unavailable',
+      '30',
+      '8',
+      'Unavailable',
+    ]);
+    await expect(chart).toHaveAttribute('height', '320');
+    await trigger.click();
+    await example.getByRole('button', { name: 'Toggle external trigger visibility' }).click();
+    const fallback = example.getByRole('button', {
+      name: 'Show data table for External recorded measurements',
+    });
+    await expect(fallback).toBeVisible();
+    await expect(chart).not.toHaveAttribute('aria-details', 'external-data-trigger');
+    await fallback.click();
+    await expect(
+      example.getByRole('table', { name: 'Data for External recorded measurements' }),
+    ).toBeVisible();
+    await example.getByRole('button', { name: 'Toggle external trigger visibility' }).click();
+    await expect(chart).toHaveAttribute('aria-details', 'external-data-trigger');
+    await expect(
+      example.getByRole('button', { name: 'Hide data table for External recorded measurements' }),
+    ).toHaveCount(0);
+    for (const name of ['Missing external trigger', 'Blank external trigger']) {
+      const button = page.getByRole('button', { name: `Show data table for ${name}` });
+      await button.click();
+      await expect(page.getByRole('table', { name: `Data for ${name}` })).toBeVisible();
+    }
+    await trigger.click();
+    await example.screenshot({ path: testInfo.outputPath('charts-external-data.png') });
+  });
+
+  test('compact readout starts latest and reveals keyboard help without clipping at responsive widths', async ({
+    page,
+  }, testInfo) => {
+    const example = page.getByRole('region', { name: 'Recorded candidate example' });
+    const details = example.getByRole('region', {
+      name: 'Details for Recorded candidate measurements',
+    });
+    const slider = example.getByRole('slider', { name: 'Inspect Recorded candidate measurements' });
+    await expect(slider).toHaveValue('7');
+    await expect(details).toContainText('2024-03-25');
+    for (const width of [320, 390, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect
+        .poll(() => details.evaluate((element) => element.scrollWidth <= element.clientWidth))
+        .toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await expect(details).not.toHaveAttribute('aria-live');
+      await example.screenshot({ path: testInfo.outputPath(`charts-compact-${width}.png`) });
+    }
+    await slider.press('Home');
+    await expect(slider).toHaveValue('0');
+    await expect(details).toContainText('2024-03-10');
+    const help = await slider.getAttribute('aria-describedby');
+    expect(help).toBeTruthy();
+    // e2e-locator: The range's explicit description identifies the real focus-revealed instruction element.
+    const helpBounds = await slider.evaluate((element) => {
+      const description = element.ownerDocument.getElementById(
+        element.getAttribute('aria-describedby') ?? '',
+      );
+      if (!description) throw new Error('Keyboard instructions are missing.');
+      const bounds = description.getBoundingClientRect();
+      return { width: bounds.width, height: bounds.height };
+    });
+    expect(helpBounds.width).toBeGreaterThan(20);
+    expect(helpBounds.height).toBeGreaterThan(10);
+    await page.setViewportSize({ width: 320, height: 900 });
+    await expect(slider).toHaveValue('0');
+    await example.screenshot({ path: testInfo.outputPath('charts-compact-keyboard.png') });
   });
 
   test('native keyboard inspection reaches recorded dates, exposes gaps and exits by Tab', async ({
@@ -887,7 +983,7 @@ test.describe('independent built charts', () => {
     await expect(details).toContainText('2024-03-13');
     await expect(details.getByText('8', { exact: true })).toBeVisible();
     await expect(details.getByText('Unavailable', { exact: true })).toBeVisible();
-    await expect(other).toContainText('2024-03-10');
+    await expect(other).toContainText('2024-03-12');
     await page.screenshot({
       path: testInfo.outputPath('charts-keyboard-focus.png'),
       fullPage: true,
@@ -988,7 +1084,7 @@ test.describe('independent built charts', () => {
     expect(scroll.content).toBeGreaterThan(scroll.width);
     await hide.press('Tab');
     const tableRegion = page.getByRole('region', {
-      name: 'Data table for Unequal calendar measurements',
+      name: 'Data for Unequal calendar measurements',
     });
     await expect(tableRegion).toBeFocused();
     const initialScroll = await tableRegion.evaluate((element) => element.scrollLeft);
@@ -1056,7 +1152,7 @@ test.describe('independent built charts', () => {
       await chart.scrollIntoViewIfNeeded();
       let box = await chart.boundingBox();
       if (!box) throw new Error('Touch chart has no visible rectangle.');
-      await expect(details).toContainText('2024-03-10');
+      await expect(details).toContainText('2024-03-13');
       // Pan before tapping so consecutive contacts cannot become a double-tap drag gesture.
       const x = box.x + box.width - 20;
       const y = box.y + box.height / 2;
@@ -1077,7 +1173,7 @@ test.describe('independent built charts', () => {
         });
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
         await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
-        await expect(details).toContainText('2024-03-10');
+        await expect(details).toContainText('2024-03-13');
       } finally {
         await session.detach();
       }
@@ -1104,7 +1200,18 @@ test.describe('independent built charts', () => {
     await expect(page.getByRole('columnheader', { name: 'Name', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: /^label\*?$/ })).toBeVisible();
     await expect(page.getByRole('cell', { name: /^series\*?$/ })).toBeVisible();
-    await expect(page.getByRole('cell', { name: /^formatX$/ })).toBeVisible();
+    for (const name of [
+      'formatXAxis',
+      'formatXDetail',
+      'formatXTable',
+      'formatXAccessible',
+      'formatYAxis',
+      'formatYDetail',
+      'formatYTable',
+      'dataTable',
+    ]) {
+      await expect(page.getByRole('cell', { name, exact: true })).toBeVisible();
+    }
     const labelControl = page
       .getByRole('row')
       .filter({ hasText: /^label\*/ })

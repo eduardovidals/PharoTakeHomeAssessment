@@ -1,4 +1,3 @@
-import { utcFormat } from 'd3-time-format';
 import type {
   ChartAxisLabel,
   ChartIdentityState,
@@ -8,19 +7,6 @@ import type {
 } from './types';
 
 const appearanceOrder: readonly PharoChartAppearance[] = ['primary', 'secondary', 'tertiary'];
-const utcDate = utcFormat('%Y-%m-%d');
-
-export function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  const year = date.getUTCFullYear();
-  // Extended years retain their full date instead of the formatter's four digits.
-  return year < 0 || year > 9999 ? (date.toISOString().split('T')[0] ?? '') : utcDate(date);
-}
-
-export function formatNumber(value: number): string {
-  return value.toString();
-}
-
 export function identityConfiguration(series: readonly PharoChartSeries[]): string {
   if (
     !Array.isArray(series) ||
@@ -50,6 +36,15 @@ function labelWidth(text: string): number {
     if (/[-/()[\]]/.test(symbol)) return width + 6;
     return width + (/[MW@#%&]/.test(symbol) || (symbol.codePointAt(0) ?? 0) > 127 ? 12 : 8);
   }, 0);
+}
+
+/** Compact presentation to a measured pixel budget without distorting glyphs. */
+export function compactAxisLabel(label: string, width: number): string {
+  let characters = Math.min(Array.from(label).length, Math.floor(width / 4));
+  if (characters < 1) return '';
+  let text = compactLabel(label, characters);
+  while (labelWidth(text) > width && characters > 1) text = compactLabel(label, --characters);
+  return labelWidth(text) <= width ? text : '';
 }
 
 /** Fit a label to one anchor without moving its recorded UTC coordinate. */

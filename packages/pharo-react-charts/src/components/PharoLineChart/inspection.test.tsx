@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createInspectionTimeline, findNearestTimestamp, inspectTimestamp } from './inspection';
+import { findNearestTimestamp } from './inspection';
+import { createInspectionTimeline, inspectTimestamp } from '../../utils/chartData';
 import type { PreparedChartSeries } from './types';
 
 const series: readonly PreparedChartSeries[] = Object.freeze([

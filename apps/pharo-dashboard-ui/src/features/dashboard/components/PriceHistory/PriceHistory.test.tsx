@@ -184,11 +184,23 @@ describe('PriceHistory', () => {
       expect(
         within(chart).getByText('Date (UTC)', { exact: true, selector: 'text' }),
       ).toBeVisible();
+      const details = screen.getByRole('region', { name: 'Details for Historical closing prices' });
+      expect(within(details).getByText('Sun, Mar 10, 2024', { exact: true })).toBeVisible();
+      expect(
+        screen.getByRole('slider', { name: 'Inspect Historical closing prices' }),
+      ).toHaveAttribute('aria-valuetext', expect.stringContaining('Sunday, March 10, 2024'));
       await userEvent.click(
         screen.getByRole('button', { name: 'Show data table for Historical closing prices' }),
       );
       const table = screen.getByRole('table', { name: 'Data for Historical closing prices' });
       expect(within(table).getAllByRole('rowheader')).toHaveLength(2);
+      expect(
+        within(table).getByRole('rowheader', { name: 'Thursday, February 29, 2024' }),
+      ).toHaveTextContent('Feb 29, 2024');
+      expect(within(table).getByText('Feb 29, 2024', { exact: true })).toHaveAttribute(
+        'datetime',
+        '2024-02-29T00:00:00.000Z',
+      );
       expect(within(table).getByRole('cell', { name: '20.12' })).toBeVisible();
       expect(cache.getQueryData(pricesKey('A'))).toEqual([
         { date: '2024-02-29', price: 11.125 },
@@ -361,15 +373,15 @@ describe('PriceHistory', () => {
       measure(view);
       const chart = screen.getByRole('img', { name: 'Historical closing prices' });
       const inspector = screen.getByRole('slider', { name: 'Inspect Historical closing prices' });
-      // jsdom does not implement native range-key behavior; browser tests cover End.
-      fireEvent.change(inspector, { target: { value: '1' } });
-      expect(inspector).toHaveValue('1');
+      // Choose an earlier observation than the default latest; browser tests cover native keys.
+      fireEvent.change(inspector, { target: { value: '0' } });
+      expect(inspector).toHaveValue('0');
       await act(async () => {
         await cache.refetchQueries({ type: 'active' });
       });
       await within(region).findByRole('alert');
       expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
-      expect(inspector).toHaveValue('1');
+      expect(inspector).toHaveValue('0');
       expect(definition(region, 'Latest close')).toHaveTextContent(/^22\.00$/);
       expect(screen.queryByText(/REFETCH_PRIVATE_BODY/)).not.toBeInTheDocument();
       await userEvent.click(within(region).getByRole('button', { name: 'Retry A prices' }));

@@ -4,4 +4,6 @@ export type {
   PharoChartPoint,
   PharoChartSeries,
   PharoLineChartProps,
+  PharoChartFormatters,
+  PharoChartDataTableMode,
 } from './types';

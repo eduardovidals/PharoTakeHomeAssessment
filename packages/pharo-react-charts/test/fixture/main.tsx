@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { PharoLineChart } from '@pharo/react-charts';
+import { PharoChartDataTable, PharoLineChart } from '@pharo/react-charts';
 import type { PharoChartSeries } from '@pharo/react-charts';
 import './styles.css';
 
@@ -9,6 +9,10 @@ const march11 = Date.UTC(2024, 2, 11);
 const march12 = Date.UTC(2024, 2, 12);
 const march13 = Date.UTC(2024, 2, 13);
 const recordedDates = [10, 11, 13, 14, 18, 19, 21, 25].map((date) => Date.UTC(2024, 2, date));
+const fullDate = (value: number) =>
+  `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight Coordinated Universal Time`;
+const fullValue = (value: number) =>
+  `Reading ${value.toString()} in fully described measurement units`;
 const shortDate = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
@@ -61,6 +65,8 @@ const east: PharoChartSeries = {
 };
 
 function App() {
+  const [externalOpen, setExternalOpen] = useState(false);
+  const [externalHidden, setExternalHidden] = useState(false);
   const [narrow, setNarrow] = useState(false);
   const [tall, setTall] = useState(false);
   const [series, setSeries] = useState<readonly PharoChartSeries[]>([north, south]);
@@ -203,10 +209,51 @@ function App() {
               points: [{ x: march10, y: 123456789.12345679 }],
             },
           ]}
-          formatX={(value) =>
-            `Recorded on ${new Date(value).toISOString().slice(0, 10)} at midnight Coordinated Universal Time`
-          }
-          formatY={(value) => `Reading ${value.toString()} in fully described measurement units`}
+          formatXDetail={fullDate}
+          formatXTable={fullDate}
+          formatXAccessible={fullDate}
+          formatYDetail={fullValue}
+          formatYTable={fullValue}
+        />
+      </section>
+      <section aria-label="External data example" className="min-w-0">
+        <h2 className="text-pharo-lg font-semibold">Consumer-owned data access</h2>
+        <button
+          id="external-data-trigger"
+          type="button"
+          hidden={externalHidden}
+          aria-controls="external-data-region"
+          aria-expanded={externalOpen}
+          className="min-h-pharo-control rounded-pharo-control border border-pharo-control-border px-pharo-3 focus-visible:pharo-focus-ring"
+          onClick={() => setExternalOpen((open) => !open)}
+        >
+          View external records
+        </button>
+        <button type="button" onClick={() => setExternalHidden((hidden) => !hidden)}>
+          Toggle external trigger visibility
+        </button>
+        <PharoLineChart
+          label="External recorded measurements"
+          series={unequalSeries}
+          dataTable={{ mode: 'external', triggerId: 'external-data-trigger' }}
+        />
+        <div id="external-data-region" hidden={!externalOpen}>
+          {externalOpen ? (
+            <PharoChartDataTable series={unequalSeries} caption="External recorded values" />
+          ) : null}
+        </div>
+      </section>
+      <section aria-label="Unavailable external trigger example">
+        <h2 className="text-pharo-lg font-semibold">Safe inline fallback</h2>
+        <PharoLineChart
+          label="Missing external trigger"
+          series={[north]}
+          dataTable={{ mode: 'external', triggerId: 'does-not-exist' }}
+        />
+        <PharoLineChart
+          label="Blank external trigger"
+          series={[north]}
+          dataTable={{ mode: 'external', triggerId: ' ' }}
         />
       </section>
       <section aria-label="Empty example">
