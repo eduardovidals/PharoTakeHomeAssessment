@@ -90,6 +90,8 @@ The old `formatX`/`formatY` aliases are rejected. No callback changes underlying
 
 Optional `xTickValues` supplies readonly UTC epoch-millisecond candidates. Values must be unique finite integers within JavaScript's Date range. The chart sorts a copy, drops candidates outside its display domain and positions them through the UTC scale. An empty array intentionally omits x ticks; omission retains automatic generic UTC ticks. Pass the recorded timestamp union when every displayed date must correspond to an observation, including explicit null records. Measured plot width selects a readable subset, keeping endpoints when both fit. Tick choices never change the inspection timeline or table.
 
+Optional `baselineY` draws a quiet reference line on the shared numerical scale, for example `baselineY={0}` for measurements relative to zero. A finite reference extends the y-domain when needed; omitting it retains the observation-only domain. It adds no point, filled area or table row and does not change recorded inspection. Empty/all-null data stays empty, and nonfinite references or unsafe expanded domains produce the existing unavailable state. Financial transformations remain the consumer's responsibility.
+
 ## Inspect recorded data
 
 Pointer movement and completed touch taps select the nearest timestamp in the sorted union of recorded dates; equal-distance ties choose the earlier date. Touch scrolling and cancelled gestures do not commit an inspection.

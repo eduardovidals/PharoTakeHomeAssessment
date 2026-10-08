@@ -1,6 +1,11 @@
 import { PharoButton, PharoSpinner } from '@pharo/react-components';
 import { PharoLineChart } from '@pharo/react-charts';
-import { toChartSeries } from '../../adapters/priceSeries';
+import {
+  getSeriesWindows,
+  haveMismatchedWindows,
+  toChartSeries,
+  toPerformanceSeries,
+} from '../../adapters/priceSeries';
 import { recordedDateTicks } from '../../adapters/recordedDateTicks';
 import {
   datesSpanYears,
@@ -11,7 +16,7 @@ import {
   formatDateTable,
   toUtcTimestamp,
 } from '../../../../utils/date';
-import { formatPrice, formatPriceAxis } from '../../../../utils/number';
+import { formatPrice, formatPriceAxis, formatSignedPercentage } from '../../../../utils/number';
 import { historyStyles } from './styles';
 import type { PriceHistoryProps as Props } from './types';
 
@@ -23,41 +28,70 @@ import type { PriceHistoryProps as Props } from './types';
  * ```
  */
 export function PriceHistory(props: Props) {
-  const { resources } = props;
+  const { resources, mode = 'price' } = props;
   const available = resources.filter((resource) => (resource.query.data?.length ?? 0) > 0).length;
   const pending = resources.some((resource) => resource.query.isPending);
-  const series = resources.map((resource) =>
-    toChartSeries(resource.ticker, resource.query.data ?? []),
+  const rawSeries = resources.map((resource) =>
+    toChartSeries(resource.ticker, resource.query.data ?? [], resource.appearance),
   );
+  const transformed = mode === 'performance' ? rawSeries.map(toPerformanceSeries) : undefined;
+  const series = transformed?.map((result) => result.series) ?? rawSeries;
+  const windows = getSeriesWindows(rawSeries);
+  const mismatched = haveMismatchedWindows(windows);
+  const label = mode === 'performance' ? 'Rebased price change' : 'Historical closing prices';
+  const description =
+    mode === 'performance'
+      ? 'Price change from each instrument’s own first recorded price. This is not adjusted total return.'
+      : 'Raw closing prices on recorded UTC dates. Price units are supplied by the dataset.';
   const ticks = recordedDateTicks(series);
   const includeYear = datesSpanYears(ticks.at(0), ticks.at(-1));
   const formatAxis = (timestamp: number) => formatDateAxis(timestamp, includeYear);
   return (
-    <section aria-label="Historical closing prices" className={historyStyles.panel}>
-      <h2 className={historyStyles.heading}>Historical closing prices</h2>
-      <p className={historyStyles.description}>
-        Raw closing prices on recorded UTC dates. Price units are supplied by the dataset.
-      </p>
+    <section aria-label={label} className={historyStyles.panel}>
+      <h2 className={historyStyles.heading}>{label}</h2>
+      <p className={historyStyles.description}>{description}</p>
       {available > 0 ? (
         <>
           <p className={historyStyles.notice}>
             {available} of {resources.length} selected histories available.
           </p>
-          <p className={historyStyles.notice}>{formatDateRange(ticks.at(0), ticks.at(-1))} (UTC)</p>
+          {mismatched ? (
+            <div className={historyStyles.notice}>
+              <p>
+                Recorded windows differ.
+                {mode === 'performance' && ' Each instrument uses its own first recorded price.'}
+              </p>
+              <ul>
+                {windows.map((window) => (
+                  <li key={window.id}>
+                    {window.label}: {formatDateRange(window.firstTimestamp, window.lastTimestamp)}{' '}
+                    (UTC), {window.observationCount}{' '}
+                    {window.observationCount === 1 ? 'observation' : 'observations'}.
+                    {mode === 'performance' && <> Base: {formatDateTable(window.baseTimestamp)}.</>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className={historyStyles.notice}>
+              {formatDateRange(ticks.at(0), ticks.at(-1))} (UTC)
+            </p>
+          )}
           <PharoLineChart
-            label="Historical closing prices"
-            description="Compare actual recorded closing prices; unavailable histories have no observations."
+            label={label}
+            description={description}
             series={series}
             xAxisLabel="Date (UTC)"
-            yAxisLabel="Price"
+            yAxisLabel={mode === 'performance' ? 'Price change (%)' : 'Price'}
+            baselineY={mode === 'performance' ? 0 : undefined}
             xTickValues={ticks}
             formatXAxis={formatAxis}
             formatXDetail={formatDateDetail}
             formatXTable={formatDateTable}
             formatXAccessible={formatDateAccessible}
             formatYAxis={formatPriceAxis}
-            formatYDetail={formatPrice}
-            formatYTable={formatPrice}
+            formatYDetail={mode === 'performance' ? formatSignedPercentage : formatPrice}
+            formatYTable={mode === 'performance' ? formatSignedPercentage : formatPrice}
           />
         </>
       ) : (
@@ -70,10 +104,11 @@ export function PriceHistory(props: Props) {
         </p>
       )}
       <div className={historyStyles.summaries}>
-        {resources.map(({ ticker, query }) => {
+        {resources.map(({ ticker, query }, index) => {
           const first = query.data?.at(0);
           const latest = query.data?.at(-1);
           const failed = query.isError && query.error.kind !== 'cancelled';
+          const performance = transformed?.[index];
           return (
             <section
               key={ticker}
@@ -81,6 +116,12 @@ export function PriceHistory(props: Props) {
               className={historyStyles.resource}
             >
               <h3 className={historyStyles.resourceHeading}>{ticker} prices</h3>
+              {performance?.kind === 'unavailable' && performance.reason !== 'no-observations' && (
+                <p className={historyStyles.notice}>
+                  Rebased price change is unavailable for this history. Raw prices remain available
+                  in Price view.
+                </p>
+              )}
               {query.isPending && (
                 <div className={historyStyles.loading}>
                   <PharoSpinner label={`Loading ${ticker} prices`} size="sm" />

@@ -71,6 +71,25 @@ function createGate() {
 }
 
 describe('InstrumentSelector with the real URL, form, cache and HTTP owners', () => {
+  test('keeps survivor and returning selected-chip identities from the Dashboard allocation', async () => {
+    const requests = installMarketHandlers();
+    const user = userEvent.setup();
+    const app = await renderApp({ initialEntries: ['/?tickers=TICK0001,TICK0002,TICK0003'] });
+    const second = app.view.getByRole('button', { name: 'Remove selected TICK0002' });
+    await waitFor(() => expect(second).toHaveAttribute('data-appearance', 'secondary'));
+    await user.click(app.view.getByRole('button', { name: 'Remove selected TICK0001' }));
+    expect(second).toHaveAttribute('data-appearance', 'secondary');
+    await user.click(await app.view.findByRole('button', { name: 'Add TICK0001' }));
+    await waitFor(() =>
+      expect(app.view.getByRole('button', { name: 'Remove selected TICK0001' })).toHaveAttribute(
+        'data-appearance',
+        'primary',
+      ),
+    );
+    expect(second).toHaveAttribute('data-appearance', 'secondary');
+    expect(requests).toEqual({ instruments: 1, prices: 3, statistics: 3 });
+  });
+
   test('reaches every page, resets filtering, and keeps browsing entirely local', async () => {
     const requests = installMarketHandlers();
     const user = userEvent.setup();

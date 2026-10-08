@@ -11,6 +11,7 @@ import { pricesKey, pricesQueryOptions } from '../../../../api/prices';
 import { createAppQueryClient } from '../../../../app/queryClient';
 import { server } from '../../../../test/mocks/server';
 import { PriceHistory } from './PriceHistory';
+import type { ChartMode } from '../../../../app/types';
 
 const base = 'http://localhost/api';
 
@@ -61,6 +62,7 @@ class LocalResizeObserver implements ResizeObserver {
 interface HarnessProps {
   readonly client: ApiClient;
   readonly tickers: readonly string[];
+  readonly mode: ChartMode;
 }
 
 function Harness(props: HarnessProps) {
@@ -71,7 +73,7 @@ function Harness(props: HarnessProps) {
     const query = queries[index];
     return query ? [{ ticker, query }] : [];
   });
-  return <PriceHistory resources={resources} />;
+  return <PriceHistory resources={resources} mode={props.mode} />;
 }
 
 async function withHistory(
@@ -79,7 +81,7 @@ async function withHistory(
   run: (owner: {
     cache: QueryClient;
     view: RenderResult;
-    show: (selected: readonly string[]) => void;
+    show: (selected: readonly string[], mode?: ChartMode) => void;
   }) => Promise<void>,
 ) {
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
@@ -93,7 +95,7 @@ async function withHistory(
   const client = createApiClient({ baseURL: base });
   const view = render(
     <QueryClientProvider client={cache}>
-      <Harness client={client} tickers={tickers} />
+      <Harness client={client} tickers={tickers} mode="price" />
     </QueryClientProvider>,
   );
   const failures: unknown[] = [];
@@ -101,10 +103,10 @@ async function withHistory(
     await run({
       cache,
       view,
-      show: (selected) =>
+      show: (selected, mode = 'price') =>
         view.rerender(
           <QueryClientProvider client={cache}>
-            <Harness client={client} tickers={selected} />
+            <Harness client={client} tickers={selected} mode={mode} />
           </QueryClientProvider>,
         ),
     });
@@ -157,6 +159,109 @@ function definition(region: HTMLElement, label: string) {
 }
 
 describe('PriceHistory', () => {
+  test('keeps genuinely small percentage-axis ticks distinct without rounding the plot', async () => {
+    server.use(
+      http.get(base + '/prices/A', () =>
+        HttpResponse.json([
+          { date: '2024-03-10', price: 100 },
+          { date: '2024-03-11', price: 100.001 },
+        ]),
+      ),
+    );
+    await withHistory(['A'], async ({ view, show }) => {
+      await screen.findByText('1 of 1 selected histories available.');
+      measure(view);
+      show(['A'], 'performance');
+      const chart = screen.getByRole('img', { name: 'Rebased price change' });
+      const labels = [...chart.querySelectorAll('[aria-label="Value axis"] title')].map(
+        (title) => title.textContent,
+      );
+      expect(labels.length).toBeGreaterThan(1);
+      expect(new Set(labels).size).toBe(labels.length);
+      expect(labels).not.toContain('0.00%');
+    });
+  });
+
+  test('switches presentation without remounting inspection, refetching or mutating raw data', async () => {
+    const raw = [
+      { date: '2024-03-10', price: 100 },
+      { date: '2024-03-11', price: 110 },
+      { date: '2024-03-12', price: 99 },
+    ];
+    let requests = 0;
+    server.use(
+      http.get(base + '/prices/A', () => {
+        requests += 1;
+        return HttpResponse.json(raw);
+      }),
+    );
+    await withHistory(['A'], async ({ view, show, cache }) => {
+      await within(screen.getByRole('region', { name: 'A prices' })).findByText('99.00');
+      measure(view);
+      const chart = screen.getByRole('img', { name: 'Historical closing prices' });
+      const inspector = screen.getByRole('slider', { name: 'Inspect Historical closing prices' });
+      fireEvent.change(inspector, { target: { value: '1' } });
+      show(['A'], 'performance');
+      expect(screen.getByRole('img', { name: 'Rebased price change' })).toBe(chart);
+      expect(screen.getByRole('slider', { name: 'Inspect Rebased price change' })).toBe(inspector);
+      expect(inspector).toHaveValue('1');
+      expect(
+        within(screen.getByRole('region', { name: 'Details for Rebased price change' })).getByText(
+          '+10.00%',
+          { exact: true },
+        ),
+      ).toBeVisible();
+      expect(chart.querySelector('[data-chart-baseline="0"]')).toBeInTheDocument();
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Show data table for Rebased price change' }),
+      );
+      const table = screen.getByRole('table', { name: 'Data for Rebased price change' });
+      expect(
+        within(table)
+          .getAllByRole('cell')
+          .map((cell) => cell.textContent),
+      ).toEqual(['0.00%', '+10.00%', '-1.00%']);
+      show(['A'], 'price');
+      expect(screen.getByRole('img', { name: 'Historical closing prices' })).toBe(chart);
+      expect(inspector).toHaveValue('1');
+      expect(chart.querySelector('[data-chart-baseline]')).not.toBeInTheDocument();
+      expect(
+        within(screen.getByRole('table', { name: 'Data for Historical closing prices' }))
+          .getAllByRole('cell')
+          .map((cell) => cell.textContent),
+      ).toEqual(['100.00', '110.00', '99.00']);
+      expect(cache.getQueryData(pricesKey('A'))).toEqual(raw);
+      expect(requests).toBe(1);
+    });
+  });
+
+  test('explains differing real windows and their own bases without relative-date alignment', async () => {
+    server.use(
+      http.get(base + '/prices/A', () =>
+        HttpResponse.json([
+          { date: '2024-03-10', price: 100 },
+          { date: '2024-03-12', price: 110 },
+        ]),
+      ),
+      http.get(base + '/prices/B', () => HttpResponse.json([{ date: '2024-03-11', price: 30 }])),
+    );
+    await withHistory(['A', 'B'], async ({ show }) => {
+      await screen.findByText('2 of 2 selected histories available.');
+      show(['A', 'B'], 'performance');
+      expect(
+        screen.getByText(
+          'Recorded windows differ. Each instrument uses its own first recorded price.',
+        ),
+      ).toBeVisible();
+      expect(
+        screen.getByText(/A: Mar 10 – Mar 12, 2024 \(UTC\), 2 observations\. Base: Mar 10, 2024\./),
+      ).toBeVisible();
+      expect(
+        screen.getByText(/B: Mar 11, 2024 \(UTC\), 1 observation\. Base: Mar 11, 2024\./),
+      ).toBeVisible();
+    });
+  });
+
   test('formats count, UTC range and latest close while preserving exact prices and renders the public chart', async () => {
     let requests = 0;
     server.use(

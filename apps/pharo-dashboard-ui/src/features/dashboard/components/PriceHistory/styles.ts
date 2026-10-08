@@ -14,5 +14,5 @@ export const historyStyles: Record<PriceHistoryStylePart, string> = {
   retry: 'block max-w-full whitespace-normal break-words',
   loading: 'flex items-center gap-pharo-2 text-pharo-sm text-pharo-muted',
   error: 'mb-pharo-3 break-words text-pharo-sm text-pharo-error',
-  notice: 'break-words text-pharo-sm text-pharo-muted',
+  notice: 'mb-pharo-2 break-words text-pharo-sm text-pharo-muted',
 };

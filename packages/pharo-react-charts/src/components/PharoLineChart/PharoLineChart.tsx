@@ -18,6 +18,7 @@ import { prepareChartGeometry } from './geometry';
 import { identityConfiguration, prepareXLabels, resolveIdentities } from './utils';
 import { findNearestTimestamp } from './inspection';
 import {
+  baselineStyles,
   containerStyles,
   crosshairStyles,
   dashPatterns,
@@ -66,6 +67,7 @@ export function PharoLineChart(props: Props) {
     formatXTable = formatDate,
     formatXAccessible = formatDate,
     xTickValues,
+    baselineY,
     formatYAxis = formatNumber,
     formatYDetail = formatNumber,
     formatYTable = formatNumber,
@@ -107,7 +109,7 @@ export function PharoLineChart(props: Props) {
     identities = resolveIdentities(identityState, series, configuration);
     setIdentityState(identities);
   }
-  const prepared = prepareChartGeometry(series, width, height, xTickValues);
+  const prepared = prepareChartGeometry(series, width, height, xTickValues, baselineY);
   const geometry: ChartGeometry =
     identities.valid || prepared.kind === 'invalid'
       ? prepared
@@ -284,6 +286,18 @@ export function PharoLineChart(props: Props) {
               xAxisLabel={xAxisLabel}
               yAxisLabel={yAxisLabel}
             />
+            {geometry.baseline ? (
+              <line
+                aria-hidden="true"
+                data-chart-baseline={geometry.baseline.value}
+                x1={geometry.plot.left}
+                x2={geometry.plot.right}
+                y1={geometry.baseline.position}
+                y2={geometry.baseline.position}
+                className={baselineStyles}
+                strokeWidth={1}
+              />
+            ) : null}
             <g>
               {geometry.series.map((item) => {
                 const appearance = identities.active.get(item.id);

@@ -650,6 +650,58 @@ test.describe('independent built charts', () => {
     );
   });
 
+  test('an optional baseline expands the shared domain without inventing records or resetting inspection', async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(origin);
+    const example = page.getByRole('region', { name: 'Generic baseline example' });
+    const chart = example.getByRole('img', { name: 'Referenced measurements', exact: true });
+    await expect(chart).toBeVisible();
+    // e2e-locator: inspect the explicit reference-line and series geometry, which have no independent interactive role.
+    const baseline = chart.locator('line[data-chart-baseline="0"]');
+    const seriesPath = chart.locator('[data-series-id="reference-sensor"] > path');
+    await expect(baseline).toHaveCount(1);
+    await expect(baseline).toHaveCSS('stroke-width', '1px');
+    await expect(baseline).not.toHaveCSS('stroke', 'none');
+    await expect(seriesPath).toHaveCSS('fill', 'none');
+    const withBaseline = await seriesPath.getAttribute('d');
+    if (withBaseline === null) throw new Error('Expected a recorded series path.');
+    expect(withBaseline).not.toMatch(/NaN|Infinity/);
+    const reference = await baseline.evaluate((element) => ({
+      x1: Number(element.getAttribute('x1')),
+      x2: Number(element.getAttribute('x2')),
+      y1: Number(element.getAttribute('y1')),
+      y2: Number(element.getAttribute('y2')),
+    }));
+    expect(Object.values(reference).every(Number.isFinite)).toBe(true);
+    expect(reference.x2).toBeGreaterThan(reference.x1);
+    expect(reference.y1).toBe(reference.y2);
+    const slider = example.getByRole('slider', { name: 'Inspect Referenced measurements' });
+    await slider.focus();
+    await slider.press('Home');
+    await expect(slider).toHaveValue('0');
+    const details = example.getByRole('region', { name: 'Details for Referenced measurements' });
+    await expect(details.getByText('2', { exact: true })).toBeVisible();
+    await example.screenshot({ path: testInfo.outputPath('baseline-390.png') });
+    await example.getByRole('button', { name: 'Toggle reference baseline' }).click();
+    await expect(baseline).toHaveCount(0);
+    await expect(seriesPath).not.toHaveAttribute('d', withBaseline);
+    await expect(slider).toHaveValue('0');
+    await expect(details.getByText('2', { exact: true })).toBeVisible();
+    await example.getByRole('button', { name: 'Toggle reference baseline' }).click();
+    await expect(baseline).toHaveCount(1);
+    await expect(seriesPath).toHaveAttribute('d', withBaseline);
+    await example
+      .getByRole('button', { name: 'Show data table for Referenced measurements' })
+      .click();
+    const table = example.getByRole('table', { name: 'Data for Referenced measurements' });
+    await expect(table.getByRole('rowheader')).toHaveCount(3);
+    for (const value of ['2', '8', '4'])
+      await expect(table.getByRole('cell', { name: value, exact: true })).toBeVisible();
+    await expect(table.getByRole('cell', { name: '0', exact: true })).toHaveCount(0);
+  });
+
   test('missing values break paths and isolated observations remain visible', async ({ page }) => {
     const chart = page.getByRole('img', { name: 'Missing measurements', exact: true });
     await chart.scrollIntoViewIfNeeded();
@@ -1202,6 +1254,7 @@ test.describe('independent built charts', () => {
     await expect(page.getByRole('cell', { name: /^series\*?$/ })).toBeVisible();
     for (const name of [
       'formatXAxis',
+      'baselineY',
       'formatXDetail',
       'formatXTable',
       'formatXAccessible',

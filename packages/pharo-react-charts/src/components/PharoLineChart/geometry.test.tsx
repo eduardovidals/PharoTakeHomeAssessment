@@ -17,6 +17,99 @@ function ready(input: readonly PharoChartSeries[], width = 672, height = 320) {
 }
 
 describe('prepareChartGeometry', () => {
+  it.each([
+    { baseline: 0, domain: [0, 20], position: 272 },
+    { baseline: 15, domain: [10, 20], position: 144 },
+    { baseline: 30, domain: [10, 30], position: 16 },
+  ])(
+    'projects baseline $baseline with the observations domain',
+    ({ baseline, domain, position }) => {
+      const input = Object.freeze([
+        Object.freeze(
+          series(
+            Object.freeze([
+              Object.freeze({ x: 0, y: 10 }),
+              Object.freeze({ x: day, y: null }),
+              Object.freeze({ x: 2 * day, y: 20 }),
+            ]),
+          ),
+        ),
+      ]);
+      const before = JSON.stringify(input);
+      const result = prepareChartGeometry(input, 672, 320, undefined, baseline);
+      expect(result.kind).toBe('ready');
+      if (result.kind !== 'ready') throw new Error('Expected baseline geometry.');
+      expect(result.yDomain).toEqual(domain);
+      expect(result.baseline).toEqual({ value: baseline, position });
+      expect(result.series[0]?.points).toEqual(input[0]?.points);
+      expect(result.series[0]?.markers).toHaveLength(2);
+      expect(JSON.stringify(input)).toBe(before);
+    },
+  );
+
+  it('keeps the omitted domain and geometry intact and pads a real flat zero', () => {
+    const positive = [
+      series([
+        { x: 0, y: 10 },
+        { x: day, y: 20 },
+      ]),
+    ];
+    const unchanged = ready(positive);
+    expect(unchanged.yDomain).toEqual([10, 20]);
+    expect(unchanged.series[0]?.path).toBe('M56,272L656,16');
+    expect(unchanged).not.toHaveProperty('baseline');
+    expect(prepareChartGeometry(positive, 672, 320, undefined, undefined)).toEqual(unchanged);
+    expect(prepareChartGeometry([series([{ x: 0, y: 0 }])], 672, 320, undefined, 0)).toMatchObject({
+      kind: 'ready',
+      yDomain: [-1, 1],
+      baseline: { value: 0, position: 144 },
+    });
+    expect(prepareChartGeometry([series([{ x: 0, y: 5 }])], 672, 320, undefined, 0)).toMatchObject({
+      kind: 'ready',
+      yDomain: [0, 5],
+      baseline: { value: 0, position: 272 },
+    });
+  });
+
+  it('does not turn empty or all-null records into a chart with a baseline', () => {
+    for (const input of [[], [series([])], [series([{ x: 0, y: null }])]]) {
+      expect(prepareChartGeometry(input, 672, 320, undefined, 0)).toEqual({
+        kind: 'empty',
+        message: 'No observations to display.',
+      });
+    }
+  });
+
+  it.each([NaN, Infinity, -Infinity])('rejects nonfinite baseline %s safely', (baseline) => {
+    for (const input of [[], [series([{ x: 0, y: 10 }])]]) {
+      expect(prepareChartGeometry(input, 672, 320, undefined, baseline)).toMatchObject({
+        kind: 'invalid',
+        reason: 'PHARO-CHART-DATA',
+      });
+    }
+  });
+
+  it('rejects untyped baseline values and unsafe expanded domains', () => {
+    const input = [series([{ x: 0, y: 10 }])];
+    // @ts-expect-error Runtime callers may violate the numerical baseline contract.
+    expect(prepareChartGeometry(input, 672, 320, undefined, '0')).toMatchObject({
+      kind: 'invalid',
+    });
+    // @ts-expect-error Explicit null is not an omitted numerical baseline.
+    expect(prepareChartGeometry(input, 672, 320, undefined, null)).toMatchObject({
+      kind: 'invalid',
+    });
+    expect(
+      prepareChartGeometry(
+        [series([{ x: 0, y: -Number.MAX_VALUE }])],
+        672,
+        320,
+        undefined,
+        Number.MAX_VALUE,
+      ),
+    ).toMatchObject({ kind: 'invalid', reason: 'PHARO-CHART-DOMAIN' });
+  });
+
   it('projects sorted recorded candidates through UTC spacing, retaining null records and source data', () => {
     const input = Object.freeze([
       series(

@@ -1,15 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
-import {
-  addSelectedTicker,
-  clearSelectedTickers,
-  getSelectedTickers,
-  getSelectionNotice,
-  removeSelectedTicker,
-  validateDashboardSearch,
-} from '../app/search';
-import type { SelectionAddOutcome } from '../app/types';
-import { Dashboard } from '../features/dashboard/components/Dashboard';
+import { getEffectiveChartMode, getSelectedTickers, getSelectionNotice } from '../app/search';
+import type { ChartMode, SelectionAddOutcome } from '../app/types';
+import { Dashboard } from '../features/dashboard';
+import { useDashboardActions } from './-hooks/useDashboardActions';
 
 export const Route = createFileRoute('/')({ component: DashboardRoute });
 
@@ -26,26 +20,27 @@ export function DashboardRoute() {
     () => router.history.location.search,
   );
 
-  async function selectTicker(ticker: string): Promise<SelectionAddOutcome> {
-    const update = addSelectedTicker(validateDashboardSearch(router.latestLocation.search), ticker);
-    if (update.outcome === 'added') await router.navigate({ to: '/', search: update.search });
-    return update.outcome;
-  }
-
-  async function removeTicker(ticker: string): Promise<void> {
-    const current = validateDashboardSearch(router.latestLocation.search);
-    const next = removeSelectedTicker(current, ticker);
-    if (next.tickers !== current.tickers) await router.navigate({ to: '/', search: next });
-  }
-
-  async function clearSelection(): Promise<void> {
-    await router.navigate({ to: '/', search: clearSelectedTickers() });
-  }
+  const dispatch = useDashboardActions(router);
+  const selectTicker = async (ticker: string): Promise<SelectionAddOutcome> => {
+    const outcome = await dispatch({ type: 'add', ticker });
+    return outcome === 'committed' ? 'added' : outcome === 'limit' ? 'limit' : 'already-selected';
+  };
+  const removeTicker = async (ticker: string): Promise<void> => {
+    await dispatch({ type: 'remove', tickers: [ticker] });
+  };
+  const clearSelection = async (): Promise<void> => {
+    await dispatch({ type: 'clear' });
+  };
+  const changeView = async (view: ChartMode): Promise<void> => {
+    await dispatch({ type: 'set-view', view });
+  };
 
   return (
     <Dashboard
       apiClient={apiClient}
       selectedTickers={getSelectedTickers(search)}
+      mode={getEffectiveChartMode(search)}
+      onViewChange={changeView}
       selectionNotice={getSelectionNotice(rawSearch)}
       onSelect={selectTicker}
       onRemove={removeTicker}

@@ -78,6 +78,56 @@ function createGate() {
 }
 
 describe('Dashboard URL selection and independently owned resources', () => {
+  test('uses URL mode for the control and preserves fetched resources through explicit view changes', async () => {
+    const requests = installMarketHandlers();
+    const user = userEvent.setup();
+    const app = await renderApp({ initialEntries: ['/?tickers=AAA,BBB'] });
+    await within(app.view.getByRole('region', { name: 'BBB statistics' })).findByText('+23.45%', {
+      exact: true,
+    });
+    expect(app.view.getByRole('radio', { name: 'Performance' })).toBeChecked();
+    const loaded = [...requests];
+    await user.click(app.view.getByRole('radio', { name: 'Price' }));
+    await waitFor(() =>
+      expect(new URLSearchParams(app.history.location.search).get('view')).toBe('price'),
+    );
+    expect(app.view.getByRole('radio', { name: 'Price' })).toBeChecked();
+    await user.click(app.view.getByRole('radio', { name: 'Performance' }));
+    await waitFor(() =>
+      expect(new URLSearchParams(app.history.location.search).get('view')).toBe('performance'),
+    );
+    await act(async () => app.history.back());
+    await waitFor(() => expect(app.view.getByRole('radio', { name: 'Price' })).toBeChecked());
+    expect([...requests]).toEqual(loaded);
+    await user.click(app.view.getByRole('button', { name: 'Clear selection' }));
+    await waitFor(() => expect(app.history.location.search).toBe(''));
+    expect(app.view.getByRole('radio', { name: 'Price' })).toBeChecked();
+  });
+
+  test('handles a rejected view change safely and lets the next choice recover', async () => {
+    installMarketHandlers();
+    const user = userEvent.setup();
+    const app = await renderApp({ initialEntries: ['/?tickers=AAA,BBB'] });
+    const navigate = vi
+      .spyOn(app.router, 'navigate')
+      .mockRejectedValueOnce(new Error('PRIVATE_ROUTING_DETAIL'));
+    try {
+      await user.click(app.view.getByRole('radio', { name: 'Price' }));
+      expect(
+        await app.view.findByText('The chart view could not be updated. Please try again.'),
+      ).toBeVisible();
+      expect(app.view.queryByText(/PRIVATE_ROUTING_DETAIL/)).not.toBeInTheDocument();
+      expect(app.view.getByRole('radio', { name: 'Performance' })).toBeChecked();
+      await user.click(app.view.getByRole('radio', { name: 'Price' }));
+      await waitFor(() => expect(app.view.getByRole('radio', { name: 'Price' })).toBeChecked());
+      expect(
+        app.view.queryByText('The chart view could not be updated. Please try again.'),
+      ).not.toBeInTheDocument();
+    } finally {
+      navigate.mockRestore();
+    }
+  });
+
   test('selects, removes, clears and follows real history while reusing fetched resources', async () => {
     const requests = installMarketHandlers();
     const user = userEvent.setup();

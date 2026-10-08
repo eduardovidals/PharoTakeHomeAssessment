@@ -102,7 +102,7 @@ test.describe('Compare independently cached historical instruments', () => {
     for (const points of expected) expect(points).toHaveLength(30);
     const requests = recordRequests(page);
     try {
-      await page.goto('/?tickers=TICK0001,TICK0002,TICK0003');
+      await page.goto('/?tickers=TICK0001,TICK0002,TICK0003&view=price');
       const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
       await expect(chart).toBeVisible();
       await expect(
@@ -191,7 +191,7 @@ test.describe('Compare independently cached historical instruments', () => {
   }) => {
     const requests = recordRequests(page);
     try {
-      await page.goto('/?tickers=TICK0001,UNKNOWN,TICK0002');
+      await page.goto('/?tickers=TICK0001,UNKNOWN,TICK0002&view=price');
       await expect(
         page.getByText('2 of 3 selected histories available.', { exact: true }),
       ).toBeVisible();
@@ -424,5 +424,224 @@ test.describe('Compare independently cached historical instruments', () => {
     }
     if (failures.length > 0)
       throw new AggregateError(failures, 'Native XHR timeout scenario failed.');
+  });
+});
+
+async function ready(page: Page, tickers: readonly string[]) {
+  for (const ticker of tickers) {
+    await expect(
+      page
+        .getByRole('region', { name: `${ticker} prices`, exact: true })
+        .getByText('Latest close', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: `${ticker} statistics`, exact: true })
+        .getByText('Total return', { exact: true }),
+    ).toBeVisible();
+  }
+}
+
+async function expectIdentity(
+  page: Page,
+  label: string,
+  ticker: string,
+  appearance: string,
+  color: string,
+  dash: string,
+) {
+  const chip = page.getByRole('button', { name: `Remove selected ${ticker}`, exact: true });
+  const heading = page.getByRole('heading', { name: ticker, exact: true });
+  await expect(chip).toHaveAttribute('data-appearance', appearance);
+  await expect(heading).toHaveAttribute('data-appearance', appearance);
+  // e2e-locator: Explicit series identity links actual plotted paths to the matching named chip and heading.
+  const plotted = page
+    .getByRole('img', { name: label, exact: true })
+    .locator(`[data-series-id="${ticker}"]`);
+  await expect(plotted).toHaveAttribute('data-appearance', appearance);
+  // e2e-locator: The hidden SVG marks are decorative identity cues; compare their real stroke roles with the plotted path.
+  for (const line of [plotted.locator('path'), chip.locator('svg'), heading.locator('svg')]) {
+    await expect(line).toHaveCSS('stroke', color);
+    await expect(line).toHaveCSS('stroke-dasharray', dash);
+  }
+}
+
+test.describe('Compare raw prices and rebased change with shared identities', () => {
+  test('keeps mode in history, preserves inspection and identities, and does no presentation refetch', async ({
+    page,
+  }, testInfo) => {
+    const requests: string[] = [];
+    page.on('request', (request) => {
+      const path = new URL(request.url()).pathname;
+      if (path.startsWith('/api/')) requests.push(path);
+    });
+    const raw = await csvPrices('TICK0001');
+    expect(raw).toHaveLength(30);
+    const first = raw.at(0);
+    const latest = raw.at(-1);
+    if (!first || !latest) throw new Error('Expected recorded CSV endpoints.');
+    const returnLabel =
+      new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        signDisplay: 'exceptZero',
+      }).format(100 * (latest.price / first.price - 1)) + '%';
+    const choice = page.getByRole('radiogroup', { name: 'Chart view' });
+    await page.goto('/');
+    await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
+    await page.getByRole('button', { name: 'Add TICK0001', exact: true }).click();
+    await ready(page, ['TICK0001']);
+    await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
+    await page.getByRole('button', { name: 'Add TICK0002', exact: true }).click();
+    await ready(page, ['TICK0001', 'TICK0002']);
+    await expect(choice.getByRole('radio', { name: 'Performance', exact: true })).toBeChecked();
+    expect(new URL(page.url()).searchParams.has('view')).toBe(false);
+    await page.getByRole('button', { name: 'Add TICK0003', exact: true }).click();
+    await ready(page, ['TICK0001', 'TICK0002', 'TICK0003']);
+    const loaded = [...requests];
+    expect(loaded).toHaveLength(7);
+    await expectIdentity(
+      page,
+      'Rebased price change',
+      'TICK0002',
+      'secondary',
+      'rgb(124, 58, 237)',
+      '8px, 4px',
+    );
+    const detail = page.getByRole('region', {
+      name: 'Details for Rebased price change',
+      exact: true,
+    });
+    await expect(detail.getByText(returnLabel, { exact: true })).toBeVisible();
+    // e2e-locator: The numeric reference line must be present only for Performance.
+    const baseline = page
+      .getByRole('img', { name: 'Rebased price change', exact: true })
+      .locator('[data-chart-baseline="0"]');
+    await expect(baseline).toHaveCount(1);
+    await expect(baseline).toHaveCSS('stroke-width', '1px');
+    await expect(baseline).not.toHaveCSS('stroke', 'none');
+    await page.screenshot({ path: testInfo.outputPath('three-performance.png'), fullPage: true });
+    await choice.getByText('Price', { exact: true }).click();
+    await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
+    expect(new URL(page.url()).searchParams.get('view')).toBe('price');
+    const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
+    const instance = await chart.elementHandle();
+    if (!instance) throw new Error('Expected the existing chart instance.');
+    const inspector = page.getByRole('slider', {
+      name: 'Inspect Historical closing prices',
+      exact: true,
+    });
+    await inspector.press('Home');
+    await inspector.press('ArrowRight');
+    await choice.getByText('Performance', { exact: true }).click();
+    await expect(
+      page.getByRole('slider', { name: 'Inspect Rebased price change', exact: true }),
+    ).toHaveValue('1');
+    expect(await instance.evaluate((element) => element.isConnected)).toBe(true);
+    await page
+      .getByRole('button', { name: 'Show data table for Rebased price change', exact: true })
+      .click();
+    const performanceTable = page.getByRole('table', {
+      name: 'Data for Rebased price change',
+      exact: true,
+    });
+    await expect(performanceTable.getByRole('rowheader')).toHaveCount(30);
+    // e2e-ordinal: The first value is the first recorded date for the first URL-selected ticker.
+    await expect(performanceTable.getByRole('cell').first()).toHaveText('0.00%');
+    await choice.getByText('Price', { exact: true }).click();
+    // e2e-ordinal: Compare the same first recorded date and first URL-selected ticker in raw-price mode.
+    await expect(
+      page
+        .getByRole('table', { name: 'Data for Historical closing prices', exact: true })
+        .getByRole('cell')
+        .first(),
+    ).toHaveText(first.price.toFixed(2));
+    // e2e-locator: Raw-price view omits the generic zero reference without changing its observations.
+    await expect(chart.locator('[data-chart-baseline]')).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('three-price-data.png'), fullPage: true });
+    await page.goBack();
+    await expect(choice.getByRole('radio', { name: 'Performance', exact: true })).toBeChecked();
+    await page.goForward();
+    await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
+    expect(requests).toEqual(loaded);
+    await page.getByRole('button', { name: 'Remove selected TICK0001', exact: true }).click();
+    await expectIdentity(
+      page,
+      'Historical closing prices',
+      'TICK0002',
+      'secondary',
+      'rgb(124, 58, 237)',
+      '8px, 4px',
+    );
+    await page.getByRole('button', { name: 'Add TICK0001', exact: true }).click();
+    await ready(page, ['TICK0001', 'TICK0002', 'TICK0003']);
+    await expectIdentity(
+      page,
+      'Historical closing prices',
+      'TICK0001',
+      'primary',
+      'rgb(37, 99, 235)',
+      'none',
+    );
+    await expectIdentity(
+      page,
+      'Historical closing prices',
+      'TICK0002',
+      'secondary',
+      'rgb(124, 58, 237)',
+      '8px, 4px',
+    );
+    expect(new URL(page.url()).searchParams.get('tickers')).toBe('TICK0002,TICK0003,TICK0001');
+    expect(requests).toEqual(loaded);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: testInfo.outputPath('returned-identity-mobile.png'),
+      fullPage: true,
+    });
+    await page.reload();
+    await ready(page, ['TICK0001', 'TICK0002', 'TICK0003']);
+    await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
+    await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
+    expect(new URL(page.url()).search).toBe('');
+  });
+
+  test('counts unknown selections for the default view without inventing their data', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/?tickers=TICK0001,UNKNOWN,TICK0002');
+    await ready(page, ['TICK0001', 'TICK0002']);
+    const choice = page.getByRole('radiogroup', { name: 'Chart view' });
+    await expect(choice.getByRole('radio', { name: 'Performance', exact: true })).toBeChecked();
+    await expect(
+      page.getByRole('button', { name: 'Remove selected UNKNOWN', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: 'UNKNOWN prices', exact: true }).getByRole('alert'),
+    ).toHaveText('Instrument not found.');
+    const chart = page.getByRole('img', { name: 'Rebased price change', exact: true });
+    // e2e-locator: An unavailable selected identity must not gain a fabricated zero-valued line.
+    await expect(chart.locator('[data-series-id="UNKNOWN"] path')).toHaveCount(0);
+    await expectIdentity(
+      page,
+      'Rebased price change',
+      'TICK0002',
+      'tertiary',
+      'rgb(180, 83, 9)',
+      '2px, 4px',
+    );
+    await page.screenshot({
+      path: testInfo.outputPath('unknown-peer-performance.png'),
+      fullPage: true,
+    });
+    await page.getByRole('button', { name: 'Remove selected UNKNOWN', exact: true }).click();
+    await expectIdentity(
+      page,
+      'Rebased price change',
+      'TICK0002',
+      'tertiary',
+      'rgb(180, 83, 9)',
+      '2px, 4px',
+    );
   });
 });

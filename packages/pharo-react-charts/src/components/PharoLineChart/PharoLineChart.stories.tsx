@@ -49,6 +49,7 @@ const meta = {
     formatXAccessible: { control: false },
     formatXAxis: { control: false },
     xTickValues: { control: 'object' },
+    baselineY: { control: 'number' },
     formatYAxis: { control: false },
     formatYDetail: { control: false },
     formatYTable: { control: false },
@@ -145,6 +146,35 @@ export const RecordedCandidates: Story = {
     const table = canvas.getByRole('table', { name: `Data for ${args.label}` });
     await expect(within(table).getByRole('rowheader', { name: '2024-03-13' })).toBeVisible();
     await expect(within(table).getAllByRole('rowheader')).toHaveLength(candidateDates.length);
+  },
+};
+
+export const ReferenceBaseline: Story = {
+  args: {
+    baselineY: 0,
+    description: 'Recorded temperatures compared with a quiet zero-degree reference line.',
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A finite baseline uses the same numerical scale as the observations. It does not add a record or a filled area.',
+      },
+    },
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const chart = await canvas.findByRole('img', { name: args.label });
+    await expect(chart.querySelector('[data-chart-baseline="0"]')).toBeVisible();
+    await expect(
+      canvas.getByRole('region', { name: `Details for ${args.label}` }),
+    ).toHaveTextContent('10');
+    await userEvent.click(
+      canvas.getByRole('button', { name: `Show data table for ${args.label}` }),
+    );
+    await expect(
+      canvas.getByRole('table', { name: `Data for ${args.label}` }).querySelectorAll('tbody tr'),
+    ).toHaveLength(3);
   },
 };
 

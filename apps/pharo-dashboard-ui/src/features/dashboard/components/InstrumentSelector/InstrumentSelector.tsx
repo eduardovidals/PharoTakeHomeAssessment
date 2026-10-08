@@ -5,7 +5,7 @@ import { PharoButton, PharoSpinner } from '@pharo/react-components';
 import { PharoFormTextField, useSchemaForm } from '@pharo/react-form-components';
 import { instrumentsQueryOptions } from '../../../../api/instruments';
 import { instrumentSearchSchema } from './schema';
-import { selectorStyles } from './styles';
+import { appearanceStyles, selectorStyles } from './styles';
 import type { InstrumentSelectorProps as Props, InstrumentSearchValues } from './types';
 
 const pageSize = 10;
@@ -20,7 +20,7 @@ const pageSize = 10;
  * ```
  */
 export function InstrumentSelector(props: Props) {
-  const { apiClient, selectedTickers, onSelect, onRemove, onClear } = props;
+  const { apiClient, selectedTickers, onSelect, onRemove, onClear, appearances } = props;
   const headingId = useId();
   const instruments = useQuery(instrumentsQueryOptions(apiClient));
   const { control, setValue, setFocus } = useSchemaForm<InstrumentSearchValues>(
@@ -47,27 +47,27 @@ export function InstrumentSelector(props: Props) {
     }
   }, [page]);
 
-  function changePage(nextPage: number): void {
+  const changePage = (nextPage: number): void => {
     focusNewPage.current = true;
     setRequestedPage(nextPage);
-  }
+  };
 
-  function clearSearch(): void {
+  const clearSearch = (): void => {
     setValue('search', '');
     setRequestedPage(0);
     setFocus('search');
-  }
+  };
 
-  async function select(ticker: string): Promise<void> {
+  const select = async (ticker: string): Promise<void> => {
     try {
       const outcome = await onSelect(ticker);
       setActionNotice(outcome === 'limit' ? 'limit' : undefined);
     } catch {
       setActionNotice('navigation');
     }
-  }
+  };
 
-  async function remove(ticker: string, fromChip: boolean): Promise<void> {
+  const remove = async (ticker: string, fromChip: boolean): Promise<void> => {
     const index = selectedTickers.indexOf(ticker);
     const neighbor = selectedTickers[index + 1] ?? selectedTickers[index - 1];
     try {
@@ -83,9 +83,9 @@ export function InstrumentSelector(props: Props) {
     } catch {
       setActionNotice('navigation');
     }
-  }
+  };
 
-  async function clearSelection(): Promise<void> {
+  const clearSelection = async (): Promise<void> => {
     try {
       await onClear();
       setActionNotice(undefined);
@@ -93,7 +93,7 @@ export function InstrumentSelector(props: Props) {
     } catch {
       setActionNotice('navigation');
     }
-  }
+  };
 
   return (
     <section aria-labelledby={headingId} className={selectorStyles.panel}>
@@ -124,25 +124,41 @@ export function InstrumentSelector(props: Props) {
       <div className={selectorStyles.selection}>
         <p className={selectorStyles.description}>{selectedTickers.length} of 3 selected</p>
         <ul aria-label="Current selection" className={selectorStyles.chips}>
-          {selectedTickers.map((ticker) => (
-            <li
-              key={ticker}
-              ref={(element) => {
-                if (element) chips.current.set(ticker, element);
-                else chips.current.delete(ticker);
-              }}
-            >
-              <PharoButton
-                variant="secondary"
-                className={selectorStyles.chip}
-                aria-label={`Remove selected ${ticker}`}
-                onPress={() => void remove(ticker, true)}
+          {selectedTickers.map((ticker) => {
+            const appearance = appearances?.get(ticker);
+            return (
+              <li
+                key={ticker}
+                ref={(element) => {
+                  if (element) chips.current.set(ticker, element);
+                  else chips.current.delete(ticker);
+                }}
               >
-                <span className={selectorStyles.ticker}>{ticker}</span>
-                <span className={selectorStyles.actionLabel}>Remove</span>
-              </PharoButton>
-            </li>
-          ))}
+                <PharoButton
+                  variant="secondary"
+                  className={selectorStyles.chip}
+                  data-series-id={ticker}
+                  data-appearance={appearance}
+                  aria-label={`Remove selected ${ticker}`}
+                  onPress={() => void remove(ticker, true)}
+                >
+                  <span className={selectorStyles.ticker}>
+                    {appearance && (
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 12"
+                        className={appearanceStyles[appearance]}
+                      >
+                        <line x1="0" x2="24" y1="6" y2="6" strokeWidth="2" />
+                      </svg>
+                    )}
+                    <span className={selectorStyles.tickerText}>{ticker}</span>
+                  </span>
+                  <span className={selectorStyles.actionLabel}>Remove</span>
+                </PharoButton>
+              </li>
+            );
+          })}
         </ul>
         {selectedTickers.length > 0 && (
           <div className={selectorStyles.actions}>

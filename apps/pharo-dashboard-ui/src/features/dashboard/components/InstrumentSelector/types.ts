@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { ApiClient } from '../../../../api/types';
 import type { SelectionAddOutcome } from '../../../../app/types';
+import type { PharoChartAppearance } from '@pharo/react-charts';
 import type { instrumentSearchSchema } from './schema';
 
 /** The only form-owned value; committed ticker selection belongs to the route. */
@@ -12,11 +13,13 @@ export interface InstrumentSelectorProps {
   readonly apiClient: ApiClient;
   /** Current URL selection, including instruments absent from the browse list. */
   readonly selectedTickers: readonly string[];
+  /** Dashboard-owned appearance allocation, including pending and unknown selections. */
+  readonly appearances?: ReadonlyMap<string, PharoChartAppearance>;
   /** Commit an addition or report the route's duplicate/three-instrument limit. */
   readonly onSelect: (ticker: string) => Promise<SelectionAddOutcome>;
   /** Remove one committed ticker; resolve after navigation completes. */
   readonly onRemove: (ticker: string) => Promise<void>;
-  /** Clear only committed selection, preserving the search draft. */
+  /** Clear committed selection and explicit chart view, preserving the search draft. */
   readonly onClear: () => Promise<void>;
 }
 
@@ -34,6 +37,7 @@ export type InstrumentSelectorStylePart =
   | 'result'
   | 'actionLabel'
   | 'ticker'
+  | 'tickerText'
   | 'pagination'
   | 'notice'
   | 'error'

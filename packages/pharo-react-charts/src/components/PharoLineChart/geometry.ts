@@ -18,6 +18,7 @@ export function prepareChartGeometry(
   width: number,
   height: number,
   xTickValues?: readonly number[],
+  baselineY?: number,
 ): ChartGeometry {
   const invalidData: ChartGeometry = {
     kind: 'invalid',
@@ -30,7 +31,8 @@ export function prepareChartGeometry(
     message: 'Chart values cannot be represented safely.',
   };
   const records = prepareChartRecords(series);
-  if (records.kind === 'invalid') return invalidData;
+  if (records.kind === 'invalid' || (baselineY !== undefined && !Number.isFinite(baselineY)))
+    return invalidData;
   if (
     xTickValues !== undefined &&
     (!Array.isArray(xTickValues) ||
@@ -54,6 +56,10 @@ export function prepareChartGeometry(
     }
   }
   if (minY === Infinity) return { kind: 'empty', message: 'No observations to display.' };
+  if (baselineY !== undefined) {
+    minY = Math.min(minY, baselineY);
+    maxY = Math.max(maxY, baselineY);
+  }
 
   const plot = { left: 56, top: 16, right: width - 16, bottom: height - 48 };
   if (
@@ -148,5 +154,19 @@ export function prepareChartGeometry(
     if (path !== null && /NaN|Infinity/.test(path)) return invalidDomain;
     prepared.push({ id: item.id, label: item.label, points: item.points, path, markers });
   }
-  return { kind: 'ready', width, height, plot, xDomain, yDomain, xTicks, yTicks, series: prepared };
+  const baseline =
+    baselineY === undefined ? undefined : { value: baselineY, position: yScale(baselineY) };
+  if (baseline !== undefined && !Number.isFinite(baseline.position)) return invalidDomain;
+  return {
+    kind: 'ready',
+    width,
+    height,
+    plot,
+    xDomain,
+    yDomain,
+    xTicks,
+    yTicks,
+    ...(baseline ? { baseline } : {}),
+    series: prepared,
+  };
 }

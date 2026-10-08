@@ -1,4 +1,15 @@
 import type { DashboardStylePart } from './types';
+import type { PharoChartAppearance } from '@pharo/react-charts';
+
+/** Identity marks use the same shared color/dash roles as the chart. */
+export const appearanceStyles: Record<PharoChartAppearance, string> = {
+  primary:
+    'inline-block h-pharo-3 w-pharo-6 shrink-0 stroke-pharo-chart-1 [stroke-dasharray:var(--pharo-chart-dash-1)]',
+  secondary:
+    'inline-block h-pharo-3 w-pharo-6 shrink-0 stroke-pharo-chart-2 [stroke-dasharray:var(--pharo-chart-dash-2)]',
+  tertiary:
+    'inline-block h-pharo-3 w-pharo-6 shrink-0 stroke-pharo-chart-3 [stroke-dasharray:var(--pharo-chart-dash-3)]',
+};
 
 /** Complete semantic classes for the branded shell and responsive analysis layout. */
 export const dashboardStyles: Record<DashboardStylePart, string> = {
@@ -12,7 +23,9 @@ export const dashboardStyles: Record<DashboardStylePart, string> = {
   layout: 'grid items-start gap-pharo-6 lg:grid-cols-[minmax(16rem,1fr)_minmax(0,3fr)]',
   analysis: 'flex min-w-0 flex-col gap-pharo-4',
   header: 'flex flex-wrap items-center justify-between gap-pharo-2',
-  subheading: 'min-w-0 break-words text-pharo-lg font-semibold text-pharo-foreground',
+  subheading:
+    'flex min-w-0 items-center gap-pharo-2 break-words text-pharo-lg font-semibold text-pharo-foreground',
+  ticker: 'min-w-0 break-all',
   count: 'text-pharo-sm text-pharo-muted',
   selection: 'grid min-w-0 gap-pharo-4',
   article: 'min-w-0 rounded-pharo-card border border-pharo-border bg-pharo-surface p-pharo-4',

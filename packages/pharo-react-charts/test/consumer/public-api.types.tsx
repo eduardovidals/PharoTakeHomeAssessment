@@ -23,6 +23,7 @@ export function TypedConsumer() {
     series,
     xAxisLabel: 'UTC date',
     yAxisLabel: 'Degrees',
+    baselineY: 0,
     formatXDetail: (timestamp) => new Date(timestamp).toISOString().slice(0, 10),
     formatXAxis: (timestamp) => new Date(timestamp).toISOString().slice(5, 10),
     xTickValues: Object.freeze([point.x]),
@@ -99,6 +100,12 @@ export function RejectedConsumerContracts() {
         series={series}
         // @ts-expect-error A formatter returns presentation text.
         formatYAxis={(value) => value}
+      />
+      <PharoLineChart
+        label="Invalid baseline"
+        series={series}
+        // @ts-expect-error A baseline is a generic numerical value, not presentation text.
+        baselineY="0"
       />
       <PharoLineChart
         label="Invalid candidate dates"

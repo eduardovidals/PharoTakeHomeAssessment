@@ -1,4 +1,15 @@
 import type { InstrumentSelectorStylePart } from './types';
+import type { PharoChartAppearance } from '@pharo/react-charts';
+
+/** Identity marks use the same shared color/dash roles as the chart. */
+export const appearanceStyles: Record<PharoChartAppearance, string> = {
+  primary:
+    'inline-block h-pharo-3 w-pharo-6 shrink-0 stroke-pharo-chart-1 [stroke-dasharray:var(--pharo-chart-dash-1)]',
+  secondary:
+    'inline-block h-pharo-3 w-pharo-6 shrink-0 stroke-pharo-chart-2 [stroke-dasharray:var(--pharo-chart-dash-2)]',
+  tertiary:
+    'inline-block h-pharo-3 w-pharo-6 shrink-0 stroke-pharo-chart-3 [stroke-dasharray:var(--pharo-chart-dash-3)]',
+};
 
 /** Semantic layout shared by loading, browsing and selected-chip states. */
 export const selectorStyles: Record<InstrumentSelectorStylePart, string> = {
@@ -13,7 +24,8 @@ export const selectorStyles: Record<InstrumentSelectorStylePart, string> = {
   results: 'mt-pharo-4 grid max-h-96 gap-pharo-2 overflow-y-auto p-pharo-2',
   result: 'w-full min-w-0 justify-between gap-pharo-2 whitespace-normal text-start',
   actionLabel: 'shrink-0',
-  ticker: 'min-w-0 break-all font-pharo-mono',
+  tickerText: 'min-w-0 break-all',
+  ticker: 'flex min-w-0 items-center gap-pharo-2 break-all font-pharo-mono',
   pagination: 'mt-pharo-2 flex flex-wrap items-center justify-between gap-pharo-2',
   notice: 'mt-pharo-2 text-pharo-sm text-pharo-foreground',
   error: 'mt-pharo-4 text-pharo-sm text-pharo-error',

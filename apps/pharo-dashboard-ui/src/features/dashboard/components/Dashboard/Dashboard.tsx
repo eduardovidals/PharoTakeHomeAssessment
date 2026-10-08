@@ -1,10 +1,13 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { PharoSegmentedControl } from '@pharo/react-components';
+import type { ChartMode } from '../../../../app/types';
 import { pricesQueryOptions, priceStatsQueryOptions } from '../../../../api/prices';
 import { InstrumentSelector } from '../InstrumentSelector';
 import { InstrumentStatistics } from '../InstrumentStatistics';
 import { PriceHistory } from '../PriceHistory';
-import { dashboardStyles } from './styles';
+import { appearanceStyles, dashboardStyles } from './styles';
+import { useSeriesAppearances } from './hooks/useSeriesAppearances';
 import type { DashboardProps as Props } from './types';
 
 /**
@@ -12,12 +15,32 @@ import type { DashboardProps as Props } from './types';
  * @example
  * ```tsx
  * <Dashboard apiClient={apiClient} selectedTickers={tickers}
+ *   mode={mode} onViewChange={changeView}
  *   onSelect={selectTicker} onRemove={removeTicker} onClear={clearTickers} />
  * ```
  */
 export function Dashboard(props: Props) {
-  const { apiClient, selectedTickers, selectionNotice, onSelect, onRemove, onClear } = props;
+  const {
+    apiClient,
+    selectedTickers,
+    selectionNotice,
+    onSelect,
+    onRemove,
+    onClear,
+    mode,
+    onViewChange,
+  } = props;
   const selectionId = useId();
+  const appearances = useSeriesAppearances(selectedTickers);
+  const [viewChangeFailed, setViewChangeFailed] = useState(false);
+  const handleViewChange = async (view: ChartMode) => {
+    try {
+      await onViewChange(view);
+      setViewChangeFailed(false);
+    } catch {
+      setViewChangeFailed(true);
+    }
+  };
   // Start both resource families together, independent of instrument-list availability.
   const prices = useQueries({
     queries: selectedTickers.map((ticker) => pricesQueryOptions(apiClient, ticker)),
@@ -27,7 +50,7 @@ export function Dashboard(props: Props) {
   });
   const priceResources = selectedTickers.flatMap((ticker, index) => {
     const query = prices[index];
-    return query ? [{ ticker, query }] : [];
+    return query ? [{ ticker, query, appearance: appearances.get(ticker) }] : [];
   });
 
   return (
@@ -56,6 +79,7 @@ export function Dashboard(props: Props) {
           onSelect={onSelect}
           onRemove={onRemove}
           onClear={onClear}
+          appearances={appearances}
         />
 
         <section aria-labelledby={selectionId} className={dashboardStyles.analysis}>
@@ -65,6 +89,20 @@ export function Dashboard(props: Props) {
             </h2>
             <p className={dashboardStyles.count}>{selectedTickers.length} of 3 selected</p>
           </div>
+          <PharoSegmentedControl
+            label="Chart view"
+            value={mode}
+            onChange={handleViewChange}
+            options={[
+              { value: 'price', label: 'Price' },
+              { value: 'performance', label: 'Performance' },
+            ]}
+          />
+          {viewChangeFailed && (
+            <p role="status" className={dashboardStyles.error}>
+              The chart view could not be updated. Please try again.
+            </p>
+          )}
           {selectedTickers.length === 0 ? (
             <div className={dashboardStyles.empty}>
               <h3 className={dashboardStyles.subheading}>Start with an instrument</h3>
@@ -76,11 +114,12 @@ export function Dashboard(props: Props) {
             </div>
           ) : (
             <>
-              <PriceHistory resources={priceResources} />
+              <PriceHistory resources={priceResources} mode={mode} />
               <div className={dashboardStyles.selection}>
                 {selectedTickers.map((ticker, index) => {
                   const priceQuery = prices[index];
                   const statsQuery = statistics[index];
+                  const appearance = appearances.get(ticker);
                   if (!priceQuery || !statsQuery) return null;
                   const incomplete =
                     (priceQuery.isError && priceQuery.error.kind !== 'cancelled') ||
@@ -91,7 +130,22 @@ export function Dashboard(props: Props) {
                       aria-label={`${ticker} market data`}
                       className={dashboardStyles.article}
                     >
-                      <h3 className={dashboardStyles.subheading}>{ticker}</h3>
+                      <h3
+                        className={dashboardStyles.subheading}
+                        data-series-id={ticker}
+                        data-appearance={appearance}
+                      >
+                        {appearance && (
+                          <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 12"
+                            className={appearanceStyles[appearance]}
+                          >
+                            <line x1="0" x2="24" y1="6" y2="6" strokeWidth="2" />
+                          </svg>
+                        )}
+                        <span className={dashboardStyles.ticker}>{ticker}</span>
+                      </h3>
                       {incomplete && (
                         <p className={dashboardStyles.error}>
                           Results for {ticker} are incomplete. Available data remains visible.

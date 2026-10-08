@@ -68,6 +68,7 @@ function App() {
   const [externalOpen, setExternalOpen] = useState(false);
   const [externalHidden, setExternalHidden] = useState(false);
   const [narrow, setNarrow] = useState(false);
+  const [baselineVisible, setBaselineVisible] = useState(true);
   const [tall, setTall] = useState(false);
   const [series, setSeries] = useState<readonly PharoChartSeries[]>([north, south]);
   return (
@@ -150,6 +151,37 @@ function App() {
           />
         </section>
       </div>
+      <section aria-label="Generic baseline example" className="min-w-0">
+        <h2 className="mb-pharo-3 text-pharo-lg font-semibold">
+          Measurements with a reference line
+        </h2>
+        <button
+          type="button"
+          aria-pressed={baselineVisible}
+          className="mb-pharo-3 min-h-pharo-control rounded-pharo-control border border-pharo-control-border px-pharo-3 focus-visible:pharo-focus-ring"
+          onClick={() => setBaselineVisible((current) => !current)}
+        >
+          Toggle reference baseline
+        </button>
+        <PharoLineChart
+          label="Referenced measurements"
+          description="Three recorded values with an optional zero reference; no values are added."
+          baselineY={baselineVisible ? 0 : undefined}
+          series={[
+            {
+              id: 'reference-sensor',
+              label: 'Reference sensor',
+              points: [
+                { x: march10, y: 2 },
+                { x: march11, y: 8 },
+                { x: march12, y: 4 },
+              ],
+            },
+          ]}
+          xAxisLabel="Date (UTC)"
+          yAxisLabel="Measured level"
+        />
+      </section>
       <section aria-label="Recorded candidate example" className="min-w-0">
         <h2 className="mb-pharo-3 text-pharo-lg font-semibold">
           Recorded dates · Mar 10–25, 2024 (UTC)

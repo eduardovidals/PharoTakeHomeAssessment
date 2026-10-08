@@ -124,6 +124,62 @@ function expectLegendAppearance(label: string, id: string, token: number) {
 }
 
 describe('PharoLineChart', () => {
+  it('adds a quiet baseline without changing recorded inspection and removes it on omission', () => {
+    const input = Object.freeze([
+      Object.freeze({
+        id: 'level',
+        label: 'Level',
+        points: Object.freeze([
+          Object.freeze({ x: firstDate, y: 10 }),
+          Object.freeze({ x: firstDate + day, y: 20 }),
+        ]),
+      }),
+    ]);
+    const view = renderChart({ series: input, label: 'Referenced levels' });
+    const chart = screen.getByRole('img', { name: 'Referenced levels' });
+    const path = seriesGroup(chart, 'level').querySelector('path');
+    expect(chart.querySelector('[data-chart-baseline]')).toBeNull();
+    expect(path).toHaveAttribute('d', 'M56,272L656,16');
+    fireEvent.change(screen.getByRole('slider', { name: 'Inspect Referenced levels' }), {
+      target: { value: '0' },
+    });
+    view.rerender(<PharoLineChart series={input} label="Referenced levels" baselineY={0} />);
+    const baseline = chart.querySelector('[data-chart-baseline]');
+    expect(baseline).toHaveAttribute('data-chart-baseline', '0');
+    expect(baseline).toHaveAttribute('x1', '56');
+    expect(baseline).toHaveAttribute('x2', '656');
+    expect(baseline).toHaveAttribute('y1', '272');
+    expect(baseline).toHaveAttribute('y2', '272');
+    expect(baseline).toHaveAttribute('aria-hidden', 'true');
+    expect(baseline).toHaveClass('stroke-pharo-chart-baseline');
+    expect(path).toHaveAttribute('d', 'M56,144L656,16');
+    expect(path).toHaveClass('fill-none');
+    const details = screen.getByRole('region', { name: 'Details for Referenced levels' });
+    expect(within(details).getByText('10', { exact: true })).toBeVisible();
+    view.rerender(<PharoLineChart series={input} label="Referenced levels" />);
+    expect(screen.getByRole('img', { name: 'Referenced levels' })).toBe(chart);
+    expect(chart.querySelector('[data-chart-baseline]')).toBeNull();
+    expect(path).toHaveAttribute('d', 'M56,272L656,16');
+    expect(within(details).getByText('10', { exact: true })).toBeVisible();
+    expect(input[0]?.points).toEqual([
+      { x: firstDate, y: 10 },
+      { x: firstDate + day, y: 20 },
+    ]);
+  });
+
+  it('keeps baseline-only empty data empty and fails safely for a nonfinite baseline', () => {
+    const view = renderChart({ series: [], label: 'No measurements', baselineY: 0 });
+    expect(screen.getByRole('status', { name: 'No measurements' })).toHaveTextContent(
+      'No observations',
+    );
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    view.rerender(<PharoLineChart series={observations} label="No measurements" baselineY={NaN} />);
+    expect(screen.getByRole('status', { name: 'No measurements' })).toHaveTextContent(
+      'Chart data is invalid.',
+    );
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
   it('rejects untyped BigInt identifiers and cyclic appearance objects without throwing during identity setup', () => {
     const cyclic: { self?: unknown } = {};
     cyclic.self = cyclic;

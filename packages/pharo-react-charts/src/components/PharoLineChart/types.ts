@@ -53,6 +53,8 @@ export interface PharoLineChartProps extends PharoChartFormatters {
   readonly yAxisLabel?: string;
   /** Unique integer UTC candidates; sorted copies retain real time spacing. */
   readonly xTickValues?: readonly number[];
+  /** Optional finite reference value included in the numerical domain when observations exist. */
+  readonly baselineY?: number;
   /** Omit for inline disclosure; external mode requires a real reachable trigger. */
   readonly dataTable?: PharoChartDataTableMode;
   /** Old catch-all aliases are rejected, including forwarding through wider objects. */
@@ -137,6 +139,8 @@ export interface ReadyChartGeometry {
   readonly xTicks: readonly ChartTick[];
   /** Finite numerical ticks with a bounded requested count. */
   readonly yTicks: readonly ChartTick[];
+  /** Optional finite reference value projected through the same numerical scale as observations. */
+  readonly baseline?: ChartTick;
   /** Prepared series in caller series order, using the shared domains. */
   readonly series: readonly PreparedChartSeries[];
 }

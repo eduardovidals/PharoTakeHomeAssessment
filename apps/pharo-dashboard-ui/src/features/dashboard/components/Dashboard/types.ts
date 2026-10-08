@@ -1,5 +1,5 @@
 import type { ApiClient } from '../../../../api/types';
-import type { SelectionAddOutcome, SelectionNotice } from '../../../../app/types';
+import type { ChartMode, SelectionAddOutcome, SelectionNotice } from '../../../../app/types';
 
 /** URL-owned selection and application-owned transport for the market dashboard. */
 export interface DashboardProps {
@@ -7,6 +7,10 @@ export interface DashboardProps {
   readonly apiClient: ApiClient;
   /** Canonical URL selection in comparison order; the route enforces the limit. */
   readonly selectedTickers: readonly string[];
+  /** Effective chart mode derived from canonical URL search. */
+  readonly mode: ChartMode;
+  /** Commit an explicit chart view through the same route-owned action queue. */
+  readonly onViewChange: (mode: ChartMode) => Promise<void>;
   /** Safe explanation of the current direct link's normalization, when needed. */
   readonly selectionNotice?: SelectionNotice;
   /** Commit a selection through the route and report duplicate or limit no-ops. */
@@ -26,6 +30,7 @@ export type DashboardStylePart =
   | 'descriptor'
   | 'heading'
   | 'subheading'
+  | 'ticker'
   | 'description'
   | 'layout'
   | 'analysis'
