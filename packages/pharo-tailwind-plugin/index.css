@@ -88,6 +88,7 @@
   --spacing-pharo-header: 4rem;
   --spacing-pharo-plot-mobile: 16rem;
   --spacing-pharo-plot-desktop: 20rem;
+  --spacing-pharo-plot-compact: 17rem;
   --spacing-pharo-chart-height: var(--spacing-pharo-plot-desktop);
   --spacing-pharo-dialog-inset: var(--spacing-pharo-4);
   --spacing-pharo-workspace: 90rem;

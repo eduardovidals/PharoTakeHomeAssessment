@@ -13,7 +13,8 @@ export const styles: Record<
   string
 > = {
   root: 'mt-pharo-2 min-w-0',
-  details: 'flex min-w-0 flex-wrap items-baseline gap-x-pharo-4 gap-y-pharo-1 text-pharo-sm',
+  details:
+    'flex min-w-0 flex-col gap-x-pharo-4 gap-y-pharo-1 text-pharo-sm sm:flex-row sm:flex-wrap sm:items-baseline',
   date: 'min-w-0 break-words font-medium text-pharo-foreground',
   list: 'flex min-w-0 flex-1 flex-wrap gap-x-pharo-4 gap-y-pharo-1',
   item: 'flex min-w-0 max-w-full flex-wrap items-baseline gap-x-pharo-2',

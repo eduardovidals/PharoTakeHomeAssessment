@@ -51,7 +51,7 @@ const firstWindow = {
 test('keeps empty selection useful without inventing dates or duplicating its count', async () => {
   renderToolbar();
   expect(screen.getByRole('combobox', { name: 'Compare instruments' })).toBeVisible();
-  expect(screen.getAllByText('0/3.')).toHaveLength(1);
+  expect(screen.getAllByText('0/3 selected.')).toHaveLength(1);
   expect(screen.queryByText(/observations|2024|2026/)).not.toBeInTheDocument();
   const user = userEvent.setup();
   await user.click(screen.getByRole('radio', { name: 'Performance' }));

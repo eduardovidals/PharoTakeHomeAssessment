@@ -119,7 +119,7 @@ async function expectLimit(app: AppTest, user: ReturnType<typeof userEvent.setup
     'true',
   );
   await user.keyboard('{Escape}');
-  expect(app.view.getByText(/Up to 3 instruments\. Remove one to add another\./)).toBeVisible();
+  expect(app.view.getByText(/Remove one to add another\./)).toBeVisible();
 }
 
 /** Read a metric through its semantic row and selected column, not card layout. */
@@ -314,7 +314,7 @@ describe('Dashboard URL selection and independently owned resources', () => {
     const app = await renderApp({
       initialEntries: ['/?tickers=AAA,BBB', '/?tickers=AAA,BBB,CCC'],
     });
-    const notice = /Up to 3 instruments\. Remove one to add another\./;
+    const notice = /Remove one to add another\./;
     await expectLimit(app, user);
     await act(async () => app.history.back());
     await waitFor(() => expect(matrixHeaders(app)).toEqual(['Metric', 'AAA', 'BBB']));

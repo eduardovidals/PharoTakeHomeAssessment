@@ -32,7 +32,8 @@ test.describe('Review the dashboard screens and interactions', () => {
       const filename = `${String(++number).padStart(2, '0')}-${name}.png`;
       await screen.screenshot({
         path: join(output, filename),
-        fullPage: true,
+        // Fixed dialogs belong to the viewport, not a stretched full-page capture.
+        fullPage: (await screen.getByRole('dialog').count()) === 0,
         animations: 'disabled',
       });
       console.log(filename);
@@ -109,7 +110,7 @@ test.describe('Review the dashboard screens and interactions', () => {
     await expect(option('TICK0004')).toBeDisabled();
     await capture('fourth-instrument-disabled-option');
     await search.press('Escape');
-    await expect(page.getByText(/Up to 3 instruments\. Remove one to add another\./)).toBeVisible();
+    await expect(page.getByText(/Remove one to add another\./)).toBeVisible();
     await capture('selection-limit-help');
     await button('Remove TICK0002').click();
     await expect

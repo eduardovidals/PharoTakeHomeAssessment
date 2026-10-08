@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from 'react';
 import { PharoButton } from '@pharo/react-components';
+import { useComparisonOverflow } from './hooks/useComparisonOverflow';
 import { appearanceStyles, matrixStyles, valueStyles } from './styles';
 import { getComparisonAnnouncement, getComparisonRows, getResourceFeedback } from './utils';
 import type { ComparisonMatrixProps as Props, ComparisonQuery, ComparisonResource } from './types';
@@ -15,6 +16,7 @@ export function ComparisonMatrix(props: Props) {
   const { columns, onRemove } = props;
   const id = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const { scrollRef, tableRef, isOverflowing } = useComparisonOverflow();
   const [retrying, setRetrying] = useState<readonly string[]>([]);
   const [removing, setRemoving] = useState<readonly string[]>([]);
   const [actionFailure, setActionFailure] = useState<string | null>(null);
@@ -90,15 +92,25 @@ export function ComparisonMatrix(props: Props) {
         {actionFailure ?? getComparisonAnnouncement(columns)}
       </p>
       {actionFailure && <p className={matrixStyles.error}>{actionFailure}</p>}
+      {isOverflowing && (
+        <p id={`${id}-scroll-hint`} className={matrixStyles.scrollHint}>
+          <span aria-hidden="true">↔ </span>
+          {columns.length} {columns.length === 1 ? 'instrument' : 'instruments'} · Swipe or scroll
+          to compare.
+        </p>
+      )}
       <div
+        ref={scrollRef}
         className={matrixStyles.scroll}
         role="region"
         aria-label="Comparison table scroll area"
+        aria-describedby={isOverflowing ? `${id}-scroll-hint` : undefined}
         // Keyboard users can scroll all selected columns without moving the document horizontally.
         // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex
         tabIndex={0}
       >
         <table
+          ref={tableRef}
           className={matrixStyles.table}
           aria-labelledby={`${id}-heading`}
           aria-describedby={`${id}-description`}

@@ -33,9 +33,12 @@ export type PharoChartDataTableMode =
       readonly triggerId?: never;
     }
   | {
-      /** Use a consumer-owned accessible data alternative. */
+      /** Consumer guarantees a mounted, accessible data action and its table. */
       readonly mode: 'external';
-      /** ID of the named, enabled and keyboard-reachable data trigger. */
+      /** Unique ID of the named, enabled and keyboard-reachable data trigger.
+       * Switch to inline mode if the consumer removes or disables this action.
+       * Temporary modal background masking does not change this contract.
+       */
       readonly triggerId: string;
     };
 
@@ -55,7 +58,7 @@ export interface PharoLineChartProps extends PharoChartFormatters {
   readonly xTickValues?: readonly number[];
   /** Optional finite reference value included in the numerical domain when observations exist. */
   readonly baselineY?: number;
-  /** Omit for inline disclosure; external mode requires a real reachable trigger. */
+  /** Omit for inline disclosure; external availability is explicitly owned by the consumer. */
   readonly dataTable?: PharoChartDataTableMode;
   /** Old catch-all aliases are rejected, including forwarding through wider objects. */
   readonly formatX?: never;
@@ -182,15 +185,3 @@ export type ChartInspectionDetail = ChartInspectionRow & {
   /** Complete formatter output, or the explicit unavailable message. */
   readonly display: string;
 };
-
-/** @internal Ownership of one potential touch tap, without preventing scrolling. */
-export interface ChartTouchGesture {
-  /** Pointer identity used to ignore unrelated or cancelled touch events. */
-  readonly pointerId: number;
-  /** Initial client-space horizontal coordinate. */
-  readonly startX: number;
-  /** Initial client-space vertical coordinate. */
-  readonly startY: number;
-  /** A moved or multi-pointer gesture is never committed as a tap. */
-  readonly moved: boolean;
-}

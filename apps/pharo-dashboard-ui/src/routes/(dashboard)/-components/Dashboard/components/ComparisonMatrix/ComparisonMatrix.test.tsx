@@ -3,7 +3,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
-import { describe, expect, test, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { createApiClient } from '../../../../../../api/client';
 import type { ApiClient } from '../../../../../../api/types';
 import {
@@ -27,6 +27,41 @@ const stats = {
   dailyVolatilityPercent: 2.3456,
   maxDrawdownPercent: 4.5678,
 };
+
+// jsdom has no layout. Supply geometry only; the actual matrix owns its observer
+// and the browser checks native scrolling and sticky headers.
+class MatrixResizeObserver implements ResizeObserver {
+  static readonly active = new Set<MatrixResizeObserver>();
+  readonly targets = new Set<Element>();
+  constructor(readonly callback: ResizeObserverCallback) {
+    MatrixResizeObserver.active.add(this);
+  }
+  observe(target: Element) {
+    this.targets.add(target);
+  }
+  unobserve(target: Element) {
+    this.targets.delete(target);
+  }
+  disconnect() {
+    this.targets.clear();
+    MatrixResizeObserver.active.delete(this);
+  }
+}
+
+const resizeObserverDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
+beforeAll(() => {
+  Object.defineProperty(globalThis, 'ResizeObserver', {
+    configurable: true,
+    value: MatrixResizeObserver,
+  });
+});
+afterAll(() => {
+  if (resizeObserverDescriptor) {
+    Object.defineProperty(globalThis, 'ResizeObserver', resizeObserverDescriptor);
+  } else {
+    Reflect.deleteProperty(globalThis, 'ResizeObserver');
+  }
+});
 
 function deferred() {
   let resolve: () => void = () => {
@@ -127,6 +162,40 @@ function defaultResponses() {
 }
 
 describe('ComparisonMatrix', () => {
+  test('describes hidden columns only while the native comparison table overflows', async () => {
+    defaultResponses();
+    await withMatrix(async () => {
+      await waitFor(() => expect(metric('Latest close', 2)).toHaveTextContent('110.26'));
+      const scroll = screen.getByRole('region', { name: 'Comparison table scroll area' });
+      const table = screen.getByRole('table', { name: 'Comparison' });
+      const observer = [...MatrixResizeObserver.active].find((owner) => owner.targets.has(scroll));
+      if (!observer) throw new Error('Comparison resize owner is missing.');
+      expect(observer.targets.has(table)).toBe(true);
+      expect(scroll).not.toHaveAttribute('aria-describedby');
+      Object.defineProperties(scroll, {
+        clientWidth: { configurable: true, value: 290 },
+        scrollWidth: { configurable: true, value: 440 },
+      });
+      act(() => observer.callback([], observer));
+      expect(scroll).toHaveAccessibleDescription('3 instruments · Swipe or scroll to compare.');
+      expect(screen.getByText(/3 instruments · Swipe or scroll to compare/)).toBeVisible();
+      expect(
+        within(table)
+          .getAllByRole('columnheader')
+          .map((cell) => cell.textContent),
+      ).toEqual(['Metric', 'A', 'B', 'C']);
+      expect(within(table).getAllByRole('rowheader')).toHaveLength(4);
+      scroll.focus();
+      expect(scroll).toHaveFocus();
+
+      Object.defineProperty(scroll, 'clientWidth', { configurable: true, value: 440 });
+      act(() => observer.callback([], observer));
+      expect(screen.queryByText(/Swipe or scroll/)).not.toBeInTheDocument();
+      expect(scroll).not.toHaveAttribute('aria-describedby');
+    }, ['A', 'B', 'C']);
+    expect(MatrixResizeObserver.active.size).toBe(0);
+  });
+
   test.each([
     { returned: 12.3456, expected: '+12.35%' },
     { returned: -12.3456, expected: '-12.35%' },

@@ -1,7 +1,7 @@
 import type { DashboardStylePart } from './types';
 /** Complete semantic classes for the branded shell and responsive analysis layout. */
 export const dashboardStyles: Record<DashboardStylePart, string> = {
-  page: 'mx-auto flex w-full max-w-pharo-workspace flex-col gap-pharo-4 px-pharo-4 pb-pharo-4 sm:px-pharo-6',
+  page: 'mx-auto flex w-full max-w-pharo-workspace flex-col gap-pharo-3 px-pharo-4 pb-pharo-4 sm:px-pharo-6',
   header:
     'flex min-h-pharo-header flex-wrap items-center justify-between gap-x-pharo-4 gap-y-pharo-1 border-b border-pharo-border py-pharo-3',
   identity: 'flex min-w-0 items-center gap-pharo-3',

@@ -267,7 +267,11 @@ function App() {
         <PharoLineChart
           label="External recorded measurements"
           series={unequalSeries}
-          dataTable={{ mode: 'external', triggerId: 'external-data-trigger' }}
+          dataTable={
+            externalHidden
+              ? { mode: 'inline' }
+              : { mode: 'external', triggerId: 'external-data-trigger' }
+          }
         />
         <div id="external-data-region" hidden={!externalOpen}>
           {externalOpen ? (
@@ -278,9 +282,9 @@ function App() {
       <section aria-label="Unavailable external trigger example">
         <h2 className="text-pharo-lg font-semibold">Safe inline fallback</h2>
         <PharoLineChart
-          label="Missing external trigger"
+          label="Unavailable external trigger"
           series={[north]}
-          dataTable={{ mode: 'external', triggerId: 'does-not-exist' }}
+          dataTable={{ mode: 'inline' }}
         />
         <PharoLineChart
           label="Blank external trigger"

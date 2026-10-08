@@ -39,7 +39,92 @@ async function expectSelection(page: Page, tickers: readonly string[]) {
 
 // This lane uses the compiled application and the actual owned C# process/CSV.
 // Deliberate MSW failure and cancellation scenarios remain in the component/API tests.
+test.describe('Mobile comparison navigation', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('keeps metric labels visible while keyboard and touch reach all selected tickers', async ({
+    page,
+  }) => {
+    await page.goto('/?tickers=TICK0001,TICK0002,TICK0003');
+    const area = page.getByRole('region', { name: 'Comparison table scroll area' });
+    await expect(page.getByText('3 instruments · Swipe or scroll to compare.')).toBeVisible();
+    await expect(area.getByRole('columnheader')).toHaveText([
+      'Metric',
+      'TICK0001',
+      'TICK0002',
+      'TICK0003',
+    ]);
+    await area.scrollIntoViewIfNeeded();
+    const metric = area.getByRole('rowheader', { name: 'Latest close', exact: true });
+    const labelLeft = (await metric.boundingBox())?.x;
+    if (labelLeft === undefined) throw new Error('Metric label is missing.');
+    await area.focus();
+    const seen = new Set<string>();
+    for (let step = 0; step < 14; step++) {
+      const visible = await area.evaluate((element) => {
+        const right = element.getBoundingClientRect().right;
+        const labelRight = element.querySelector('th')?.getBoundingClientRect().right ?? 0;
+        return [...element.querySelectorAll('thead th')]
+          .filter((cell) => {
+            const bounds = cell.getBoundingClientRect();
+            return bounds.left >= labelRight - 1 && bounds.right <= right + 1;
+          })
+          .map((cell) => cell.textContent?.trim() ?? '');
+      });
+      visible.forEach((ticker) => seen.add(ticker));
+      await area.press('ArrowRight');
+    }
+    expect([...seen].sort()).toEqual(['TICK0001', 'TICK0002', 'TICK0003']);
+    expect((await metric.boundingBox())?.x).toBeCloseTo(labelLeft, 1);
+    await area.evaluate((element) => {
+      element.scrollLeft = 0;
+    });
+    const box = await area.boundingBox();
+    if (!box) throw new Error('Scroll area is missing.');
+    const session = await page.context().newCDPSession(page);
+    await session.send('Input.synthesizeScrollGesture', {
+      x: box.x + box.width - 20,
+      y: box.y + box.height / 2,
+      xDistance: -180,
+      yDistance: 0,
+      gestureSourceType: 'touch',
+    });
+    await expect.poll(() => area.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+    expect((await metric.boundingBox())?.x).toBeCloseTo(labelLeft, 1);
+    await session.detach();
+  });
+});
+
 test.describe('Share a real historical-data selection', () => {
+  test('keeps one data action when the instrument popup masks the surrounding dashboard', async ({
+    page,
+  }) => {
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 768 });
+      await page.goto('/?tickers=TICK0001,TICK0002,TICK0003');
+      const chart = page.getByRole('img', { name: 'Rebased price change', includeHidden: true });
+      await expect(chart).toBeVisible();
+      const trigger = page.getByRole('button', { name: 'View data', exact: true });
+      const triggerId = await trigger.getAttribute('id');
+      if (!triggerId) throw new Error('The external data action needs a stable association.');
+      const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+      await input.fill('TICK000');
+      await input.press('ArrowDown');
+      await expect(page.getByRole('listbox')).toBeVisible();
+      await expect(chart).toHaveAttribute('aria-details', triggerId);
+      await expect(
+        page.getByRole('button', { name: /^Show data table/, includeHidden: true }),
+      ).toHaveCount(0);
+      await input.press('Escape');
+      await trigger.click();
+      const dialog = page.getByRole('dialog', { name: 'Raw observations', exact: true });
+      await expect(dialog.getByRole('table', { name: 'Recorded closing prices' })).toBeVisible();
+      await dialog.getByRole('button', { name: 'Close', exact: true }).press('Escape');
+      await expect(trigger).toBeFocused();
+      await expect(chart).toHaveAttribute('aria-details', triggerId);
+    }
+  });
+
   test('selects with keyboard, reuses cached resources, and preserves history and reload', async ({
     page,
   }, testInfo) => {
@@ -124,9 +209,7 @@ test.describe('Share a real historical-data selection', () => {
     );
     await input.press('Enter');
     await input.press('Escape');
-    await expect(input).toHaveAccessibleDescription(
-      /Up to 3 instruments. Remove one to add another/,
-    );
+    await expect(input).toHaveAccessibleDescription(/Remove one to add another/);
     expect(new URL(page.url()).search).toBe(raw);
     await page.getByRole('button', { name: 'Remove TICK0002', exact: true }).click();
     await expectSelection(page, ['TICK0001', 'TICK0003']);

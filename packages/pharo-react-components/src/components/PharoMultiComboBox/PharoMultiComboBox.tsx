@@ -53,6 +53,7 @@ export function PharoMultiComboBox<Item extends object>(props: Props<Item>) {
     inputRef,
     className,
     tagClassName,
+    selectionActions: actions,
     renderItem,
   } = props;
   validateSelectionLimit(maxSelected);
@@ -108,7 +109,7 @@ export function PharoMultiComboBox<Item extends object>(props: Props<Item>) {
         <Text slot="description" className={styles.help}>
           {description != null ? <>{description} </> : null}
           {maxSelected !== undefined
-            ? `${selectedKeys.length}/${maxSelected}`
+            ? `${selectedKeys.length}/${maxSelected} selected`
             : `${selectedKeys.length} selected`}
           .{isLoading && items.length > 0 ? <> {loadingMessage}</> : null}
           {atLimit || limited ? <> {limitMessage}</> : null}
@@ -142,16 +143,19 @@ export function PharoMultiComboBox<Item extends object>(props: Props<Item>) {
         </Popover>
         <PharoActiveOption query={inputValue} />
       </ComboBox>
-      <PharoTagGroup
-        label="Selected items"
-        items={selectedKeys.map((key) => ({
-          id: key,
-          text: selectedText(key),
-          className: tagClassName?.(key),
-        }))}
-        onRemove={isReadOnly ? undefined : handleRemove}
-        isDisabled={isDisabled}
-      />
+      <div className={styles.selection}>
+        <PharoTagGroup
+          label="Selected items"
+          items={selectedKeys.map((key) => ({
+            id: key,
+            text: selectedText(key),
+            className: tagClassName?.(key),
+          }))}
+          onRemove={isReadOnly ? undefined : handleRemove}
+          isDisabled={isDisabled}
+        />
+        {actions}
+      </div>
     </div>
   );
 }

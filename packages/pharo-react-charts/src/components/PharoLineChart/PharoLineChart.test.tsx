@@ -646,11 +646,82 @@ describe('PharoLineChart recorded observation access', () => {
     expect(within(table).getByRole('cell', { name: 'Table 10' })).toBeVisible();
   });
 
-  it('preserves an inline alternative for missing external triggers and all-null recorded rows', () => {
+  it('keeps external data access stable while an unrelated overlay masks the chart and trigger', async () => {
+    const view = render(
+      <>
+        <button id="recorded-data" type="button">
+          View recorded data
+        </button>
+        <PharoLineChart
+          series={observations}
+          label="External data"
+          dataTable={{ mode: 'external', triggerId: 'recorded-data' }}
+        />
+      </>,
+    );
+    const trigger = screen.getByRole('button', { name: 'View recorded data' });
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 100, 44));
+    measure(view.container);
+    const chart = screen.getByRole('img', { name: 'External data' });
+    expect(chart).toHaveAttribute('aria-details', 'recorded-data');
+    expect(screen.queryByText('Show data table')).not.toBeInTheDocument();
+    // React Aria masks every background sibling while the instrument picker is open.
+    const picker = document.createElement('div');
+    picker.setAttribute('role', 'dialog');
+    picker.setAttribute('aria-label', 'Choose instruments');
+    await act(async () => {
+      view.container.setAttribute('aria-hidden', 'true');
+      view.container.setAttribute('inert', '');
+      document.body.append(picker);
+    });
+    expect(chart).toHaveAttribute('aria-details', 'recorded-data');
+    expect(screen.queryByText('Show data table')).not.toBeInTheDocument();
+    await act(async () => {
+      view.container.removeAttribute('aria-hidden');
+      view.container.removeAttribute('inert');
+      picker.remove();
+    });
+    expect(screen.getByRole('button', { name: 'View recorded data' })).toBeEnabled();
+    expect(screen.queryByText('Show data table')).not.toBeInTheDocument();
+  });
+
+  it('uses inline access when the consumer withdraws its external data action', () => {
+    const view = render(
+      <>
+        <button id="conditional-data" type="button">
+          View recorded data
+        </button>
+        <PharoLineChart
+          series={observations}
+          label="Conditional data"
+          dataTable={{ mode: 'external', triggerId: 'conditional-data' }}
+        />
+      </>,
+    );
+    measure(view.container);
+    expect(screen.queryByText('Show data table')).not.toBeInTheDocument();
+    view.rerender(
+      <>
+        {null}
+        <PharoLineChart
+          series={observations}
+          label="Conditional data"
+          dataTable={{ mode: 'inline' }}
+        />
+      </>,
+    );
+    expect(screen.getByRole('img', { name: 'Conditional data' })).not.toHaveAttribute(
+      'aria-details',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Show data table for Conditional data' }));
+    expect(screen.getByRole('table', { name: 'Data for Conditional data' })).toBeVisible();
+  });
+
+  it('preserves an inline alternative for blank external IDs and all-null recorded rows', () => {
     renderChart({
       series: [{ id: 'empty', label: 'Null observations', points: [{ x: firstDate, y: null }] }],
       label: 'Recorded missing values',
-      dataTable: { mode: 'external', triggerId: 'missing-trigger' },
+      dataTable: { mode: 'external', triggerId: ' ' },
     });
     expect(screen.getByRole('status', { name: 'Recorded missing values' })).toHaveTextContent(
       'No observations',

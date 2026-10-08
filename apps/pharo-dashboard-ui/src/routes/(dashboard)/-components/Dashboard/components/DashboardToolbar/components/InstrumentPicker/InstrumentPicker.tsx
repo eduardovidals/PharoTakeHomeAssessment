@@ -84,24 +84,26 @@ export function InstrumentPicker(props: Props) {
               ? 'No instruments are available.'
               : 'No instruments match your search.'
         }
-        limitMessage="Up to 3 instruments. Remove one to add another."
+        limitMessage="Remove one to add another."
         isInvalid={navigationFailed}
         errorMessage="The selection could not be updated. Please try again."
         tagClassName={(key) =>
           appearanceStyles[appearances.get(typeof key === 'string' ? key : '') ?? 'primary']
         }
+        selectionActions={
+          <div className={pickerStyles.actions}>
+            <PharoButton variant="secondary" size="sm" onPress={() => void handleClearSelection()}>
+              Clear selection
+            </PharoButton>
+            {query.length > 0 && (
+              <PharoButton variant="quiet" size="sm" onPress={handleClearSearch}>
+                Clear search
+              </PharoButton>
+            )}
+            <span className={pickerStyles.shortcut}>Press / to focus.</span>
+          </div>
+        }
       />
-      <div className={pickerStyles.actions}>
-        <PharoButton variant="secondary" onPress={() => void handleClearSelection()}>
-          Clear selection
-        </PharoButton>
-        {query.length > 0 && (
-          <PharoButton variant="quiet" onPress={handleClearSearch}>
-            Clear search
-          </PharoButton>
-        )}
-        <span className={pickerStyles.help}>Press / to focus.</span>
-      </div>
       {instruments.isPending && (
         <p role="status" className={pickerStyles.help}>
           Loading instruments…

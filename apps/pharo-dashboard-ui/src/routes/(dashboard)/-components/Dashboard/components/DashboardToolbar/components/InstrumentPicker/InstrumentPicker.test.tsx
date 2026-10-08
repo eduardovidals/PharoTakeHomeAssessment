@@ -182,9 +182,7 @@ describe('InstrumentPicker with the real URL, cache and request owners', () => {
     const fourth = await popup().findByRole('option', { name: 'TICK0004' });
     expect(fourth).toHaveAttribute('aria-disabled', 'true');
     expect(input).toBeEnabled();
-    expect(input).toHaveAccessibleDescription(
-      /3\/3.*Up to 3 instruments. Remove one to add another/,
-    );
+    expect(input).toHaveAccessibleDescription(/3\/3.*Remove one to add another/);
     await user.click(fourth);
     expect(new URLSearchParams(app.history.location.search).get('tickers')).toBe(
       'TICK0001,TICK0002,TICK0003',

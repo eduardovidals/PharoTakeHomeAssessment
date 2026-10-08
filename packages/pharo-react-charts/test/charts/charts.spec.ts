@@ -900,7 +900,7 @@ test.describe('independent built charts', () => {
     expect(observations[1]).toEqual(observations[3]);
   });
 
-  test('external data access opens complete raw records and restores inline fallback if the trigger is hidden', async ({
+  test('external data access opens complete raw records and the consumer restores inline access when hiding its trigger', async ({
     page,
   }, testInfo) => {
     const example = page.getByRole('region', { name: 'External data example' });
@@ -945,7 +945,7 @@ test.describe('independent built charts', () => {
     await expect(
       example.getByRole('button', { name: 'Hide data table for External recorded measurements' }),
     ).toHaveCount(0);
-    for (const name of ['Missing external trigger', 'Blank external trigger']) {
+    for (const name of ['Unavailable external trigger', 'Blank external trigger']) {
       const button = page.getByRole('button', { name: `Show data table for ${name}` });
       await button.click();
       await expect(page.getByRole('table', { name: `Data for ${name}` })).toBeVisible();

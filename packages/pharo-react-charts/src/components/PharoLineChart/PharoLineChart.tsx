@@ -1,5 +1,4 @@
-import { useId, useRef, useState } from 'react';
-import type { PointerEvent } from 'react';
+import { useId, useState } from 'react';
 import { useChartSize } from '../../hooks/useChartSize/useChartSize';
 import { mergeClasses } from '../../styles/mergeClasses';
 import {
@@ -13,10 +12,9 @@ import {
 import { PharoChartDataTable } from '../PharoChartDataTable';
 import { PharoChartAxes } from './components/PharoChartAxes';
 import { PharoChartInspection } from './components/PharoChartInspection';
-import { useExternalDataTrigger } from './hooks/useExternalDataTrigger';
+import { useChartInspection } from './hooks/useChartInspection';
 import { prepareChartGeometry } from './geometry';
 import { identityConfiguration, prepareXLabels, resolveIdentities } from './utils';
-import { findNearestTimestamp } from './inspection';
 import {
   baselineStyles,
   containerStyles,
@@ -40,7 +38,6 @@ import type {
   ChartGeometry,
   ChartIdentityState,
   ChartInspectionDetail,
-  ChartTouchGesture,
   PharoLineChartProps as Props,
 } from './types';
 
@@ -78,22 +75,18 @@ export function PharoLineChart(props: Props) {
     className,
   } = props;
   const { ref, width, height, fontSize } = useChartSize();
-  const [figure, setFigure] = useState<HTMLElement | null>(null);
-  const externalTrigger = useExternalDataTrigger({
-    owner: figure,
-    triggerId:
-      dataTable?.mode === 'external' && typeof dataTable.triggerId === 'string'
-        ? dataTable.triggerId
-        : undefined,
-  });
+  const externalTrigger =
+    dataTable?.mode === 'external' &&
+    typeof dataTable.triggerId === 'string' &&
+    dataTable.triggerId.trim()
+      ? dataTable.triggerId
+      : undefined;
   const uniqueId = useId();
   const titleId = uniqueId + '-title';
   const descriptionId = uniqueId + '-description';
   const clipId = uniqueId + '-clip';
   const tableId = uniqueId + '-table';
-  const [selectedTimestamp, setSelectedTimestamp] = useState<number | undefined>();
   const [tableOpen, setTableOpen] = useState(false);
-  const touchGesture = useRef<ChartTouchGesture | null>(null);
   const configuration = identityConfiguration(series);
   const [identityState, setIdentityState] = useState<ChartIdentityState>(() =>
     resolveIdentities(
@@ -132,18 +125,14 @@ export function PharoLineChart(props: Props) {
     geometry.kind === 'ready'
       ? prepareXLabels(geometry.xTicks, axisDate, geometry.plot, fontSize)
       : [];
-  let inspectedTimestamp: number | undefined;
-  if (geometry.kind === 'ready') {
-    inspectedTimestamp = findNearestTimestamp(
-      timeline,
-      selectedTimestamp ?? timeline.at(-1) ?? NaN,
-    );
-    // Only an explicit user choice becomes state; later async records keep the implicit latest fresh.
-    if (selectedTimestamp !== undefined && inspectedTimestamp !== selectedTimestamp)
-      setSelectedTimestamp(inspectedTimestamp);
-  } else if (geometry.kind !== 'unmeasured' && selectedTimestamp !== undefined) {
-    setSelectedTimestamp(undefined);
-  }
+  const {
+    timestamp: inspectedTimestamp,
+    onInspect,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
+  } = useChartInspection({ geometry, timeline });
   const details: readonly ChartInspectionDetail[] =
     geometry.kind === 'ready' && inspectedTimestamp !== undefined
       ? inspectTimestamp(geometry.series, inspectedTimestamp).map((row) => ({
@@ -163,60 +152,8 @@ export function PharoLineChart(props: Props) {
           (geometry.plot.right - geometry.plot.left)
       : undefined;
 
-  const inspectPointer = (event: PointerEvent<SVGSVGElement>) => {
-    if (geometry.kind !== 'ready' || !Number.isFinite(event.clientX)) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    if (!Number.isFinite(bounds.left) || !Number.isFinite(bounds.width) || bounds.width <= 0)
-      return;
-    const proportion = (event.clientX - bounds.left) / bounds.width;
-    if (!Number.isFinite(proportion)) return;
-    const svgX = Math.max(0, Math.min(1, proportion)) * geometry.width;
-    const plotProportion = Math.max(
-      0,
-      Math.min(1, (svgX - geometry.plot.left) / (geometry.plot.right - geometry.plot.left)),
-    );
-    const candidate =
-      (1 - plotProportion) * geometry.xDomain[0] + plotProportion * geometry.xDomain[1];
-    const nearest = findNearestTimestamp(timeline, candidate);
-    if (nearest !== undefined) setSelectedTimestamp(nearest);
-  };
-
-  const beginPointer = (event: PointerEvent<SVGSVGElement>) => {
-    if (event.pointerType !== 'touch') return;
-    const previous = touchGesture.current;
-    if (previous && previous.pointerId !== event.pointerId) {
-      touchGesture.current = { ...previous, moved: true };
-      return;
-    }
-    touchGesture.current =
-      geometry.kind === 'ready' && Number.isFinite(event.clientX) && Number.isFinite(event.clientY)
-        ? { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false }
-        : null;
-  };
-
-  const movePointer = (event: PointerEvent<SVGSVGElement>) => {
-    if (event.pointerType !== 'touch') {
-      inspectPointer(event);
-      return;
-    }
-    const gesture = touchGesture.current;
-    if (!gesture || gesture.pointerId !== event.pointerId) return;
-    const distance = Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY);
-    if (!Number.isFinite(distance) || distance > 8)
-      touchGesture.current = { ...gesture, moved: true };
-  };
-
-  const completePointer = (event: PointerEvent<SVGSVGElement>) => {
-    if (event.pointerType !== 'touch') return;
-    const gesture = touchGesture.current;
-    if (!gesture || gesture.pointerId !== event.pointerId) return;
-    touchGesture.current = null;
-    const distance = Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY);
-    if (!gesture.moved && Number.isFinite(distance) && distance <= 8) inspectPointer(event);
-  };
-
   return (
-    <figure ref={setFigure} className={figureStyles}>
+    <figure className={figureStyles}>
       {geometry.kind === 'ready' ? (
         <ul aria-label={`Legend for ${label}`} className={legendStyles}>
           {geometry.series.map((item) => {
@@ -265,12 +202,10 @@ export function PharoLineChart(props: Props) {
             viewBox={`0 0 ${geometry.width} ${geometry.height}`}
             width={geometry.width}
             height={geometry.height}
-            onPointerDown={beginPointer}
-            onPointerMove={movePointer}
-            onPointerUp={completePointer}
-            onPointerCancel={(event) => {
-              if (touchGesture.current?.pointerId === event.pointerId) touchGesture.current = null;
-            }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
           >
             <title id={titleId}>{label}</title>
             {description ? <desc id={descriptionId}>{description}</desc> : null}
@@ -384,7 +319,7 @@ export function PharoLineChart(props: Props) {
           date={selectedDate}
           valueText={valueText}
           details={details}
-          onInspect={setSelectedTimestamp}
+          onInspect={onInspect}
         />
       ) : null}
       {records.kind === 'ready' && timeline.length > 0 && !externalTrigger ? (

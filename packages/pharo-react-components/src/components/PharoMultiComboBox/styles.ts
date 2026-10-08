@@ -13,6 +13,7 @@ export const styles: Record<
   | 'content'
   | 'text'
   | 'state'
+  | 'selection'
   | 'empty',
   string
 > = {
@@ -35,5 +36,6 @@ export const styles: Record<
   content: 'flex min-w-0 grow items-center justify-between gap-pharo-2',
   text: 'min-w-0 wrap-break-word',
   state: 'shrink-0 text-pharo-xs font-medium',
+  selection: 'flex min-w-0 flex-wrap items-center gap-pharo-2',
   empty: 'p-pharo-3 text-pharo-sm text-pharo-muted',
 };

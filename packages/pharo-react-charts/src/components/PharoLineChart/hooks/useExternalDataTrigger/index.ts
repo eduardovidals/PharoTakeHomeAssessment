@@ -1,1 +1,0 @@
-export { useExternalDataTrigger } from './useExternalDataTrigger';

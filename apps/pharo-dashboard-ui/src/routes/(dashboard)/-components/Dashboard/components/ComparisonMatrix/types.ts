@@ -61,6 +61,7 @@ export type ComparisonStylePart =
   | 'heading'
   | 'description'
   | 'announcement'
+  | 'scrollHint'
   | 'scroll'
   | 'table'
   | 'columnHeader'

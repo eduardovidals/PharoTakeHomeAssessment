@@ -73,6 +73,8 @@ export interface PharoMultiComboBoxProps<Item extends object> {
   readonly className?: string;
   /** Complete tag classes for consumer-owned categorical appearance. */
   readonly tagClassName?: (key: Key) => string;
+  /** Consumer-owned supporting actions beside the selected tags, wrapping on small screens. */
+  readonly selectionActions?: ReactNode;
   /** Optional visual option content; itemText still supplies the accessible text. */
   readonly renderItem?: (item: Item) => ReactNode;
 }
