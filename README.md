@@ -1,6 +1,6 @@
 # Pharo instrument price dashboard
 
-A local React and ASP.NET Core dashboard for the supplied synthetic historical prices. Search the instrument list, select up to three tickers, inspect their raw closing-price histories, and compare total return, daily sample volatility and maximum drawdown. Selection is shareable through the URL.
+A local React and ASP.NET Core dashboard for the supplied synthetic historical prices. Choose up to three instruments, compare raw prices or rebased performance, and read their full-window statistics in one matrix. Complete raw observations open in a dialog. Selection and the optional chart view are shareable through the URL.
 
 ## Run locally
 
@@ -62,7 +62,7 @@ pnpm browser:install # first time only
 pnpm screenshots
 ```
 
-PNG images are written to `screenshots/` at the repository root. The walkthrough covers selections, search, pagination, button states, charts, tables, loading, errors, retry recovery, and desktop/tablet/mobile layouts. Filenames containing `simulated` identify deliberately delayed, failed or empty API responses. It uses separate test ports, stops its own servers, and produces no HTML gallery. Images are ignored by Git; rerunning refreshes the numbered files.
+PNG images are written to `screenshots/` at the repository root. The walkthrough covers the searchable picker, selection tags and limits, Price/Performance views, comparison matrix, raw-data dialog, button states, loading, errors, retry recovery, and desktop/tablet/mobile layouts. Filenames containing `simulated` identify deliberately delayed, failed or empty API responses. It uses separate test ports, stops its own servers, and produces no HTML gallery. Images are ignored by Git; rerunning refreshes the numbered files.
 
 Install the pinned Chromium browser before browser-backed checks:
 
@@ -75,7 +75,7 @@ pnpm validate
 
 `pnpm test` runs the .NET tests, frontend/package unit tests, executable Storybook tests, and infrastructure checks. `pnpm test:e2e` runs the compiled app against the real API and isolated public-package browser consumers. `pnpm validate` combines workspace/route-generation checks, lint, types, C# formatting, tests, builds, infrastructure and e2e through one Nx graph. These commands describe reproducible checks; this README is not a validation report.
 
-On Linux, Playwright may also require system libraries: use `node scripts/playwright.mjs install --with-deps chromium`. CI installs these before validation. Browser and .NET caches live under ignored `node_modules/.cache`.
+On Linux, Playwright may also require system libraries: use `node scripts/playwright.mjs install --with-deps chromium`. Browser and .NET caches live under ignored `node_modules/.cache`.
 
 Three independent catalogs are available:
 
@@ -116,15 +116,21 @@ Tickers are trimmed and normalized to invariant uppercase. Invalid or unknown id
 
 ## Reading the dashboard
 
-Search is a form-owned draft; selecting/removing instruments changes the URL. Results are paged ten at a time, so the complete list remains reachable. A link such as `/?tickers=TICK0001,TICK0002` preserves selection through reload and browser Back/Forward. A fourth selection leaves the current three unchanged and explains the limit.
+The React Aria **Compare instruments** picker searches the cached list locally, ranking exact matches before prefixes and other matches. Its bounded popup keeps every candidate reachable without pagination. Arrow keys and Enter choose an active result; Escape dismisses the popup without clearing your search. Selected tags remain removable even when an instrument is unknown or the list is unavailable. **Clear search** clears only the draft; **Clear selection** resets selected tickers and the explicit chart view. The optional `/` shortcut focuses the picker outside editable or modal contexts.
 
-The chart overlays **raw prices** on shared UTC-date and price axes. It does not rebase prices, imply a currency, or present a live feed. Legends use both color and dash patterns. Pointer inspection, touch taps and the labeled native keyboard range select recorded dates; a full data table provides a readable alternative. Failed or pending histories remain named while successful siblings stay usable, with resource-specific retry actions.
+A link such as `/?tickers=TICK0001,TICK0002&view=price` preserves ordered selection and an explicit view through reload and browser Back/Forward. Without `view`, zero or one selected ticker defaults to **Price**, and two or three default to **Performance**. An explicit choice remains through later selection changes. A fourth selection leaves the current three unchanged and explains the limit.
 
-Statistics are percentage points, displayed to two decimal places: `5` is `5.00%`, not `500%`. Daily volatility is the sample deviation of simple consecutive returns, with no annualization; fewer than three prices produce `Not enough observations`. Drawdown is a positive loss magnitude. Exact formulas, package boundaries and tradeoffs are in [DESIGN.md](DESIGN.md). Reusable chart APIs are documented in the [chart package README](packages/pharo-react-charts/README.md).
+**Price** plots raw closing prices. **Performance** plots `100 × (price / firstObservedPrice − 1)` for each instrument, using its own first recorded price without rounding the source values. It describes price change, not adjusted total return. The chart preserves gaps and shows a zero reference in Performance mode. A shared recorded range/count appears once when available histories agree; differing windows are identified, with per-instrument ranges and bases in **View data**. Missing resources never become zero-valued data, and prices carry no specified currency.
+
+Dates are formatted in UTC with Day.js; the date axis samples actual recorded timestamps. Color and dash identities agree across tags, chart and matrix. Pointer inspection, touch taps and the labeled native keyboard range select recorded dates. Inspection starts at the latest observation and preserves an explicit date through valid mode changes. The comparison matrix always shows each instrument’s full-window latest close, total return, daily volatility and maximum drawdown; hovering the chart does not change those metrics.
+
+**View data** opens **Raw observations**, containing every recorded row and selected column even in Performance mode. Unavailable values remain explicit. The dialog scrolls locally, supports Close and Escape, and returns focus to its trigger; it does not refetch data or unmount the chart. Unknown identifiers offer Remove, while transient failures offer only the affected price/statistics retry. Healthy peers remain usable.
+
+Statistics are percentage points, displayed to two decimal places: `5` is `5.00%`, not `500%`. Daily volatility is the sample deviation of consecutive simple returns, with no annualization; fewer than three prices produce `Not enough observations`. Drawdown is a positive loss magnitude. Exact formulas, package boundaries and tradeoffs are in [DESIGN.md](DESIGN.md). Reusable chart APIs are documented in the [chart package README](packages/pharo-react-charts/README.md).
 
 ## Scope and assistance
 
-This take-home uses one immutable startup dataset, without a database, authentication, live ingestion, corporate-action adjustments or production hosting. The initial dashboard bundles its UI/form/chart dependencies together; no bundle budget or production-performance claim is made.
+This take-home uses one immutable startup dataset, without a database, authentication, live ingestion, corporate-action adjustments or production hosting. The dashboard loads its shared controls and chart code eagerly; no bundle budget or production-performance claim is made.
 
 OpenAI Codex assisted implementation, tests, review and documentation. The repository includes literal calculation tests, an independent dataset oracle, API integration tests and browser scenarios so behavior can be inspected and reproduced rather than inferred from this description.
 

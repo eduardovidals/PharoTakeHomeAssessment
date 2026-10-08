@@ -44,7 +44,7 @@ export function Measurements() {
 }
 ```
 
-The public types are `PharoChartPoint`, `PharoChartSeries`, `PharoChartAppearance` and `PharoLineChartProps`. Import from the package root; geometry and measurement helpers are internal.
+The public types include `PharoChartPoint`, `PharoChartSeries`, `PharoChartAppearance`, `PharoLineChartProps`, `PharoChartFormatters`, `PharoChartDataTableMode` and `PharoChartDataTableProps`. Import from the package root; geometry and measurement helpers are internal.
 
 ## Load the theme once
 
@@ -70,9 +70,9 @@ Loading, network failures, retries and financial calculations belong to the cons
 
 ## Size and formatting
 
-The chart observes its actual plot container with ResizeObserver. Default plot height is `20rem` (320px with the theme's base font size). `className` merges onto that measured container, so `className="h-96"` changes the measured plot height. Give the chart a usable width; insufficient space displays a named status. Legend, inspection controls and the table sit outside the measured plot and add to the figure's total height.
+The chart observes its actual plot container with ResizeObserver and reads its computed font size to scale axis budgets and gutters. Default plot height is `20rem` (320px with the theme's base font size). `className` merges onto that measured container, so `className="h-96"` changes the measured plot height. Give the chart a usable width; insufficient space displays a named status. Legend, inspection controls and the table sit outside the measured plot and add to the figure's total height.
 
-Each mounted instance owns its observer, selection and appearance history. Observer ownership is retired on container replacement and unmount; no global resize listener or caller cleanup is required. A temporary unmeasured state retains inspection selection. Empty or invalid input clears it.
+Each mounted instance owns its ResizeObserver, typography MutationObserver, owning-window resize listener, selection and appearance history. Ancestor class/style changes and window resizing recheck font size even when a fixed-size plot does not resize. All observers/listeners are retired on container replacement or unmount; callers need no cleanup. A temporary unmeasured state retains inspection selection. Empty or invalid input clears it.
 
 `label` is the required accessible SVG name; `description` supplies optional descriptive text. Optional `xAxisLabel` and `yAxisLabel` describe units. Seven independent callbacks format presentation only:
 
@@ -86,7 +86,7 @@ Each mounted instance owns its observer, selection and appearance history. Obser
 | `formatYDetail(value)` | Exact inspection value | Full plain number |
 | `formatYTable(value)` | Exact table value | Full plain number |
 
-The old `formatX`/`formatY` aliases are rejected. No callback changes underlying observations or implies currency. Complete axis strings remain in SVG titles; width budgets compact text without squeezing glyphs. Formatter exceptions propagate, so callbacks should handle their valid input domain.
+The old `formatX`/`formatY` aliases are rejected. No callback changes underlying observations or implies currency. Complete axis strings remain in SVG titles. Label budgets use the measured font size, sampling ticks and compacting long labels without squeezing glyphs; axis offsets/gutters scale with that typography. Formatter exceptions propagate, so callbacks should handle their valid input domain.
 
 Optional `xTickValues` supplies readonly UTC epoch-millisecond candidates. Values must be unique finite integers within JavaScript's Date range. The chart sorts a copy, drops candidates outside its display domain and positions them through the UTC scale. An empty array intentionally omits x ticks; omission retains automatic generic UTC ticks. Pass the recorded timestamp union when every displayed date must correspond to an observation, including explicit null records. Measured plot width selects a readable subset, keeping endpoints when both fit. Tick choices never change the inspection timeline or table.
 
@@ -106,7 +106,9 @@ Inspection initially shows the latest actual timestamp and follows later records
 
 `PharoLineChart` uses that same renderer for its default inline disclosure. To compose a separate consumer-owned data surface, supply `dataTable={{ mode: 'external', triggerId: 'raw-data' }}` and render a real enabled, named, visible keyboard-reachable button with that ID which opens your `PharoChartDataTable`. The chart associates its SVG using `aria-details`. The package has no modal or base-UI dependency.
 
-A missing, blank, hidden or disabled external trigger leaves the inline alternative available. An instance-owned observer updates this fallback if the consumer changes the trigger and disconnects on cleanup; measured resize also rechecks responsive visibility. Omitting `dataTable`, or `{mode: 'inline'}`, keeps standalone access. There is no `none` mode. Consumers own the table's source series and can expose raw records while plotting a transformed view.
+A missing, duplicate-ID, blank, unnamed, visually hidden or disabled external trigger leaves the inline alternative available. Ordinary triggers must also remain outside `inert`/`aria-hidden` ancestors. An already observed valid native button has one narrow modal exception: while expanded, its single `aria-controls` target must be a uniquely identified, named, visible active dialog outside the common ancestor that masks both button and chart. This preserves the established association while an accessible modal temporarily hides its background; a newly hidden/replaced trigger or a fake dialog does not qualify.
+
+An instance-owned observer updates this fallback when the relevant DOM changes and disconnects on cleanup; responsive re-renders also recheck visibility. Omitting `dataTable`, or `{mode: 'inline'}`, keeps standalone access. There is no `none` mode. Consumers own the table's source series and can expose raw records while plotting a transformed view, without adding a UI-package dependency to this library.
 
 ## Workspace commands
 
@@ -130,12 +132,4 @@ The report records production build settings and runtime versions, included-modu
 
 Consumer figures describe the complete minified fixture, including React/React DOM, retained D3 code, theme CSS and its small harness. The library's unminified externalized ESM is measured separately and excludes dependency bytes. Module rendered lengths are diagnostics, not additive compressed attribution. Use the report from the actual successful run for measured results; no size budget or cross-library comparison is implied.
 
-The verified production consumer on 7 October 2026 used Node 24.14.1 (zlib 1.3.1-e00f703), Vite 8.3.3, Rolldown 1.2.12, Oxc JavaScript minification and Lightning CSS minification. The browser lane verified these same emitted bytes:
-
-| Output                                                   |   Bytes | Gzip level 9 bytes |
-| -------------------------------------------------------- | ------: | -----------------: |
-| Complete consumer JavaScript                             | 305,351 |             95,902 |
-| Complete consumer CSS                                    |  12,745 |              3,444 |
-| Externalized library ESM, excluding dependencies and CSS |  30,655 |              8,042 |
-
-The consumer graph contained 82 module records, 80 with positive rendered lengths, and one physical root for each of React and React DOM. Focused D3 modules retain their required scale, calendar, formatting and interpolation dependencies. There are no base UI, forms, Router, Query, app/API, story or test-runtime modules in that consumer graph. Rerun the browser lane for current sizes after changing code, dependencies or build settings.
+Earlier assessment measurements predate the current controls, data-table extraction and typography handling. They are not current size claims; rerun the browser lane and inspect its report after changing code, dependencies or build settings. The isolated consumer graph is checked for forbidden base UI, forms, Router, Query, app/API, story and test-runtime modules.
