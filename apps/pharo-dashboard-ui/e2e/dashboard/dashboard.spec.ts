@@ -27,9 +27,9 @@ async function expectContainedDocument(page: Page) {
 
 // Every case uses the compiled UI, owned ASP.NET host and supplied CSV. No API mock.
 test.describe('Browse and inspect historical instruments', () => {
-  test('reaches every instrument through paging and keeps search separate from selection', async ({
+  test('reaches all 200 candidates in the popup and keeps ranked search entirely local', async ({
     page,
-  }) => {
+  }, testInfo) => {
     const requests: string[] = [];
     const record = (request: Request) => {
       const path = new URL(request.url()).pathname;
@@ -38,83 +38,133 @@ test.describe('Browse and inspect historical instruments', () => {
     page.on('request', record);
     try {
       await page.goto('/');
-      const results = page.getByRole('list', { name: 'Instrument results', exact: true });
-      await expect(results.getByRole('button')).toHaveCount(10);
-      await expect(page.getByRole('button', { name: 'Previous page' })).toBeDisabled();
-      const reached = new Set<string>();
-      for (let currentPage = 1; currentPage <= 20; currentPage += 1) {
-        await expect(
-          page.getByText(
-            `Showing ${(currentPage - 1) * 10 + 1}–${currentPage * 10} of 200 instruments. Page ${currentPage} of 20.`,
-            { exact: true },
-          ),
-        ).toBeVisible();
-        const labels = await results
-          .getByRole('button')
-          .evaluateAll((elements: { getAttribute(name: string): string | null }[]) =>
-            elements.map((element) => element.getAttribute('aria-label')),
-          );
-        for (const label of labels) {
-          expect(label).toMatch(/^Add TICK\d{4}$/);
-          if (label) reached.add(label.slice(4));
-        }
-        if (currentPage < 20) {
-          await page.getByRole('button', { name: 'Next page' }).press('Enter');
-          await expect(
-            results.getByRole('button', {
-              name: `Add TICK${String(currentPage * 10 + 1).padStart(4, '0')}`,
-              exact: true,
-            }),
-          ).toBeFocused();
-        }
-      }
-      expect(reached.size).toBe(200);
-      expect(reached.has('TICK0001')).toBe(true);
-      expect(reached.has('TICK0200')).toBe(true);
-      await expect(page.getByRole('button', { name: 'Next page' })).toBeDisabled();
+      const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+      await input.click();
+      const results = page.getByRole('listbox');
+      await expect(results.getByRole('option')).toHaveCount(200);
+      expect(new Set(await results.getByRole('option').allTextContents()).size).toBe(200);
+      await expect(page.getByRole('button', { name: /Next page|Previous page/ })).toHaveCount(0);
+      const last = results.getByRole('option', { name: 'TICK0200', exact: true });
+      await last.scrollIntoViewIfNeeded();
+      await expect(last).toBeVisible();
+      const popupBox = await results.boundingBox();
+      if (!popupBox) throw new Error('Expected bounded candidate popup');
+      expect(popupBox.height).toBeLessThanOrEqual(300);
       expect(requests).toEqual(['/api/instruments']);
-
-      const search = page.getByRole('textbox', { name: 'Search instruments', exact: true });
-      await search.fill('  tiCk0001  ');
-      await expect(search).toBeFocused();
-      await expect(search).toHaveValue('  tiCk0001  ');
-      await expect(results.getByRole('button')).toHaveCount(1);
+      await input.fill('  tiCk0001  ');
+      await expect(input).toHaveValue('  tiCk0001  ');
+      await expect(results.getByRole('option')).toHaveCount(1);
+      const first = results.getByRole('option', { name: 'TICK0001', exact: true });
+      await expect(input).toHaveAttribute(
+        'aria-activedescendant',
+        (await first.getAttribute('id')) ?? '',
+      );
       expect(new URL(page.url()).search).toBe('');
       expect(requests).toEqual(['/api/instruments']);
-      await search.press('Tab');
-      await expect(page.getByRole('button', { name: 'Clear search' })).toBeFocused();
-      await page.keyboard.press('Tab');
-      const add = results.getByRole('button', { name: 'Add TICK0001', exact: true });
-      await expect(add).toBeFocused();
-      await expect(add).toHaveCSS('outline', 'rgb(0, 111, 166) solid 3px');
-      await page.keyboard.press('Enter');
+      await page.screenshot({
+        path: testInfo.outputPath('picker-keyboard-active.png'),
+        fullPage: true,
+      });
+      await input.dispatchEvent('compositionstart');
+      await input.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true });
+      expect(new URL(page.url()).search).toBe('');
+      await input.dispatchEvent('compositionend');
+      await input.press('Enter');
+      await expect(input).toHaveValue('');
+      await input.press('Escape');
       await expect(
         page.getByRole('region', { name: 'TICK0001 statistics', exact: true }),
       ).toContainText('-9.17%');
-      await expect(
-        page.getByRole('img', { name: 'Historical closing prices', exact: true }),
-      ).toBeVisible();
+      const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
+      await expect(chart).toBeVisible();
       const fetched = [...requests];
-
-      await search.fill('no match');
+      // React Aria hides background roles while the popup is open; retain this exact chart only for geometry measurements.
+      const chartElement = await chart.elementHandle();
+      if (!chartElement) throw new Error('Expected the existing chart element');
+      const before = await chartElement.boundingBox();
+      await input.fill('no match');
       await expect(
         page.getByText('No instruments match your search.', { exact: true }),
       ).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Remove selected TICK0001' })).toBeVisible();
+      const after = await chartElement.boundingBox();
+      expect(after?.y).toBe(before?.y);
+      await input.press('Enter');
+      await expect(input).toHaveValue('no match');
+      await input.press('Escape');
+      await expect(page.getByRole('button', { name: 'Remove TICK0001' })).toBeVisible();
       await page.getByRole('button', { name: 'Clear search' }).click();
-      await expect(search).toBeFocused();
-      await expect(search).toHaveValue('');
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue('');
       expect(new URL(page.url()).searchParams.get('tickers')).toBe('TICK0001');
       expect(requests).toEqual(fetched);
-      await search.fill('0001');
+      await input.fill('0001');
+      await input.press('Escape');
       await page.getByRole('button', { name: 'Clear selection' }).click();
-      await expect(search).toBeFocused();
-      await expect(search).toHaveValue('0001');
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue('0001');
+      await input.press('Escape');
       await expect(page.getByRole('article')).toHaveCount(0);
       expect(new URL(page.url()).search).toBe('');
       expect(requests).toEqual(fetched);
     } finally {
       page.off('request', record);
+    }
+  });
+
+  test('keeps one compact overlay picker for empty, single and capped comparisons across widths', async ({
+    page,
+  }, testInfo) => {
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+      for (const [state, route] of [
+        ['empty', '/'],
+        ['single', '/?tickers=TICK0001'],
+        ['three', '/?tickers=TICK0001,TICK0002,TICK0003'],
+      ] as const) {
+        await page.goto(route);
+        const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+        await expect(input).toHaveCount(1);
+        await expect(page.getByRole('button', { name: 'Retry instruments' })).toHaveCount(0);
+        if (state !== 'empty') {
+          await expect(
+            page.getByRole('region', { name: 'TICK0001 statistics', exact: true }),
+          ).toContainText('-9.17%');
+        }
+        await expectContainedDocument(page);
+        await page.screenshot({
+          path: testInfo.outputPath(`toolbar-${width}-${state}.png`),
+          fullPage: true,
+        });
+        if (state === 'three' || state === 'empty') {
+          const before = await page
+            .getByRole('region', { name: 'Selected instruments', exact: true })
+            .boundingBox();
+          await input.click();
+          const choices = page.getByRole('listbox');
+          await expect(choices.getByRole('option')).toHaveCount(200);
+          const popupBox = await choices.boundingBox();
+          if (!popupBox || !before) throw new Error('Expected measured overlay and analysis');
+          expect(popupBox.x).toBeGreaterThanOrEqual(0);
+          expect(popupBox.x + popupBox.width).toBeLessThanOrEqual(width);
+          expect(popupBox.height).toBeLessThanOrEqual(300);
+          if (state === 'three')
+            await expect(
+              choices.getByRole('option', { name: 'TICK0004', exact: true }),
+            ).toHaveAttribute('aria-disabled', 'true');
+          await page.screenshot({
+            path: testInfo.outputPath(`toolbar-${width}-${state}-open.png`),
+            fullPage: true,
+          });
+          await input.press('Escape');
+          expect(
+            (
+              await page
+                .getByRole('region', { name: 'Selected instruments', exact: true })
+                .boundingBox()
+            )?.y,
+          ).toBe(before.y);
+        }
+      }
     }
   });
 
@@ -183,12 +233,12 @@ test.describe('Browse and inspect historical instruments', () => {
     await expect(details.getByText('Mon, Aug 3, 2026', { exact: true })).toBeVisible();
     await expect(details.getByText('172.89', { exact: true })).toBeVisible();
 
-    const selector = page.getByRole('region', { name: 'Available instruments', exact: true });
+    const selector = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
     const analysis = page.getByRole('region', { name: 'Selected instruments', exact: true });
     const selectorBox = await selector.boundingBox();
     const analysisBox = await analysis.boundingBox();
     if (!selectorBox || !analysisBox) throw new Error('Expected measured dashboard panels');
-    expect(analysisBox.x).toBeGreaterThanOrEqual(selectorBox.x + selectorBox.width);
+    expect(analysisBox.y).toBeGreaterThanOrEqual(selectorBox.y + selectorBox.height);
     await expectContainedDocument(page);
     await page.screenshot({ path: testInfo.outputPath('dashboard-desktop.png'), fullPage: true });
     await page
@@ -236,11 +286,14 @@ test.describe('Inspect prices on a narrow touch screen', () => {
     page,
   }, testInfo) => {
     await page.goto('/');
-    const search = page.getByRole('textbox', { name: 'Search instruments', exact: true });
+    const search = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
     await search.fill('0001');
-    const add = page.getByRole('button', { name: 'Add TICK0001', exact: true });
+    const add = page.getByRole('option', { name: 'TICK0001', exact: true });
+    await expect(add).toBeVisible();
     expect((await add.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     await add.tap();
+    await expect(search).toHaveValue('');
+    await search.press('Escape');
     const chart = page.getByRole('img', { name: 'Historical closing prices', exact: true });
     await expect(chart).toBeVisible();
     await chart.scrollIntoViewIfNeeded();
@@ -274,9 +327,10 @@ test.describe('Inspect prices on a narrow touch screen', () => {
       path: testInfo.outputPath('dashboard-narrow-touch.png'),
       fullPage: true,
     });
-    await page.getByRole('button', { name: 'Remove selected TICK0001', exact: true }).tap();
+    await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).tap();
     await expect(search).toBeFocused();
-    await expect(search).toHaveValue('0001');
+    await expect(search).toHaveValue('');
+    await search.press('Escape');
     await expect(page.getByRole('article')).toHaveCount(0);
     expect(new URL(page.url()).search).toBe('');
   });

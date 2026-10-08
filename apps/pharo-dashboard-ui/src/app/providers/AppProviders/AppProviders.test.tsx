@@ -39,9 +39,7 @@ test('mounts its file route with the router cache and isolates application insta
     },
   });
 
-  expect(
-    await first.view.findByRole('heading', { name: 'Instrument price dashboard' }),
-  ).toBeVisible();
+  expect(await first.view.findByRole('heading', { name: 'Instrument Analytics' })).toBeVisible();
   expect(first.router.options.context.queryClient).toBe(first.queryClient);
   expect(second.router.options.context.queryClient).toBe(second.queryClient);
   expect(first.queryClient).not.toBe(second.queryClient);
@@ -54,6 +52,6 @@ test('mounts its file route with the router cache and isolates application insta
   expect(second.queryClient.getQueryData(['isolation-witness'])).toBeUndefined();
 
   await first.dispose();
-  expect(second.view.getByRole('heading', { name: 'Instrument price dashboard' })).toBeVisible();
+  expect(second.view.getByRole('heading', { name: 'Instrument Analytics' })).toBeVisible();
   await second.dispose();
 });

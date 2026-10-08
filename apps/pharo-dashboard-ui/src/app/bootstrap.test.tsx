@@ -36,7 +36,7 @@ test('mounts isolated real provider/router graphs and retires only its own insta
   const second = await mount();
   try {
     expect(
-      await within(first.element).findByRole('heading', { name: 'Instrument price dashboard' }),
+      await within(first.element).findByRole('heading', { name: 'Instrument Analytics' }),
     ).toBeVisible();
     expect(first.app.router.options.context.queryClient).toBe(first.app.queryClient);
     expect(first.app.router.options.context.apiClient).toBe(first.app.apiClient);
@@ -46,7 +46,7 @@ test('mounts isolated real provider/router graphs and retires only its own insta
     await act(() => first.app.dispose());
     expect(first.element).toBeEmptyDOMElement();
     expect(
-      within(second.element).getByRole('heading', { name: 'Instrument price dashboard' }),
+      within(second.element).getByRole('heading', { name: 'Instrument Analytics' }),
     ).toBeVisible();
   } finally {
     await act(async () => {

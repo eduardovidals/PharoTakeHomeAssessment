@@ -72,11 +72,7 @@ export function PriceHistory(props: Props) {
                 ))}
               </ul>
             </div>
-          ) : (
-            <p className={historyStyles.notice}>
-              {formatDateRange(ticks.at(0), ticks.at(-1))} (UTC)
-            </p>
-          )}
+          ) : null}
           <PharoLineChart
             label={label}
             description={description}

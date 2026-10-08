@@ -1,9 +1,14 @@
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-const output = fileURLToPath(new URL('../../../screenshots/', import.meta.url));
+const output = process.env.PHARO_SCREENSHOT_DIR
+  ? resolve(process.env.PHARO_SCREENSHOT_DIR)
+  : fileURLToPath(new URL('../../../screenshots/', import.meta.url));
+
+test.use({ actionTimeout: 10000 });
 
 test.describe('Review the dashboard screens and interactions', () => {
   test('capture the dashboard screens and interactions as numbered PNGs', async ({ page }) => {
@@ -12,11 +17,25 @@ test.describe('Review the dashboard screens and interactions', () => {
     let number = 0;
     async function capture(name: string, screen: Page = page) {
       const filename = `${String(++number).padStart(2, '0')}-${name}.png`;
-      await screen.screenshot({ path: output + filename, fullPage: true, animations: 'disabled' });
+      await screen.screenshot({
+        path: join(output, filename),
+        fullPage: true,
+        animations: 'disabled',
+      });
       console.log(filename);
     }
     const button = (name: string) => page.getByRole('button', { name, exact: true });
-    const search = page.getByRole('textbox', { name: 'Search instruments', exact: true });
+    const search = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+    const option = (ticker: string) => page.getByRole('option', { name: ticker, exact: true });
+    async function add(ticker: string) {
+      await search.fill(ticker);
+      await option(ticker).click();
+      await expect
+        .poll(() => new URL(page.url()).searchParams.get('tickers')?.split(',').includes(ticker))
+        .toBe(true);
+      await expect(search).toHaveValue('');
+      await search.press('Escape');
+    }
     async function ready(tickers: string[]) {
       for (const ticker of tickers) {
         await expect(
@@ -30,13 +49,21 @@ test.describe('Review the dashboard screens and interactions', () => {
 
     // Normal flows use the real application, API and supplied CSV.
     await page.goto('/');
-    await expect(button('Add TICK0001')).toBeVisible();
+    await search.focus();
+    await expect(option('TICK0001')).toBeVisible();
+    await search.press('Escape');
     await capture('desktop-initial-empty-selection');
-    await button('Add TICK0001').hover();
-    await capture('add-button-hover');
+    await search.press('ArrowDown');
+    await expect(page.getByRole('listbox')).toBeVisible();
+    await capture('focused-picker-all-instruments');
+    await option('TICK0001').hover();
+    await capture('instrument-option-hover');
     await page.mouse.down();
-    await capture('add-button-pressed');
+    await capture('instrument-option-pressed');
     await page.mouse.up();
+    await expect.poll(() => new URL(page.url()).searchParams.get('tickers')).toBe('TICK0001');
+    await expect(search).toHaveValue('');
+    await search.press('Escape');
     await ready(['TICK0001']);
     await capture('single-instrument-chart-and-statistics');
 
@@ -55,10 +82,10 @@ test.describe('Review the dashboard screens and interactions', () => {
     await capture('expanded-price-data-table');
     await button('Hide data table for Historical closing prices').click();
 
-    await button('Add TICK0002').click();
+    await add('TICK0002');
     await ready(['TICK0001', 'TICK0002']);
     await capture('two-instrument-comparison');
-    await button('Add TICK0003').click();
+    await add('TICK0003');
     await ready(['TICK0001', 'TICK0002', 'TICK0003']);
     await capture('three-instrument-performance-comparison');
     await page
@@ -66,45 +93,59 @@ test.describe('Review the dashboard screens and interactions', () => {
       .getByText('Price', { exact: true })
       .click();
     await capture('three-instrument-price-comparison');
-    await button('Add TICK0004').click();
-    await expect(
-      page.getByText('You can compare up to three instruments. Remove one before adding another.'),
-    ).toBeVisible();
-    await capture('fourth-instrument-limit-notice');
-    await button('Remove selected TICK0002').click();
-    await expect(button('Remove selected TICK0002')).toHaveCount(0);
-    await capture('remove-selection-chip');
-    await button('Remove TICK0003').click();
-    await expect(button('Remove selected TICK0003')).toHaveCount(0);
-    await capture('remove-from-instrument-list');
+    await search.fill('TICK0004');
+    await expect(option('TICK0004')).toBeDisabled();
+    await capture('fourth-instrument-disabled-option');
+    await search.press('Escape');
+    await expect(page.getByText(/Up to 3 instruments\. Remove one to add another\./)).toBeVisible();
+    await capture('selection-limit-help');
+    await button('Remove TICK0002').click();
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('tickers')?.includes('TICK0002'))
+      .toBe(false);
+    await search.press('Escape');
+    await expect(button('Remove TICK0002')).toHaveCount(0);
+    await capture('remove-selection-tag');
+    await button('Remove TICK0003').focus();
+    await button('Remove TICK0003').press('Enter');
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('tickers')?.includes('TICK0003'))
+      .toBe(false);
+    await search.press('Escape');
+    await expect(button('Remove TICK0003')).toHaveCount(0);
+    await capture('remove-tag-with-keyboard');
     await button('Clear selection').click();
+    await expect.poll(() => new URL(page.url()).searchParams.get('tickers')).toBeNull();
+    await search.press('Escape');
     await expect(page.getByText('Start with an instrument', { exact: true })).toBeVisible();
     await capture('clear-selection');
 
     await search.fill('0001');
-    await expect(
-      page.getByRole('list', { name: 'Instrument results' }).getByRole('button'),
-    ).toHaveCount(1);
-    await capture('search-filter-and-clear-button');
-    await search.press('Tab');
-    await page.keyboard.press('Tab');
-    await expect(button('Add TICK0001')).toBeFocused();
-    await capture('add-button-keyboard-focus');
+    await expect(page.getByRole('listbox').getByRole('option')).toHaveCount(1);
+    await capture('search-filter');
+    await search.press('Escape');
+    await capture('search-clear-button');
+    await button('Clear search').click();
+    await expect(search).toHaveValue('');
+    await capture('search-cleared-input-focus');
+    await search.fill('TICK0001');
+    await search.press('ArrowDown');
+    await capture('active-result-keyboard-focus');
     await search.fill('NO MATCH');
     await expect(
       page.getByText('No instruments match your search.', { exact: true }),
     ).toBeVisible();
     await capture('search-no-results');
+    await search.press('Escape');
     await button('Clear search').click();
-    await button('Next page').click();
-    await expect(button('Add TICK0011')).toBeVisible();
-    await capture('pagination-next-page');
-    for (let current = 2; current < 20; current += 1) await button('Next page').click();
-    await expect(button('Next page')).toBeDisabled();
-    await capture('pagination-last-page-disabled-next');
-    await button('Previous page').click();
-    await expect(button('Add TICK0181')).toBeVisible();
-    await capture('pagination-previous-page');
+    await expect(page.getByRole('listbox').getByRole('option')).toHaveCount(200);
+    await option('TICK0200').scrollIntoViewIfNeeded();
+    await expect(option('TICK0200')).toBeVisible();
+    await capture('last-instrument-reachable-in-popup');
+    await search.fill('0200');
+    await expect(option('TICK0200')).toBeVisible();
+    await capture('last-instrument-found-by-search');
+    await search.press('Escape');
 
     await page.goto('/?tickers=TICK0001,TICK0002,TICK0003,TICK0004');
     await ready(['TICK0001', 'TICK0002', 'TICK0003']);
@@ -136,7 +177,7 @@ test.describe('Review the dashboard screens and interactions', () => {
     try {
       await page.goto('/?tickers=TICK0001');
       await expect(
-        page.getByRole('progressbar', { name: 'Loading instruments', exact: true }),
+        page.getByRole('status').filter({ hasText: 'Loading instruments…' }),
       ).toBeVisible();
       await expect(
         page.getByRole('progressbar', { name: 'Loading TICK0001 prices', exact: true }),
@@ -173,13 +214,17 @@ test.describe('Review the dashboard screens and interactions', () => {
       await page.unrouteAll({ behavior: 'wait' });
       await button(retry).click();
       await ready(['TICK0001']);
-      await expect(button('Add TICK0002')).toBeVisible();
+      await search.fill('TICK0002');
+      await search.press('ArrowDown');
+      await expect(option('TICK0002')).toBeVisible();
+      await search.press('Escape');
       await expect(button(retry)).toHaveCount(0);
       await capture(`${resource}-retry-recovered`);
     }
 
     await page.route('**/api/instruments', (route) => route.fulfill({ json: [] }));
     await page.goto('/');
+    await search.focus();
     await expect(page.getByText('No instruments are available.', { exact: true })).toBeVisible();
     await capture('simulated-empty-instrument-list');
     await page.unrouteAll({ behavior: 'wait' });
@@ -204,8 +249,13 @@ test.describe('Review the dashboard screens and interactions', () => {
     await inspector.press('End');
     await capture('mobile-chart-inspection');
     await button('Clear selection').click();
+    await expect.poll(() => new URL(page.url()).searchParams.get('tickers')).toBeNull();
     await expect(page.getByText('Start with an instrument', { exact: true })).toBeVisible();
+    await search.press('Escape');
     await capture('mobile-empty-selection');
+    await search.press('ArrowDown');
+    await expect(option('TICK0001')).toBeVisible();
+    await capture('mobile-instrument-popup');
     console.log(`Saved ${number} PNG screenshots to ${output}`);
   });
 });

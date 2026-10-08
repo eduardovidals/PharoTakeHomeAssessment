@@ -1,5 +1,10 @@
 import type { ApiClient } from '../../../../api/types';
-import type { ChartMode, SelectionAddOutcome, SelectionNotice } from '../../../../app/types';
+import type {
+  ChartMode,
+  DashboardAction,
+  DashboardActionOutcome,
+  SelectionNotice,
+} from '../../../../app/types';
 
 /** URL-owned selection and application-owned transport for the market dashboard. */
 export interface DashboardProps {
@@ -9,36 +14,26 @@ export interface DashboardProps {
   readonly selectedTickers: readonly string[];
   /** Effective chart mode derived from canonical URL search. */
   readonly mode: ChartMode;
-  /** Commit an explicit chart view through the same route-owned action queue. */
-  readonly onViewChange: (mode: ChartMode) => Promise<void>;
   /** Safe explanation of the current direct link's normalization, when needed. */
   readonly selectionNotice?: SelectionNotice;
-  /** Commit a selection through the route and report duplicate or limit no-ops. */
-  readonly onSelect: (ticker: string) => Promise<SelectionAddOutcome>;
-  /** Remove a ticker through normal URL navigation. */
-  readonly onRemove: (ticker: string) => Promise<void>;
-  /** Navigate to the meaningful no-selection state. */
-  readonly onClear: () => Promise<void>;
+  /** Commit a selection or explicit view intention through the route's single queue. */
+  readonly onAction: (action: DashboardAction) => Promise<DashboardActionOutcome>;
 }
 
 /** Named static visual parts of the dashboard. */
 export type DashboardStylePart =
   | 'page'
-  | 'hero'
-  | 'brandRow'
+  | 'header'
+  | 'identity'
   | 'wordmark'
   | 'descriptor'
   | 'heading'
   | 'subheading'
   | 'ticker'
-  | 'description'
-  | 'layout'
   | 'analysis'
-  | 'header'
-  | 'count'
+  | 'selectionHeading'
   | 'selection'
   | 'article'
   | 'notice'
   | 'error'
-  | 'empty'
-  | 'hint';
+  | 'empty';

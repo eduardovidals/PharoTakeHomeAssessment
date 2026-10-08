@@ -311,7 +311,10 @@ describe('PriceHistory', () => {
         { date: '2024-02-29', price: 11.125 },
         { date: '2024-03-10', price: 20.123456789 },
       ]);
-      expect(screen.getByText('Feb 29 – Mar 10, 2024 (UTC)', { exact: true })).toBeVisible();
+      // The dashboard toolbar owns shared range/count; this chart owner keeps recorded detail.
+      expect(
+        screen.queryByText('Feb 29 – Mar 10, 2024 (UTC)', { exact: true }),
+      ).not.toBeInTheDocument();
       expect(requests).toBe(1);
     });
   });

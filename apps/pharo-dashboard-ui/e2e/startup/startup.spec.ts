@@ -84,10 +84,10 @@ test.describe('Open the local dashboard safely', () => {
     page,
   }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Instrument price dashboard' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Instrument Analytics' })).toBeVisible();
     // e2e-locator: document-body colors establish inheritance for body-portaled controls.
-    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(244, 247, 251)');
-    await expect(page.locator('body')).toHaveCSS('color', 'rgb(19, 36, 61)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(245, 247, 250)');
+    await expect(page.locator('body')).toHaveCSS('color', 'rgb(23, 36, 58)');
     const readiness = await page.request.get('/health');
     expect(readiness.status()).toBe(200);
     expect(await readiness.json()).toEqual({ status: 'ready' });

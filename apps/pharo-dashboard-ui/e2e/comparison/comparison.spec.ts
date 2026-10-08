@@ -32,6 +32,18 @@ declare function __pharoRecordXhrTimeout(value: {
   elapsedMs: number;
 }): Promise<void>;
 
+async function chooseInstrument(page: Page, ticker: string) {
+  const input = page.getByRole('combobox', { name: 'Compare instruments', exact: true });
+  await input.fill(ticker);
+  if ((await input.getAttribute('aria-expanded')) !== 'true') await input.press('ArrowDown');
+  await page.getByRole('option', { name: ticker, exact: true }).click();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('tickers')?.split(','))
+    .toContain(ticker);
+  await expect(input).toHaveValue('');
+  await input.press('Escape');
+}
+
 async function csvPrices(ticker: string): Promise<Observation[]> {
   const csv = await readFile(
     new URL('../../../pharo-dashboard-api/Data/market_data.csv', import.meta.url),
@@ -150,16 +162,16 @@ test.describe('Compare independently cached historical instruments', () => {
       expect(loaded).toHaveLength(7);
       expect(new Set(loaded).size).toBe(7);
 
-      await page.getByRole('button', { name: 'Remove selected TICK0001', exact: true }).click();
-      await page.getByRole('button', { name: 'Remove selected TICK0003', exact: true }).click();
+      await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click();
+      await page.getByRole('button', { name: 'Remove TICK0003', exact: true }).click();
       await expect(page.getByRole('article')).toHaveCount(1);
       // e2e-locator: B is continuously active, so removing its neighbors must not recolor it.
       await expect(chart.locator('[data-series-id="TICK0002"]')).toHaveAttribute(
         'data-appearance',
         'secondary',
       );
-      await page.getByRole('button', { name: 'Add TICK0001', exact: true }).click();
-      await page.getByRole('button', { name: 'Add TICK0003', exact: true }).click();
+      await chooseInstrument(page, 'TICK0001');
+      await chooseInstrument(page, 'TICK0003');
       await expect(
         page.getByText('3 of 3 selected histories available.', { exact: true }),
       ).toBeVisible();
@@ -285,8 +297,8 @@ test.describe('Compare independently cached historical instruments', () => {
       await expect(
         page.getByRole('progressbar', { name: 'Loading TICK0001 prices' }),
       ).toBeVisible();
-      await page.getByRole('button', { name: 'Remove selected TICK0001', exact: true }).click();
-      await page.getByRole('button', { name: 'Add TICK0002', exact: true }).click();
+      await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click();
+      await chooseInstrument(page, 'TICK0002');
       const second = page.getByRole('region', { name: 'TICK0002 prices', exact: true });
       await expect(
         second.getByText(priceLabel.format(latest.price), { exact: true }),
@@ -450,9 +462,24 @@ async function expectIdentity(
   color: string,
   dash: string,
 ) {
-  const chip = page.getByRole('button', { name: `Remove selected ${ticker}`, exact: true });
+  const chip = page
+    .getByRole('grid', { name: 'Selected items', exact: true })
+    .getByRole('row', { name: ticker, exact: true });
   const heading = page.getByRole('heading', { name: ticker, exact: true });
-  await expect(chip).toHaveAttribute('data-appearance', appearance);
+  // e2e-locator: The tag's decorative pseudo-element uses the same token color and a non-color line pattern.
+  const mark = await chip.evaluate((element) => {
+    const style = element.ownerDocument.defaultView?.getComputedStyle(element, '::before');
+    return {
+      color: style?.borderTopColor,
+      pattern: style?.borderTopStyle,
+      width: style?.borderTopWidth,
+    };
+  });
+  expect(mark).toEqual({
+    color,
+    pattern: appearance === 'primary' ? 'solid' : appearance === 'secondary' ? 'dashed' : 'dotted',
+    width: '2px',
+  });
   await expect(heading).toHaveAttribute('data-appearance', appearance);
   // e2e-locator: Explicit series identity links actual plotted paths to the matching named chip and heading.
   const plotted = page
@@ -460,7 +487,7 @@ async function expectIdentity(
     .locator(`[data-series-id="${ticker}"]`);
   await expect(plotted).toHaveAttribute('data-appearance', appearance);
   // e2e-locator: The hidden SVG marks are decorative identity cues; compare their real stroke roles with the plotted path.
-  for (const line of [plotted.locator('path'), chip.locator('svg'), heading.locator('svg')]) {
+  for (const line of [plotted.locator('path'), heading.locator('svg')]) {
     await expect(line).toHaveCSS('stroke', color);
     await expect(line).toHaveCSS('stroke-dasharray', dash);
   }
@@ -489,14 +516,14 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     const choice = page.getByRole('radiogroup', { name: 'Chart view' });
     await page.goto('/');
     await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
-    await page.getByRole('button', { name: 'Add TICK0001', exact: true }).click();
+    await chooseInstrument(page, 'TICK0001');
     await ready(page, ['TICK0001']);
     await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
-    await page.getByRole('button', { name: 'Add TICK0002', exact: true }).click();
+    await chooseInstrument(page, 'TICK0002');
     await ready(page, ['TICK0001', 'TICK0002']);
     await expect(choice.getByRole('radio', { name: 'Performance', exact: true })).toBeChecked();
     expect(new URL(page.url()).searchParams.has('view')).toBe(false);
-    await page.getByRole('button', { name: 'Add TICK0003', exact: true }).click();
+    await chooseInstrument(page, 'TICK0003');
     await ready(page, ['TICK0001', 'TICK0002', 'TICK0003']);
     const loaded = [...requests];
     expect(loaded).toHaveLength(7);
@@ -564,7 +591,7 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     await page.goForward();
     await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
     expect(requests).toEqual(loaded);
-    await page.getByRole('button', { name: 'Remove selected TICK0001', exact: true }).click();
+    await page.getByRole('button', { name: 'Remove TICK0001', exact: true }).click();
     await expectIdentity(
       page,
       'Historical closing prices',
@@ -573,7 +600,7 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
       'rgb(124, 58, 237)',
       '8px, 4px',
     );
-    await page.getByRole('button', { name: 'Add TICK0001', exact: true }).click();
+    await chooseInstrument(page, 'TICK0001');
     await ready(page, ['TICK0001', 'TICK0002', 'TICK0003']);
     await expectIdentity(
       page,
@@ -602,6 +629,8 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     await ready(page, ['TICK0001', 'TICK0002', 'TICK0003']);
     await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
     await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    await expect.poll(() => new URL(page.url()).search).toBe('');
+    await page.getByRole('combobox', { name: 'Compare instruments', exact: true }).press('Escape');
     await expect(choice.getByRole('radio', { name: 'Price', exact: true })).toBeChecked();
     expect(new URL(page.url()).search).toBe('');
   });
@@ -613,9 +642,7 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
     await ready(page, ['TICK0001', 'TICK0002']);
     const choice = page.getByRole('radiogroup', { name: 'Chart view' });
     await expect(choice.getByRole('radio', { name: 'Performance', exact: true })).toBeChecked();
-    await expect(
-      page.getByRole('button', { name: 'Remove selected UNKNOWN', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove UNKNOWN', exact: true })).toBeVisible();
     await expect(
       page.getByRole('region', { name: 'UNKNOWN prices', exact: true }).getByRole('alert'),
     ).toHaveText('Instrument not found.');
@@ -634,7 +661,7 @@ test.describe('Compare raw prices and rebased change with shared identities', ()
       path: testInfo.outputPath('unknown-peer-performance.png'),
       fullPage: true,
     });
-    await page.getByRole('button', { name: 'Remove selected UNKNOWN', exact: true }).click();
+    await page.getByRole('button', { name: 'Remove UNKNOWN', exact: true }).click();
     await expectIdentity(
       page,
       'Rebased price change',
