@@ -7,6 +7,7 @@ export const navigationStyles: Record<ComparisonDateNavigationStylePart, string>
   labelRow: 'mb-pharo-1 flex items-center justify-between gap-pharo-2',
   label: 'text-pharo-xs font-medium text-pharo-muted',
   latest: 'text-pharo-xs font-medium text-pharo-action',
+  description: 'sr-only',
   field:
     'flex min-h-pharo-control items-center rounded-pharo-control border border-pharo-control-border bg-pharo-surface invalid:border-pharo-error disabled:bg-pharo-disabled-surface',
   input: 'flex grow items-center px-pharo-3 text-pharo-sm text-pharo-foreground',

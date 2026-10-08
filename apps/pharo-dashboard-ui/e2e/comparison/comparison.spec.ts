@@ -938,14 +938,24 @@ async function loadComparisonResponses(page: Page) {
 async function expectComparisonDate(page: Page, date: string) {
   const [year, month, day] = date.split('-').map(Number);
 
+  await expect(page.getByRole('spinbutton', { name: /^month,/i })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: /^month,/i })).toHaveText(
+    new RegExp(`^0?${month}$`),
+  );
   await expect(page.getByRole('spinbutton', { name: /^month,/i })).toHaveAttribute(
     'aria-valuenow',
     String(month),
+  );
+  await expect(page.getByRole('spinbutton', { name: /^day,/i })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: /^day,/i })).toHaveText(
+    new RegExp(`^0?${day}$`),
   );
   await expect(page.getByRole('spinbutton', { name: /^day,/i })).toHaveAttribute(
     'aria-valuenow',
     String(day),
   );
+  await expect(page.getByRole('spinbutton', { name: /^year,/i })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: /^year,/i })).toHaveText(String(year));
   await expect(page.getByRole('spinbutton', { name: /^year,/i })).toHaveAttribute(
     'aria-valuenow',
     String(year),
@@ -1097,6 +1107,10 @@ test.describe('Pin date-aware comparison statistics', () => {
     if (!first || !second || !penultimate || !final)
       throw new Error('Expected real historical date endpoints.');
 
+    await expectComparisonDate(page, final.date);
+    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('date-desktop-latest.png'), fullPage: true });
+
     await chooseComparisonDate(page, first.date);
     await expectFirstDate(page, responses);
 
@@ -1133,6 +1147,8 @@ test.describe('Pin date-aware comparison statistics', () => {
 
     await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
     await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+    await expectComparisonDate(page, final.date);
+    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
     await expect(control).toBeFocused();
     expect(requests.paths).toEqual(loaded);
 
@@ -1147,6 +1163,11 @@ test.describe('Pin date-aware comparison statistics', () => {
     const loaded = [...requests.paths];
     const control = page.getByRole('button', { name: 'Choose comparison date', exact: true });
     const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+    const latestCells = await matrix.getByRole('cell').allTextContents();
+    const final = responses[0]?.prices.at(-1);
+    if (!final) throw new Error('Expected a final recorded date.');
+
+    await expectComparisonDate(page, final.date);
 
     await page.getByRole('spinbutton', { name: /^month,/i }).fill('6');
     await page.getByRole('spinbutton', { name: /^day,/i }).fill('23');
@@ -1202,6 +1223,9 @@ test.describe('Pin date-aware comparison statistics', () => {
     for (let digit = 0; digit < 4; digit += 1) await year.press('Backspace');
 
     await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
+    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+    await expectComparisonDate(page, final.date);
+    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to latest', exact: true })).toHaveCount(0);
     expect(requests.paths).toEqual(loaded);
 
@@ -1296,12 +1320,19 @@ test.describe('Pin comparison dates on touch screens', () => {
     const requests = recordRequests(page);
     const responses = await loadComparisonResponses(page);
     const loaded = [...requests.paths];
+    const matrix = page.getByRole('table', { name: 'Comparison', exact: true });
+    const latestCells = await matrix.getByRole('cell').allTextContents();
+    const final = responses[0]?.prices.at(-1);
+    if (!final) throw new Error('Expected a final recorded date.');
+
+    await expectComparisonDate(page, final.date);
+    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('date-mobile-latest.png'), fullPage: true });
+
     const firstTarget = await chartPosition(page, 0);
     await firstTarget.chart.tap({ position: firstTarget.position });
     await expectFirstDate(page, responses);
     await page.screenshot({ path: testInfo.outputPath('date-mobile-first.png'), fullPage: true });
-    const final = responses[0]?.prices.at(-1);
-    if (!final) throw new Error('Expected a final recorded date.');
     await chooseComparisonDate(page, final.date, true);
     await expectFinalParity(page, responses);
 
@@ -1345,9 +1376,10 @@ test.describe('Pin comparison dates on touch screens', () => {
     await page.getByRole('button', { name: 'Back to latest', exact: true }).tap();
 
     await ready(page, comparisonTickers);
-    await expect(
-      page.getByRole('table', { name: 'Comparison', exact: true }),
-    ).toHaveAccessibleDescription(/full supplied window/);
+    await expect(matrix).toHaveAccessibleDescription(/full supplied window/);
+    await expect(matrix.getByRole('cell')).toHaveText(latestCells);
+    await expectComparisonDate(page, final.date);
+    await expect(page.getByText('Latest', { exact: true })).toBeVisible();
     expect(requests.paths).toEqual(loaded);
 
     requests.stop();

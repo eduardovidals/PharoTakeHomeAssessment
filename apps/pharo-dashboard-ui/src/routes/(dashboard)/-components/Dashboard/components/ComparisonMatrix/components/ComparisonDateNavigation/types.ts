@@ -1,6 +1,15 @@
+import type { DateValue } from '@internationalized/date';
+
+/** Preserve an unavailable typed date while its segments are being corrected. */
+export interface UnavailableDateEntry {
+  readonly value: DateValue;
+  readonly selectedTimestamp: number | null;
+  readonly latestTimestamp: number | undefined;
+}
+
 /** Controlled navigation over dates already present in cached selected histories. */
 export interface ComparisonDateNavigationProps {
-  /** Null keeps the full-window Latest view; no local date state is introduced. */
+  /** Null keeps the full-window Latest view; the dashboard remains the sole pin owner. */
   readonly selectedTimestamp: number | null;
   /** Sorted, unique recorded dates. */
   readonly timeline: readonly number[];
@@ -15,6 +24,7 @@ export type ComparisonDateNavigationStylePart =
   | 'labelRow'
   | 'label'
   | 'latest'
+  | 'description'
   | 'field'
   | 'input'
   | 'segment'

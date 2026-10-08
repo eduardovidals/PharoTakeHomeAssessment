@@ -14,10 +14,11 @@ import {
   Heading,
   Label,
   Popover,
+  Text,
 } from 'react-aria-components';
 import { toCalendarDate } from './utils';
 import { navigationStyles as styles } from './styles';
-import type { ComparisonDateNavigationProps as Props } from './types';
+import type { ComparisonDateNavigationProps as Props, UnavailableDateEntry } from './types';
 
 /**
  * Pin a date without fetching, duplicating state, or changing the Latest default.
@@ -29,13 +30,15 @@ import type { ComparisonDateNavigationProps as Props } from './types';
 export function ComparisonDateNavigation(props: Props) {
   const { selectedTimestamp, timeline, onTimestampChange } = props;
 
-  const value = useMemo(
-    () => (selectedTimestamp === null ? null : toCalendarDate(selectedTimestamp)),
-    [selectedTimestamp],
-  );
+  const latestTimestamp = timeline.at(-1);
+  const current = selectedTimestamp ?? latestTimestamp;
+  const value = useMemo(() => {
+    const timestamp = selectedTimestamp ?? latestTimestamp;
+    return timestamp === undefined ? null : toCalendarDate(timestamp);
+  }, [selectedTimestamp, latestTimestamp]);
 
   const pickerRef = useRef<HTMLDivElement>(null);
-  const [entryErrorFor, setEntryErrorFor] = useState<number | null | undefined>(undefined);
+  const [unavailableEntry, setUnavailableEntry] = useState<UnavailableDateEntry>();
   const restoreDateFocus = useRef<number | null | undefined>(undefined);
 
   useEffect(() => {
@@ -46,11 +49,15 @@ export function ComparisonDateNavigation(props: Props) {
   }, [selectedTimestamp]);
 
   // Discard validation from an earlier pin when another control changes the date.
-  if (entryErrorFor !== undefined && entryErrorFor !== selectedTimestamp) {
-    setEntryErrorFor(undefined);
+  if (
+    unavailableEntry &&
+    (unavailableEntry.selectedTimestamp !== selectedTimestamp ||
+      unavailableEntry.latestTimestamp !== latestTimestamp ||
+      timeline.includes(unavailableEntry.value.toDate('UTC').getTime()))
+  ) {
+    setUnavailableEntry(undefined);
   }
 
-  const current = selectedTimestamp ?? timeline.at(-1);
   const previous = timeline
     .filter((timestamp) => current !== undefined && timestamp < current)
     .at(-1);
@@ -69,11 +76,11 @@ export function ComparisonDateNavigation(props: Props) {
 
   const handleChange = (date: DateValue | null) => {
     if (date !== null && isDateUnavailable(date)) {
-      setEntryErrorFor(selectedTimestamp);
+      setUnavailableEntry({ value: date, selectedTimestamp, latestTimestamp });
       return;
     }
 
-    setEntryErrorFor(undefined);
+    setUnavailableEntry(undefined);
     onTimestampChange(date === null ? null : date.toDate('UTC').getTime());
   };
 
@@ -82,14 +89,14 @@ export function ComparisonDateNavigation(props: Props) {
       <DatePicker
         ref={pickerRef}
         className={styles.picker}
-        value={value}
+        value={unavailableEntry?.value ?? value}
         onChange={handleChange}
         minValue={firstDate === undefined ? undefined : toCalendarDate(firstDate)}
         maxValue={lastDate === undefined ? undefined : toCalendarDate(lastDate)}
         placeholderValue={lastDate === undefined ? undefined : toCalendarDate(lastDate)}
         isDateUnavailable={isDateUnavailable}
         isDisabled={timeline.length === 0}
-        isInvalid={entryErrorFor !== undefined && entryErrorFor === selectedTimestamp}
+        isInvalid={unavailableEntry !== undefined}
         validationBehavior="aria"
         granularity="day"
       >
@@ -114,6 +121,11 @@ export function ComparisonDateNavigation(props: Props) {
             }
           />
         </Group>
+        <Text slot="description" className={styles.description}>
+          {selectedTimestamp === null
+            ? 'Latest available date. Statistics use each instrument’s full history.'
+            : 'Pinned date. Statistics include observations through this date.'}
+        </Text>
         <FieldError className={styles.error}>Choose a date with recorded observations.</FieldError>
         <Popover className={styles.popover} containerPadding={4}>
           <Dialog aria-label="Choose comparison date" className={styles.dialog}>

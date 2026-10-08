@@ -21,7 +21,13 @@ describe('ComparisonDateNavigation', () => {
     );
 
     expect(screen.getByText('Latest')).toBeVisible();
-    expect(screen.getByRole('spinbutton', { name: /month/ })).toHaveAttribute('data-placeholder');
+    expect(screen.getByRole('spinbutton', { name: /month/ })).toHaveAttribute('aria-valuenow', '8');
+    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '5');
+    expect(screen.getByRole('spinbutton', { name: /year/ })).toHaveAttribute(
+      'aria-valuenow',
+      '2026',
+    );
+    expect(change).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Next date' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Back to latest' })).not.toBeInTheDocument();
 
@@ -30,7 +36,7 @@ describe('ComparisonDateNavigation', () => {
     expect(change).toHaveBeenLastCalledWith(middle);
     // Controlled selection changes only when its owner supplies the new timestamp.
     expect(screen.getByText('Latest')).toBeVisible();
-    expect(screen.getByRole('spinbutton', { name: /month/ })).toHaveAttribute('data-placeholder');
+    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '5');
 
     rerender(
       <ComparisonDateNavigation
@@ -59,6 +65,7 @@ describe('ComparisonDateNavigation', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Choose comparison date' })).toHaveFocus();
+    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '5');
   });
 
   test('supports keyboard date selection and retains a date missing from a new timeline', async () => {
@@ -88,6 +95,84 @@ describe('ComparisonDateNavigation', () => {
 
     expect(change).toHaveBeenLastCalledWith(first);
     await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  test('follows the latest available date without committing a pin until a calendar choice', async () => {
+    const change = vi.fn();
+    const { rerender } = render(
+      <ComparisonDateNavigation
+        timeline={[first]}
+        selectedTimestamp={null}
+        onTimestampChange={change}
+      />,
+    );
+
+    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '3');
+
+    rerender(
+      <ComparisonDateNavigation
+        timeline={timeline}
+        selectedTimestamp={null}
+        onTimestampChange={change}
+      />,
+    );
+
+    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '5');
+    expect(change).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Choose comparison date' }));
+    await userEvent.click(screen.getByRole('button', { name: /Wednesday, August 5, 2026/ }));
+
+    expect(change).toHaveBeenCalledExactlyOnceWith(last);
+  });
+
+  test('leaves an unavailable date field disabled until observations arrive', () => {
+    const change = vi.fn();
+
+    render(
+      <ComparisonDateNavigation
+        timeline={[]}
+        selectedTimestamp={null}
+        onTimestampChange={change}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Choose comparison date' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Previous date' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next date' })).toBeDisabled();
+    expect(change).not.toHaveBeenCalled();
+  });
+
+  test('restores the displayed latest date after abandoning a partial edit of the final-date pin', async () => {
+    const change = vi.fn();
+    const { rerender } = render(
+      <ComparisonDateNavigation
+        timeline={timeline}
+        selectedTimestamp={last}
+        onTimestampChange={change}
+      />,
+    );
+
+    screen.getByRole('spinbutton', { name: /month/ }).focus();
+    await userEvent.keyboard('{Backspace}');
+
+    expect(screen.getByRole('spinbutton', { name: /month/ })).toHaveAttribute('data-placeholder');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back to latest' }));
+
+    expect(change).toHaveBeenLastCalledWith(null);
+
+    rerender(
+      <ComparisonDateNavigation
+        timeline={timeline}
+        selectedTimestamp={null}
+        onTimestampChange={change}
+      />,
+    );
+
+    expect(screen.getByText('Latest')).toBeVisible();
+    expect(screen.getByRole('spinbutton', { name: /month/ })).toHaveAttribute('aria-valuenow', '8');
+    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '5');
   });
 
   test('restores focus after either arrow reaches its disabled endpoint without affecting other date changes', async () => {
@@ -187,36 +272,49 @@ describe('ComparisonDateNavigation', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
-  test('rejects an unavailable typed date and clears validation when the chart changes the pin', async () => {
-    const change = vi.fn();
+  test.each(['pin', 'history'] as const)(
+    'rejects an unavailable typed date and clears validation after a %s change',
+    async (update) => {
+      const change = vi.fn();
 
-    const { rerender } = render(
-      <ComparisonDateNavigation
-        timeline={[first, last]}
-        selectedTimestamp={first}
-        onTimestampChange={change}
-      />,
-    );
+      const { rerender } = render(
+        <ComparisonDateNavigation
+          timeline={[first, last]}
+          selectedTimestamp={first}
+          onTimestampChange={change}
+        />,
+      );
 
-    screen.getByRole('spinbutton', { name: /day/ }).focus();
-    await userEvent.keyboard('{ArrowUp}');
+      screen.getByRole('spinbutton', { name: /day/ }).focus();
+      await userEvent.keyboard('{ArrowUp}');
 
-    expect(change).not.toHaveBeenCalled();
-    expect(screen.getByText('Choose a date with recorded observations.')).toBeVisible();
-    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveFocus();
-    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-invalid', 'true');
+      expect(change).not.toHaveBeenCalled();
+      expect(screen.getByText('Choose a date with recorded observations.')).toBeVisible();
+      expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveFocus();
+      expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute(
+        'aria-invalid',
+        'true',
+      );
+      expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '4');
 
-    rerender(
-      <ComparisonDateNavigation
-        timeline={[first, last]}
-        selectedTimestamp={last}
-        onTimestampChange={change}
-      />,
-    );
+      rerender(
+        <ComparisonDateNavigation
+          timeline={update === 'history' ? timeline : [first, last]}
+          selectedTimestamp={update === 'pin' ? last : first}
+          onTimestampChange={change}
+        />,
+      );
 
-    expect(screen.queryByText('Choose a date with recorded observations.')).not.toBeInTheDocument();
-    expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute('aria-valuenow', '5');
-  });
+      expect(
+        screen.queryByText('Choose a date with recorded observations.'),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole('spinbutton', { name: /day/ })).toHaveAttribute(
+        'aria-valuenow',
+        update === 'pin' ? '5' : '3',
+      );
+      expect(change).not.toHaveBeenCalled();
+    },
+  );
 
   test('keeps partial segment edits local and returns to Latest only when all segments are cleared', async () => {
     const change = vi.fn();
