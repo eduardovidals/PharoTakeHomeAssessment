@@ -21,7 +21,7 @@ The interface focuses on the selected instruments rather than presenting the ent
 
 ## Monorepo and Package Architecture
 
-The repository uses npm workspaces by default and Nx for dependency-aware builds, tests, and typechecks. npm keeps the reviewer setup to `npm ci`, `npm run build`, and `npm run dev`, using the package manager already available with the selected Node runtime. Two applications and five shared packages make up the workspace:
+The repository uses npm workspaces by default and Nx for dependency-aware builds, tests, and typechecks. npm keeps the reviewer setup to `npm ci`, `npm run build`, and `npm run dev`. npm is the default package manager. Two applications and five shared packages make up the workspace:
 
 - `apps/pharo-dashboard-ui`: the React dashboard, routes, API services, and browser tests
 - `apps/pharo-dashboard-api`: CSV ingestion, statistics, HTTP controllers, and .NET tests
