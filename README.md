@@ -12,33 +12,60 @@ The dashboard lets you search the supplied instrument list, compare up to three 
 
 ## Tech Stack
 
+These are the versions used by this checkout. The [requirements](#requirements) list the tools to install first; project libraries and test tools are installed from the committed dependency files.
+
 ### Frontend
 
-- React and TypeScript
-- Vite
-- TanStack Router
-- TanStack Query
-- React Aria Components
-- D3
-- Tailwind CSS
-- Day.js for UTC date formatting
-- Axios and Zod
+| Technology / package                       | Version             |
+| ------------------------------------------ | ------------------- |
+| React / React DOM                          | 19.3.0              |
+| TypeScript                                 | 5.9.3               |
+| Vite / `@vitejs/plugin-react`              | 8.3.3 / 6.1.2       |
+| TanStack Router (`@tanstack/react-router`) | 1.170.41            |
+| TanStack Router plugin / generator         | 1.168.42 / 1.167.40 |
+| TanStack Query (`@tanstack/react-query`)   | 5.104.1             |
+| React Aria Components                      | 1.21.1              |
+| D3 `d3-array` / `d3-scale`                 | 3.2.4 / 4.0.2       |
+| D3 `d3-shape` / `d3-time-format`           | 3.2.0 / 4.1.0       |
+| Tailwind CSS / `@tailwindcss/vite`         | 4.3.3               |
+| `tailwindcss-react-aria-components`        | 2.2.0               |
+| `tailwind-merge`                           | 3.7.0               |
+| Day.js                                     | 1.11.23             |
+| Axios                                      | 1.20.0              |
+| Zod                                        | 4.6.5               |
 
 ### Backend
 
-- C# / ASP.NET Core on .NET 10
-- CsvHelper
-- Immutable in-memory market data
+| Technology / package       | Version                   |
+| -------------------------- | ------------------------- |
+| .NET SDK                   | 10.0.401                  |
+| C# language version        | 14.0, selected by the SDK |
+| .NET / ASP.NET Core target | `net10.0`                 |
+| CsvHelper                  | 33.1.0                    |
+
+The SDK supplies the C# compiler and .NET/ASP.NET Core runtimes. SDK and runtime version numbers are different; install the exact SDK listed above. Market data is held in memory, so no database installation is required.
 
 ### Tooling
 
-- Nx and npm workspaces
-- Vitest and React Testing Library
-- MSW
-- Playwright
-- Storybook
-- xUnit
-- ESLint and Prettier
+| Tool / package                                   | Version                 |
+| ------------------------------------------------ | ----------------------- |
+| Nx                                               | 23.2.1                  |
+| Vitest / `@vitest/browser-playwright`            | 5.0.3                   |
+| React Testing Library (`@testing-library/react`) | 16.3.3                  |
+| Testing Library DOM / user-event / jest-dom      | 10.4.2 / 14.6.7 / 7.0.1 |
+| jsdom                                            | 27.0.1                  |
+| MSW                                              | 2.15.0                  |
+| Playwright / `@playwright/test`                  | 1.63.0                  |
+| Storybook and its installed addons               | 10.6.1                  |
+| xUnit                                            | 2.9.3                   |
+| `xunit.runner.visualstudio`                      | 4.0.0                   |
+| `Microsoft.NET.Test.Sdk`                         | 18.10.1                 |
+| `Microsoft.AspNetCore.Mvc.Testing`               | 10.0.12                 |
+| ESLint / `@eslint/js`                            | 10.12.0 / 10.0.1        |
+| `typescript-eslint`                              | 8.71.1                  |
+| Prettier                                         | 3.9.9                   |
+
+The [root manifest](package.json) and workspace manifests contain the complete direct dependency declarations, including auxiliary lint plugins and TypeScript definitions. [package-lock.json](package-lock.json) records npm's exact dependency tree; [pnpm-lock.yaml](pnpm-lock.yaml) records the alternative pnpm tree. The [API project](apps/pharo-dashboard-api/PharoDashboard.Api.csproj) and [test project](apps/pharo-dashboard-api/tests/PharoDashboard.Api.Tests/PharoDashboard.Api.Tests.csproj) declare NuGet versions, with resolved dependencies in their respective [API lockfile](apps/pharo-dashboard-api/packages.lock.json) and [test lockfile](apps/pharo-dashboard-api/tests/PharoDashboard.Api.Tests/packages.lock.json). These files are authoritative when dependencies change.
 
 ## Workspace Layout
 
@@ -63,7 +90,17 @@ Instrument selection, API integration, and dashboard composition stay in the app
 - npm **11.12.1**
 - .NET SDK **10.0.401**
 
-These versions are pinned in [.nvmrc](.nvmrc), [package.json](package.json), and [global.json](global.json). The .NET SDK version must match because SDK roll-forward is disabled.
+These versions are pinned in [.nvmrc](.nvmrc), [package.json](package.json), and [global.json](global.json). The .NET SDK version must match because SDK roll-forward is disabled. pnpm **10.33.0** is needed only for the [optional package-manager switch](#switching-between-npm-and-pnpm).
+
+Check the installed tools from the repository root:
+
+| Command            | Expected output |
+| ------------------ | --------------- |
+| `node --version`   | `v24.14.1`      |
+| `npm --version`    | `11.12.1`       |
+| `dotnet --version` | `10.0.401`      |
+
+`npm ci` installs the frontend and tooling versions above. `npm run build` restores the locked NuGet dependencies and builds the workspace. The browser tests use the Chromium revision selected by Playwright 1.63.0; `npm run browser:install` installs it. These project dependencies do not require separate global installations.
 
 On Windows or macOS, install Node.js and the .NET **SDK** for your machine's architecture. Microsoft's [.NET installation guide](https://learn.microsoft.com/en-us/dotnet/core/install/) covers both platforms. Open a new terminal after installation and check that `node`, `npm`, and `dotnet` are on PATH.
 
@@ -81,7 +118,7 @@ From the repository root:
 npm ci
 ```
 
-npm is the default workspace package manager, and `package-lock.json` records its exact dependency tree. The first installation needs access to npm and NuGet registries.
+npm is the default workspace package manager, and `package-lock.json` records its exact dependency tree. This installation needs access to the npm registry; the first build also needs access to NuGet.
 
 ### 2. Build the workspace
 
