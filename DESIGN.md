@@ -35,7 +35,7 @@ A small workspace-protocol helper supports pnpm as an alternative, following the
 
 The React packages expose built ESM and TypeScript declarations through their public entry points. Controls and charts have separate Storybooks so they can be developed independently of the API. Shared packages contain the components used by the application and their required helpers, keeping the library focused on the assessment.
 
-After the initial workspace build, the root development launcher starts the API and UI, checks readiness, and handles ports and process cleanup. This uses ordinary Node and .NET commands without an Nx .NET plugin. Pinned Node, npm, pnpm, and .NET SDK versions keep setup consistent. The [README version tables](README.md#tech-stack) and [requirements](README.md#requirements) distinguish the installed toolchain from project dependencies. JavaScript dependencies come from the selected manager's lockfile, and the backend build restores NuGet in locked mode. Keeping the version inventory in the README avoids maintaining a second copy in this design document.
+After the initial workspace build, the root development launcher starts the API and UI, checks readiness, and handles ports and process cleanup. This uses ordinary Node and .NET commands without an Nx .NET plugin. The [README Quick Start](README.md#quick-start) lists the required Node.js, npm, and .NET SDK versions, plus the optional pnpm version. Dependency versions live in package manifests and lockfiles. JavaScript dependencies come from the selected manager's lockfile, and the backend build restores NuGet in locked mode.
 
 ## Shared UI Layer
 
