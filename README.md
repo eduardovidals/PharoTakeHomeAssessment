@@ -10,62 +10,81 @@ It is organized as an Nx monorepo with:
 
 The dashboard lets you search the supplied instrument list, compare up to three tickers, and inspect their historical prices. The comparison matrix shows the latest closing price and full-period statistics for each selected instrument.
 
-## Tech Stack
+## Quick Start
 
-These are the versions used by this checkout. The [requirements](#requirements) list the tools to install first; project libraries and test tools are installed from the committed dependency files.
+### Requirements
+
+- Node.js **24.14.1**
+- npm **11.12.1** (default)
+- .NET SDK **10.0.401**
+- pnpm **10.33.0** (optional; see [switching package managers](#switching-between-npm-and-pnpm))
+
+The required versions are pinned in [.nvmrc](.nvmrc), [package.json](package.json), and [global.json](global.json). Install the .NET **SDK**, not only the runtime; its version must match exactly because roll-forward is disabled. The package-manager helper sets the matching npm or pnpm pin when switching.
+
+Ensure `node`, `npm`, and `dotnet` are on PATH. Check their versions with `node --version`, `npm --version`, and `dotnet --version`. If needed, update npm with `npm install --global npm@11.12.1`. With nvm on macOS, `nvm install` and `nvm use` select the pinned Node.js version.
+
+### Install and run
+
+From the repository root:
+
+```bash
+npm ci
+npm run build
+npm run dev
+```
+
+npm is the default. Installation uses the committed lockfile, and the build restores locked NuGet dependencies and builds the shared packages, UI, and API, including the supplied CSV. The first setup needs access to the npm and NuGet registries. No database setup is required.
+
+The launcher starts both services, waits for readiness, and prints their URLs:
+
+- UI: `http://127.0.0.1:5173`
+- API: `http://127.0.0.1:5080`
+- API readiness: `http://127.0.0.1:5080/health`
+
+The UI proxies `/api` requests to the backend. Use `Ctrl + C` to stop both processes; the launcher only stops processes it started.
+
+### Using different ports
+
+If a port is already occupied, the launcher reports it and leaves the existing process running. Use that instance, stop it from its terminal, or start Pharo on different ports:
+
+```bash
+node scripts/dev.mjs --api-port 5081 --ui-port 5174
+```
+
+This command works in Windows and macOS shells. Use the UI URL printed by the launcher; its API proxy follows the selected API port.
+
+## Tech Stack
 
 ### Frontend
 
-| Technology / package                       | Version             |
-| ------------------------------------------ | ------------------- |
-| React / React DOM                          | 19.3.0              |
-| TypeScript                                 | 5.9.3               |
-| Vite / `@vitejs/plugin-react`              | 8.3.3 / 6.1.2       |
-| TanStack Router (`@tanstack/react-router`) | 1.170.41            |
-| TanStack Router plugin / generator         | 1.168.42 / 1.167.40 |
-| TanStack Query (`@tanstack/react-query`)   | 5.104.1             |
-| React Aria Components                      | 1.21.1              |
-| D3 `d3-array` / `d3-scale`                 | 3.2.4 / 4.0.2       |
-| D3 `d3-shape` / `d3-time-format`           | 3.2.0 / 4.1.0       |
-| Tailwind CSS / `@tailwindcss/vite`         | 4.3.3               |
-| `tailwindcss-react-aria-components`        | 2.2.0               |
-| `tailwind-merge`                           | 3.7.0               |
-| Day.js                                     | 1.11.23             |
-| Axios                                      | 1.20.0              |
-| Zod                                        | 4.6.5               |
+- React / React DOM and TypeScript
+- Vite and `@vitejs/plugin-react` for development and production builds
+- TanStack Router, its plugin, and generator for URL routing
+- TanStack Query for cached API data
+- React Aria Components for accessible controls
+- D3 (`d3-array`, `d3-scale`, `d3-shape`, `d3-time-format`) for charts
+- Tailwind CSS, `@tailwindcss/vite`, `tailwindcss-react-aria-components`, and `tailwind-merge` for styling
+- Day.js for UTC date formatting
+- Axios for HTTP requests and Zod for response validation
 
 ### Backend
 
-| Technology / package       | Version                   |
-| -------------------------- | ------------------------- |
-| .NET SDK                   | 10.0.401                  |
-| C# language version        | 14.0, selected by the SDK |
-| .NET / ASP.NET Core target | `net10.0`                 |
-| CsvHelper                  | 33.1.0                    |
-
-The SDK supplies the C# compiler and .NET/ASP.NET Core runtimes. SDK and runtime version numbers are different; install the exact SDK listed above. Market data is held in memory, so no database installation is required.
+- C# / ASP.NET Core
+- CsvHelper for loading the supplied market data
+- Immutable in-memory data storage
 
 ### Tooling
 
-| Tool / package                                   | Version                 |
-| ------------------------------------------------ | ----------------------- |
-| Nx                                               | 23.2.1                  |
-| Vitest / `@vitest/browser-playwright`            | 5.0.3                   |
-| React Testing Library (`@testing-library/react`) | 16.3.3                  |
-| Testing Library DOM / user-event / jest-dom      | 10.4.2 / 14.6.7 / 7.0.1 |
-| jsdom                                            | 27.0.1                  |
-| MSW                                              | 2.15.0                  |
-| Playwright / `@playwright/test`                  | 1.63.0                  |
-| Storybook and its installed addons               | 10.6.1                  |
-| xUnit                                            | 2.9.3                   |
-| `xunit.runner.visualstudio`                      | 4.0.0                   |
-| `Microsoft.NET.Test.Sdk`                         | 18.10.1                 |
-| `Microsoft.AspNetCore.Mvc.Testing`               | 10.0.12                 |
-| ESLint / `@eslint/js`                            | 10.12.0 / 10.0.1        |
-| `typescript-eslint`                              | 8.71.1                  |
-| Prettier                                         | 3.9.9                   |
+- Nx and npm workspaces, with pnpm as an optional alternative
+- Vitest and `@vitest/browser-playwright` for unit and Storybook tests
+- React Testing Library, DOM Testing Library, user-event, and jest-dom for UI assertions
+- jsdom for the test DOM and MSW for network mocks
+- Playwright and `@playwright/test` for browser tests
+- Storybook and its addons for component catalogs
+- xUnit, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, and `Microsoft.AspNetCore.Mvc.Testing` for backend tests
+- ESLint, `@eslint/js`, `typescript-eslint`, and Prettier for linting and formatting
 
-The [root manifest](package.json) and workspace manifests contain the complete direct dependency declarations, including auxiliary lint plugins and TypeScript definitions. [package-lock.json](package-lock.json) records npm's exact dependency tree; [pnpm-lock.yaml](pnpm-lock.yaml) records the alternative pnpm tree. The [API project](apps/pharo-dashboard-api/PharoDashboard.Api.csproj) and [test project](apps/pharo-dashboard-api/tests/PharoDashboard.Api.Tests/PharoDashboard.Api.Tests.csproj) declare NuGet versions, with resolved dependencies in their respective [API lockfile](apps/pharo-dashboard-api/packages.lock.json) and [test lockfile](apps/pharo-dashboard-api/tests/PharoDashboard.Api.Tests/packages.lock.json). These files are authoritative when dependencies change.
+Exact dependency versions live in the root and workspace manifests, [package-lock.json](package-lock.json), [pnpm-lock.yaml](pnpm-lock.yaml), and the backend project files and NuGet lockfiles.
 
 ## Workspace Layout
 
@@ -83,83 +102,6 @@ The [root manifest](package.json) and workspace manifests contain the complete d
 - `@pharo/prettier-config`: shared formatting rules
 
 Instrument selection, API integration, and dashboard composition stay in the application. Shared packages provide the controls and chart behavior used by that application. [DESIGN.md](DESIGN.md) explains these boundaries and the reasoning behind them.
-
-## Requirements
-
-- Node.js **24.14.1**
-- npm **11.12.1**
-- .NET SDK **10.0.401**
-
-These versions are pinned in [.nvmrc](.nvmrc), [package.json](package.json), and [global.json](global.json). The .NET SDK version must match because SDK roll-forward is disabled. pnpm **10.33.0** is needed only for the [optional package-manager switch](#switching-between-npm-and-pnpm).
-
-Check the installed tools from the repository root:
-
-| Command            | Expected output |
-| ------------------ | --------------- |
-| `node --version`   | `v24.14.1`      |
-| `npm --version`    | `11.12.1`       |
-| `dotnet --version` | `10.0.401`      |
-
-`npm ci` installs the frontend and tooling versions above. `npm run build` restores the locked NuGet dependencies and builds the workspace. The browser tests use the Chromium revision selected by Playwright 1.63.0; `npm run browser:install` installs it. These project dependencies do not require separate global installations.
-
-On Windows or macOS, install Node.js and the .NET **SDK** for your machine's architecture. Microsoft's [.NET installation guide](https://learn.microsoft.com/en-us/dotnet/core/install/) covers both platforms. Open a new terminal after installation and check that `node`, `npm`, and `dotnet` are on PATH.
-
-Verification uses npm 11.12.1; Node 24.14.1 ships with npm 11.11.0. Check `node --version`, `npm --version`, and `dotnet --version` before installing dependencies. If npm differs, install the pinned version with `npm install --global npm@11.12.1`.
-
-If using nvm on macOS, run `nvm install` and `nvm use` from the repository root. For a custom .NET installation in `~/.dotnet`, add `export PATH="$HOME/.dotnet:$PATH"` to your shell startup file. The standard Windows installer sets PATH automatically.
-
-## Getting Started
-
-### 1. Install dependencies
-
-From the repository root:
-
-```bash
-npm ci
-```
-
-npm is the default workspace package manager, and `package-lock.json` records its exact dependency tree. This installation needs access to the npm registry; the first build also needs access to NuGet.
-
-### 2. Build the workspace
-
-```bash
-npm run build
-```
-
-This builds the shared packages, frontend, and backend, including the supplied CSV in the API output.
-
-### 3. Start the full development environment
-
-```bash
-npm run dev
-```
-
-What this does:
-
-- checks the required .NET SDK
-- starts the API and UI
-- waits for both services to be ready
-- prints the local URLs
-
-Default local URLs:
-
-- UI: `http://127.0.0.1:5173`
-- API: `http://127.0.0.1:5080`
-- API readiness: `http://127.0.0.1:5080/health`
-
-The UI proxies `/api` requests to the backend. No browser CORS configuration is needed.
-
-Use `Ctrl + C` to stop both processes. The launcher only stops processes it started.
-
-### Using different ports
-
-If a port is already occupied, the launcher reports it and leaves the existing process running. Use that instance, stop it from its terminal, or start Pharo on different ports:
-
-```bash
-node scripts/dev.mjs --api-port 5081 --ui-port 5174
-```
-
-This command works in Windows and macOS shells. Use the UI URL printed by the launcher; its API proxy follows the selected API port.
 
 ## Root Commands
 
